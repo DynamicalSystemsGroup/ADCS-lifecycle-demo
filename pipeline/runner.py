@@ -199,7 +199,7 @@ def run_pipeline(
         # REQ-001: DECLINED — settling time 262s exceeds 120s requirement
         print(f"\n  REQ-001: ATTESTATION DECLINED")
         print(f"    Settling time {step_summary['settling_time_s']:.0f}s exceeds 120s requirement.")
-        print(f"    Action: increase Kd from {params['Kd']:.0f} to ~30 and re-verify.")
+        print(f"    Action: retune gains (Kp: {params['Kp']:.0f}->4, Kd: {params['Kd']:.0f}->30) and re-verify.")
 
         # Attest REQ-002, REQ-003, REQ-004
         for req_id in ["REQ-002", "REQ-003", "REQ-004"]:

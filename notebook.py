@@ -11,7 +11,7 @@ __generated_with = "0.22.5"
 app = marimo.App(width="medium")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     # ADCS Lifecycle Demo
@@ -40,7 +40,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---
@@ -70,7 +70,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     import sys
     sys.path.insert(0, ".")
@@ -81,7 +81,7 @@ def __():
     return Graph, bind_prefixes, SYSML, RTM, ADCS, SAT, PROV, query_to_dicts, sys
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(Graph, bind_prefixes):
     from analysis.load_params import load_structural_graph, load_params
 
@@ -90,7 +90,7 @@ def __(Graph, bind_prefixes):
     return struct_graph, params, load_structural_graph, load_params
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, params):
     _param_rows = "\n".join(
         f"| {k} | {v:.6g} |" for k, v in sorted(params.items())
@@ -107,7 +107,7 @@ def __(mo, params):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, struct_graph, query_to_dicts):
     _req_query = """
     SELECT ?name ?text WHERE {
@@ -169,7 +169,7 @@ def __(mo, struct_graph, query_to_dicts):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---
@@ -188,7 +188,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(params):
     from analysis.symbolic import (
         run_symbolic_analysis,
@@ -201,7 +201,7 @@ def __(params):
     return sym_result, run_symbolic_analysis, build_inertia_tensor_symbolic, evaluate_inertia, stability_margins
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, sym_result):
     _Ixx, _Iyy, _Izz = sym_result.inertia
     _margins = sym_result.stability_margins
@@ -236,7 +236,7 @@ def __(mo, sym_result):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, sym_result):
     _pb = sym_result.pointing_budget
     _gg = sym_result.gravity_gradient
@@ -277,7 +277,7 @@ def __(mo, sym_result):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ### Formal Proofs
@@ -290,7 +290,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(struct_graph):
     from evidence.hashing import hash_structural_model, hash_proof
     from analysis.build_proofs import build_all_proofs
@@ -307,7 +307,7 @@ def __(struct_graph):
     return model_hash, proofs, proof_results, hash_structural_model, hash_proof, build_all_proofs, verify_proof, ProofStatus
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, proofs, proof_results, ProofStatus):
     _rows = []
     for _req_id in sorted(proofs.keys()):
@@ -328,7 +328,7 @@ def __(mo, proofs, proof_results, ProofStatus):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---
@@ -345,7 +345,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(params):
     from analysis.numerical import run_step_response, run_disturbance_rejection
 
@@ -357,7 +357,7 @@ def __(params):
     return step_result, step_summary, dist_result, dist_summary, run_step_response, run_disturbance_rejection
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, step_result, step_summary):
     import matplotlib.pyplot as plt
     import numpy as np
@@ -432,7 +432,7 @@ def __(mo, step_result, step_summary):
     return np, plt
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, dist_summary):
     mo.md(f"""
     ### Disturbance Rejection Results
@@ -447,7 +447,7 @@ def __(mo, dist_summary):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---
@@ -465,7 +465,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, model_hash, proofs, proof_results, step_summary, dist_summary, params, ProofStatus):
     from rdflib import Graph as _Graph
     from ontology.prefixes import bind_prefixes as _bind
@@ -524,7 +524,7 @@ def __(mo, model_hash, proofs, proof_results, step_summary, dist_summary, params
     return rtm_graph, bind_proof_evidence, bind_simulation_evidence, bind_computation_engines, hash_evidence, hash_simulation, load_base_graph, assemble_rtm, validate_evidence_completeness
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---
@@ -547,7 +547,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(rtm_graph, mo):
     from traceability.attestation import request_attestation
 
@@ -601,8 +601,9 @@ def __(rtm_graph, mo):
     - Settling time (< 120 s): **NOT MET** — simulation shows ~262s settling time
 
     The settling time exceeds the requirement by over 2x. The root cause is
-    insufficient derivative gain (Kd = 10) relative to the X-axis inertia
-    (Jxx = 327 kg-m^2). **Recommendation: increase Kd to ~30 and re-verify.**
+    insufficient controller bandwidth relative to the X-axis inertia
+    (Jxx = 327 kg-m^2). **Recommendation: retune controller gains
+    (Kp: 1→4, Kd: 10→30) and re-verify.**
 
     This is the system working as intended — the engineer cannot attest a
     requirement when the evidence shows it is not satisfied. The finding is
@@ -611,7 +612,7 @@ def __(rtm_graph, mo):
     return request_attestation
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---
@@ -632,7 +633,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(rtm_graph, mo):
     from interrogate.explain import explain_requirement
 
@@ -642,7 +643,7 @@ def __(rtm_graph, mo):
     return explanations, explain_requirement
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(explanations, mo):
     mo.md(f"""
     ### "How do you know REQ-003 is satisfied?"
@@ -658,7 +659,7 @@ def __(explanations, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(explanations, mo):
     mo.md(f"""
     ### "What about REQ-001?"
@@ -681,7 +682,7 @@ def __(explanations, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(rtm_graph, mo):
     from interrogate.reproduce import reproduce_all_evidence
 
@@ -709,7 +710,7 @@ def __(rtm_graph, mo):
     return reproduce_all_evidence
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---
@@ -723,7 +724,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(rtm_graph):
     from interrogate.visualize import build_rtm_figure
 
@@ -732,7 +733,7 @@ def __(rtm_graph):
     return rtm_fig, build_rtm_figure
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(rtm_graph, mo):
     from traceability.rtm import print_rtm_summary
 
@@ -747,7 +748,7 @@ def __(rtm_graph, mo):
     return print_rtm_summary
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---
@@ -766,7 +767,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(struct_graph, mo):
     from rdflib import Literal, XSD
 
@@ -779,8 +780,10 @@ def __(struct_graph, mo):
     for triple in struct_graph:
         v2_graph.add(triple)
 
-    # Apply SPARQL UPDATE: increase Kd from 10 to 30
-    _sparql_update = """
+    # Apply SPARQL UPDATE: retune both controller gains
+    # Increasing Kd alone would overdamp the system — a controls engineer
+    # retunes both Kp (stiffness) and Kd (damping) together.
+    _sparql_update_kd = """
     DELETE { ?attr sysml:value ?oldVal }
     INSERT { ?attr sysml:value "30.0"^^xsd:double }
     WHERE {
@@ -788,33 +791,51 @@ def __(struct_graph, mo):
               sysml:value ?oldVal .
     }
     """
-    v2_graph.update(_sparql_update, initNs={"sysml": _SYSML})
-
-    # Verify the change
-    _check = """
-    SELECT ?val WHERE {
-        ?attr sysml:declaredName "Kd" ;
-              sysml:value ?val .
+    _sparql_update_kp = """
+    DELETE { ?attr sysml:value ?oldVal }
+    INSERT { ?attr sysml:value "4.0"^^xsd:double }
+    WHERE {
+        ?attr sysml:declaredName "Kp" ;
+              sysml:value ?oldVal .
     }
     """
-    _new_kd = list(v2_graph.query(_check, initNs={"sysml": _SYSML}))[0][0]
+    v2_graph.update(_sparql_update_kd, initNs={"sysml": _SYSML})
+    v2_graph.update(_sparql_update_kp, initNs={"sysml": _SYSML})
+
+    # Verify
+    _check = """
+    SELECT ?name ?val WHERE {
+        ?attr sysml:declaredName ?name ;
+              sysml:value ?val .
+        FILTER(?name IN ("Kp", "Kd"))
+    }
+    ORDER BY ?name
+    """
+    _gains = {str(r[0]): float(r[1]) for r in v2_graph.query(_check, initNs={"sysml": _SYSML})}
 
     mo.md(
-        "### SPARQL UPDATE: Kd 10 → 30\n\n"
+        "### SPARQL UPDATE: Controller Retune\n\n"
+        "A controls engineer retunes both gains together — increasing Kd alone\n"
+        "would overdamp the system, making settling *slower* despite more damping.\n\n"
         "```sparql\n"
+        "# Increase proportional gain (stiffness)\n"
+        'DELETE { ?attr sysml:value ?oldVal }\n'
+        'INSERT { ?attr sysml:value "4.0"^^xsd:double }\n'
+        'WHERE  { ?attr sysml:declaredName "Kp" ; sysml:value ?oldVal . }\n\n'
+        "# Increase derivative gain (damping)\n"
         'DELETE { ?attr sysml:value ?oldVal }\n'
         'INSERT { ?attr sysml:value "30.0"^^xsd:double }\n'
-        "WHERE {\n"
-        '    ?attr sysml:declaredName "Kd" ;\n'
-        "          sysml:value ?oldVal .\n"
-        "}\n"
+        'WHERE  { ?attr sysml:declaredName "Kd" ; sysml:value ?oldVal . }\n'
         "```\n\n"
-        f"Kd is now **{float(_new_kd):.1f}** N.m.s/rad (was 10.0)."
+        f"| Gain | Before | After |\n"
+        f"|------|--------|-------|\n"
+        f"| Kp | 1.0 N.m/rad | **{_gains['Kp']:.1f}** N.m/rad |\n"
+        f"| Kd | 10.0 N.m.s/rad | **{_gains['Kd']:.1f}** N.m.s/rad |"
     )
     return v2_graph
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(v2_graph, model_hash, mo):
     from evidence.hashing import hash_structural_model as _hsm
 
@@ -833,7 +854,7 @@ def __(v2_graph, model_hash, mo):
     return v2_model_hash
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(v2_graph, v2_model_hash, mo):
     from analysis.load_params import load_params as _lp
     from analysis.symbolic import run_symbolic_analysis as _rsa
@@ -859,7 +880,7 @@ def __(v2_graph, v2_model_hash, mo):
     )
 
     mo.md(
-        "### Re-run Symbolic Analysis (Kd = 30)\n\n"
+        "### Re-run Symbolic Analysis (Kp=4, Kd=30)\n\n"
         f"Inertia unchanged: Jxx={v2_sym.inertia[0]:.1f}, "
         f"Jyy={v2_sym.inertia[1]:.1f}, Jzz={v2_sym.inertia[2]:.1f} kg.m^2\n\n"
         "**Stability margins (improved):**\n\n"
@@ -876,7 +897,7 @@ def __(v2_graph, v2_model_hash, mo):
     return v2_params, v2_sym, v2_proofs, v2_proof_results
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(v2_params, mo):
     from analysis.numerical import run_step_response as _rsr
 
@@ -893,12 +914,12 @@ def __(v2_params, mo):
     # Pointing convergence comparison
     _q_vec2 = _np2.linalg.norm(v2_step.q[:, :3], axis=1)
     _theta2 = _np2.degrees(2 * _q_vec2)
-    _ax2[0].semilogy(v2_step.t, _theta2, color=_axis_colors["X"], linewidth=1.5, label="Kd=30 (updated)")
+    _ax2[0].semilogy(v2_step.t, _theta2, color=_axis_colors["X"], linewidth=1.5, label="Kp=4, Kd=30 (updated)")
     _ax2[0].axhline(0.1, color=_limit_color, linestyle="--", linewidth=1, label="REQ-001 limit")
     _ax2[0].axvline(120, color="#888", linestyle=":", linewidth=1, alpha=0.7, label="120s target")
     _ax2[0].set_xlabel("Time (s)")
     _ax2[0].set_ylabel("Attitude Error (deg)")
-    _ax2[0].set_title("Pointing Convergence (Kd=30)")
+    _ax2[0].set_title("Pointing Convergence (Kp=4, Kd=30)")
     _ax2[0].set_ylim(bottom=1e-4)
     _ax2[0].legend(fontsize=8)
     _ax2[0].grid(True, alpha=0.3, which="both")
@@ -909,15 +930,15 @@ def __(v2_params, mo):
     _ax2[1].axhline(v2_step.config.max_momentum, color=_limit_color, linestyle="--", linewidth=1, label="REQ-002 limit")
     _ax2[1].set_xlabel("Time (s)")
     _ax2[1].set_ylabel("Momentum (N.m.s)")
-    _ax2[1].set_title("Wheel Momentum (Kd=30)")
+    _ax2[1].set_title("Wheel Momentum (Kp=4, Kd=30)")
     _ax2[1].legend(fontsize=8)
     _ax2[1].grid(True, alpha=0.3)
 
-    _fig2.suptitle("Design Iteration: Step Response with Kd=30", fontsize=13, fontweight="bold")
+    _fig2.suptitle("Design Iteration: Step Response with Kp=4, Kd=30", fontsize=13, fontweight="bold")
     _plt2.tight_layout()
 
     mo.md(
-        "### Re-run Numerical Simulation (Kd = 30)\n\n"
+        "### Re-run Numerical Simulation (Kp=4, Kd=30)\n\n"
         f"| Metric | Kd=10 (original) | Kd=30 (updated) | Requirement |\n"
         f"|--------|-----------------|-----------------|-------------|\n"
         f"| Settling time | 262s | **{v2_step_summary['settling_time_s']:.1f}s** | < 120s |\n"
@@ -930,18 +951,19 @@ def __(v2_params, mo):
     return v2_step, v2_step_summary
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ### Regression Check
 
-    With Kd=30, the settling time is now well under 120s. But we must verify
-    that the gain increase didn't break anything else:
+    With Kp=4, Kd=30, the settling time is now well under 120s. But we must
+    verify that the gain increase didn't break anything else:
 
-    - **REQ-002 (momentum):** Peak momentum increased (higher Kd → more aggressive
-      control → more momentum), but still well within the 4.0 N.m.s limit.
-    - **REQ-003 (stability):** Higher Kd improves damping — margins are better than before.
-    - **REQ-004 (disturbance):** Gravity gradient rejection unaffected by Kd change.
+    - **REQ-002 (momentum):** Peak momentum may increase (higher gains → more
+      aggressive control), but must remain within the 4.0 N.m.s limit.
+    - **REQ-003 (stability):** Higher gains improve both bandwidth and damping.
+    - **REQ-004 (disturbance):** Gravity gradient rejection improves — higher Kp
+      reduces steady-state error from disturbances.
 
     This is **reproducibility as regression testing**. The same pipeline that found
     the deficiency now confirms the fix doesn't introduce new problems.
@@ -949,7 +971,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(v2_graph, v2_model_hash, v2_params, v2_proofs, v2_step_summary, v2_step, mo):
     from rdflib import Graph as _G2
     from ontology.prefixes import bind_prefixes as _bp2
@@ -1001,17 +1023,17 @@ def __(v2_graph, v2_model_hash, v2_params, v2_proofs, v2_step_summary, v2_step, 
 
     # Attest ALL 4 requirements — now all evidence is sufficient
     _v2_adequacy = {
-        "REQ-001": ("Linearized PD model adequate. Kd increased to 30 per design review finding. "
+        "REQ-001": ("Linearized PD model adequate. Kp increased to 4, Kd to 30 per design review finding. "
                     "Interface parameters unchanged from systems engineering."),
-        "REQ-002": "Energy-based momentum bound conservative. Peak increased with Kd but within limits.",
-        "REQ-003": "Routh-Hurwitz stability confirmed. Higher Kd improves damping ratio.",
+        "REQ-002": "Energy-based momentum bound conservative. Peak may increase with higher gains but within limits.",
+        "REQ-003": "Routh-Hurwitz stability confirmed. Higher gains improve damping and bandwidth.",
         "REQ-004": "GG model adequate. Controller gain change does not affect disturbance torque magnitude.",
     }
     _v2_sufficiency = {
         "REQ-001": (f"Settling time now {v2_step_summary['settling_time_s']:.1f}s (< 120s requirement). "
                     f"Pointing accuracy {v2_step_summary['final_error_deg']:.4f} deg (< 0.1 deg). Both met."),
         "REQ-002": f"Peak momentum {v2_step_summary['peak_wheel_momentum']:.3f} N.m.s, well within 4.0 limit.",
-        "REQ-003": "Routh-Hurwitz proof valid for all positive J, Kp, Kd. Margins improved with higher Kd.",
+        "REQ-003": "Routh-Hurwitz proof valid for all positive J, Kp, Kd. Margins improved with higher gains.",
         "REQ-004": "GG torques unchanged at ~1e-6 N.m. Overwhelming margin vs 0.1 N.m actuator capacity.",
     }
 
@@ -1037,16 +1059,16 @@ def __(v2_graph, v2_model_hash, v2_params, v2_proofs, v2_step_summary, v2_step, 
     return v2_rtm
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(v2_rtm):
     from interrogate.visualize import build_rtm_figure as _brf
 
-    v2_fig = _brf(v2_rtm, figsize=(18, 10), title="Requirements Traceability Matrix (v2: Kd=30)")
+    v2_fig = _brf(v2_rtm, figsize=(18, 10), title="Requirements Traceability Matrix (v2: Kp=4, Kd=30)")
     v2_fig
     return v2_fig
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(v2_rtm, mo):
     from interrogate.explain import explain_requirement as _er
 
@@ -1063,7 +1085,7 @@ def __(v2_rtm, mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---
@@ -1107,7 +1129,7 @@ def __(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __():
     import marimo as mo
     return (mo,)
