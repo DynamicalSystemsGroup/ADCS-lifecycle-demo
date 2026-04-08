@@ -170,38 +170,114 @@ def _extract_graph_data(rdf_graph: Graph) -> tuple[nx.DiGraph, dict, dict]:
 
 
 def _hierarchical_layout(
-    G: nx.DiGraph, node_types: dict, x_spacing: float = 3.0, y_spacing: float = 1.5,
+    G: nx.DiGraph, node_types: dict,
 ) -> dict:
-    """Compute a hierarchical layout grouping nodes by type into columns.
+    """Compute a hierarchical layout anchored on ADCS requirements.
+
+    The four ADCS requirements form the backbone. Everything else is
+    positioned relative to the requirement it connects to, eliminating
+    edge crossings between layers.
 
     Columns (left to right):
       attestations | sat requirements | ADCS requirements | design elements | evidence
     """
-    # Group nodes by layer
-    layers: dict[str, list[str]] = {}
-    for node in G.nodes():
-        ntype = node_types.get(node, "evidence")
-        layer = ntype if ntype != "evidence" else "evidence"
-        layers.setdefault(layer, []).append(node)
+    x_cols = {
+        "attestation": 0,
+        "sat_requirement": 2.5,
+        "requirement": 5.0,
+        "design_element": 7.5,
+        "evidence": 10.0,
+    }
+    req_y_spacing = 3.0  # vertical space between requirements
 
-    # Sort nodes within each layer for determinism
-    for layer in layers:
-        layers[layer] = sorted(layers[layer])
-
-    # Assign positions
     pos = {}
-    layer_order = ["attestation", "sat_requirement", "requirement", "design_element", "evidence"]
 
-    for col_idx, layer_name in enumerate(layer_order):
-        nodes = layers.get(layer_name, [])
-        n = len(nodes)
-        if n == 0:
+    # --- Step 1: Place ADCS requirements as the vertical backbone ---
+    reqs = sorted([n for n, t in node_types.items() if t == "requirement"])
+    for i, req in enumerate(reqs):
+        pos[req] = (x_cols["requirement"], -i * req_y_spacing)
+
+    # --- Step 2: Place attestations aligned with their target requirement ---
+    for node, ntype in node_types.items():
+        if ntype != "attestation":
             continue
-        x = col_idx * x_spacing
-        # Center vertically
-        for row_idx, node in enumerate(nodes):
-            y = (n - 1) / 2 * y_spacing - row_idx * y_spacing
-            pos[node] = (x, y)
+        # Find which requirement this attestation targets
+        target_req = None
+        for _, neighbor, data in G.edges(data=True):
+            if data.get("rel") == "attests" and _ == node:
+                target_req = neighbor
+                break
+        if target_req and target_req in pos:
+            pos[node] = (x_cols["attestation"], pos[target_req][1])
+        else:
+            pos[node] = (x_cols["attestation"], 0)
+
+    # --- Step 3: Place satellite requirements aligned with their derived ADCS req ---
+    for node, ntype in node_types.items():
+        if ntype != "sat_requirement":
+            continue
+        # Find which ADCS requirement derives from this
+        target_req = None
+        for _, neighbor, data in G.edges(data=True):
+            if data.get("rel") == "derivedFrom" and _ == node:
+                target_req = neighbor
+                break
+        if target_req and target_req in pos:
+            pos[node] = (x_cols["sat_requirement"], pos[target_req][1])
+        else:
+            pos[node] = (x_cols["sat_requirement"], 0)
+
+    # --- Step 4: Place design elements near the requirements they satisfy ---
+    # Group design elements by which requirements connect to them
+    design_nodes = sorted([n for n, t in node_types.items() if t == "design_element"])
+    de_req_map: dict[str, list[str]] = {}  # design element -> list of connected reqs
+    for u, v, data in G.edges(data=True):
+        if data.get("rel") == "satisfiedBy" and v in design_nodes:
+            de_req_map.setdefault(v, []).append(u)
+
+    # Position each design element at the average Y of its connected requirements,
+    # then spread them vertically to avoid overlap
+    de_y_targets: list[tuple[float, str]] = []
+    for de in design_nodes:
+        connected_reqs = de_req_map.get(de, [])
+        if connected_reqs:
+            avg_y = sum(pos[r][1] for r in connected_reqs if r in pos) / len(connected_reqs)
+        else:
+            avg_y = 0
+        de_y_targets.append((avg_y, de))
+
+    # Sort by target Y position and spread with minimum spacing
+    de_y_targets.sort(key=lambda t: t[0])
+    min_de_spacing = 1.0
+    for i, (target_y, de) in enumerate(de_y_targets):
+        if i == 0:
+            pos[de] = (x_cols["design_element"], target_y)
+        else:
+            prev_y = pos[de_y_targets[i - 1][1]][1]
+            y = min(target_y, prev_y - min_de_spacing)
+            pos[de] = (x_cols["design_element"], y)
+
+    # --- Step 5: Place evidence nodes near their connected requirement ---
+    ev_nodes = sorted([n for n, t in node_types.items() if t == "evidence"])
+    ev_req_map: dict[str, str] = {}
+    for u, v, data in G.edges(data=True):
+        if data.get("rel") == "evidence" and v in ev_nodes:
+            ev_req_map[v] = u
+
+    # Group evidence by requirement, then stack vertically near that requirement
+    ev_by_req: dict[str, list[str]] = {}
+    for ev, req in ev_req_map.items():
+        ev_by_req.setdefault(req, []).append(ev)
+
+    for req, evs in ev_by_req.items():
+        if req not in pos:
+            continue
+        req_y = pos[req][1]
+        n = len(evs)
+        ev_spacing = 1.0
+        for i, ev in enumerate(sorted(evs)):
+            offset = (i - (n - 1) / 2) * ev_spacing
+            pos[ev] = (x_cols["evidence"], req_y + offset)
 
     return pos
 
@@ -281,7 +357,7 @@ def build_rtm_figure(
         bbox=dict(boxstyle="round,pad=0.15", facecolor="white", edgecolor="none", alpha=0.8),
     )
 
-    # Legend
+    # Legend — positioned below the graph
     legend_items = [
         mpatches.Patch(facecolor=COLORS["sat_requirement"], edgecolor="#333", label="Satellite Requirement"),
         mpatches.Patch(facecolor=COLORS["requirement"], edgecolor="#333", label="ADCS Requirement"),
@@ -290,17 +366,29 @@ def build_rtm_figure(
         mpatches.Patch(facecolor=COLORS["simulation"], edgecolor="#333", label="Simulation Result"),
         mpatches.Patch(facecolor=COLORS["attestation"], edgecolor="#333", label="Attestation"),
     ]
-    ax.legend(handles=legend_items, loc="lower right", fontsize=8, framealpha=0.9)
+    ax.legend(
+        handles=legend_items, loc="upper center",
+        bbox_to_anchor=(0.5, -0.02), ncol=6, fontsize=8, framealpha=0.9,
+    )
 
-    # Column headers
-    col_labels = ["Attestation", "Satellite\nRequirements", "ADCS\nRequirements",
-                  "Design\nElements", "Evidence"]
-    for i, label in enumerate(col_labels):
-        ax.text(i * 3.0, ax.get_ylim()[1] + 0.5, label,
+    # Column headers — positioned above the graph content
+    x_cols = {"attestation": 0, "sat_requirement": 2.5, "requirement": 5.0,
+              "design_element": 7.5, "evidence": 10.0}
+    col_labels = {
+        "attestation": "Attestation",
+        "sat_requirement": "Satellite\nRequirements",
+        "requirement": "ADCS\nRequirements",
+        "design_element": "Design\nElements",
+        "evidence": "Evidence",
+    }
+    y_top = max(y for _, y in pos.values()) + 1.8
+    for col_name, x in x_cols.items():
+        ax.text(x, y_top, col_labels[col_name],
                 ha="center", va="bottom", fontsize=10, fontweight="bold", color="#444")
 
-    ax.set_title(title, fontsize=14, fontweight="bold", pad=30)
+    ax.set_title(title, fontsize=14, fontweight="bold", pad=40)
     ax.axis("off")
+    ax.margins(x=0.08, y=0.12)
     fig.tight_layout()
 
     return fig
