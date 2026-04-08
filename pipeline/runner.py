@@ -181,8 +181,6 @@ def run_pipeline(
         print("\n[Stage 6] Human attestation...")
 
         adequacy_statements = {
-            "REQ-001": ("Linearized PD model adequate for pointing analysis. "
-                        "Interface parameters (mass, orbit) accepted from systems engineering."),
             "REQ-002": ("Energy-based momentum bound is conservative. "
                         "Reaction wheel model adequate for peak momentum estimation."),
             "REQ-003": ("Linearized stability analysis via Routh-Hurwitz is adequate. "
@@ -191,9 +189,6 @@ def run_pipeline(
                         "Higher-order terms negligible at geostationary altitude."),
         }
         sufficiency_statements = {
-            "REQ-001": ("Symbolic analysis confirms finite steady-state error below 0.1 deg. "
-                        "Numerical simulation shows convergence. Settling time exceeds 120s — "
-                        "recommend Kd tuning but pointing accuracy met."),
             "REQ-002": "Symbolic bound and simulation both confirm peak momentum well below 4.0 N.m.s.",
             "REQ-003": ("Routh-Hurwitz proof confirms asymptotic stability for all positive J, Kp, Kd. "
                         "Numerical eigenvalues confirm margins exceed -0.010 rad/s on all axes."),
@@ -201,7 +196,13 @@ def run_pipeline(
                         "0.1 N.m actuator capacity. Simulation confirms negligible pointing impact."),
         }
 
-        for req_id in ["REQ-001", "REQ-002", "REQ-003", "REQ-004"]:
+        # REQ-001: DECLINED — settling time 262s exceeds 120s requirement
+        print(f"\n  REQ-001: ATTESTATION DECLINED")
+        print(f"    Settling time {step_summary['settling_time_s']:.0f}s exceeds 120s requirement.")
+        print(f"    Action: increase Kd from {params['Kd']:.0f} to ~30 and re-verify.")
+
+        # Attest REQ-002, REQ-003, REQ-004
+        for req_id in ["REQ-002", "REQ-003", "REQ-004"]:
             if auto_attest:
                 request_attestation(
                     rtm, req_id, engineer_name,

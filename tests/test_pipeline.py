@@ -36,15 +36,21 @@ class TestPipelineEndToEnd:
 
 
 class TestExplain:
-    def test_explain_requirement(self):
+    def test_explain_attested_requirement(self):
         rtm = run_pipeline(auto_attest=True, engineer_name="Dr. Test")
         explanation = explain_requirement(rtm, "REQ-003")
         assert "REQ-003" in explanation
         assert "Derived from" in explanation
         assert "Allocated to" in explanation
         assert "Evidence" in explanation
-        assert "Attestation" in explanation
-        assert "VERIFIED" in explanation or "Attested by" in explanation
+        assert "Attested by" in explanation
+
+    def test_explain_unattested_requirement(self):
+        """REQ-001 should NOT be attested (settling time not met)."""
+        rtm = run_pipeline(auto_attest=True, engineer_name="Dr. Test")
+        explanation = explain_requirement(rtm, "REQ-001")
+        assert "REQ-001" in explanation
+        assert "NOT ATTESTED" in explanation
 
     def test_explain_all(self):
         rtm = run_pipeline(auto_attest=True, engineer_name="Dr. Test")

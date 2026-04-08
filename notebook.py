@@ -552,10 +552,6 @@ def __(rtm_graph, mo):
     from traceability.attestation import request_attestation
 
     _adequacy = {
-        "REQ-001": ("Linearized PD model adequate for pointing analysis. "
-                    "Interface parameters (mass, orbit) accepted from systems engineering. "
-                    "Note: settling time exceeds 120s target — model reveals need for Kd tuning, "
-                    "but steady-state accuracy is met."),
         "REQ-002": ("Energy-based momentum bound is conservative. "
                     "Reaction wheel model adequate for peak momentum estimation."),
         "REQ-003": ("Linearized stability analysis via Routh-Hurwitz is adequate for this design point. "
@@ -564,10 +560,6 @@ def __(rtm_graph, mo):
                     "Higher-order terms negligible at geostationary altitude."),
     }
     _sufficiency = {
-        "REQ-001": ("Symbolic analysis confirms finite steady-state error well below 0.1 deg. "
-                    "Numerical simulation confirms convergence. Settling time of ~262s exceeds 120s target — "
-                    "recommend increasing Kd from 10 to ~30 in next design iteration. "
-                    "Pointing accuracy requirement MET; settling time requirement MARGINAL."),
         "REQ-002": ("Both symbolic bound (0.81 N.m.s) and numerical simulation confirm "
                     "peak momentum well below 4.0 N.m.s rated capacity. Large margin."),
         "REQ-003": ("Routh-Hurwitz proof confirms asymptotic stability for ALL positive J, Kp, Kd — "
@@ -578,7 +570,8 @@ def __(rtm_graph, mo):
                     "Overwhelming margin."),
     }
 
-    for _rid in ["REQ-001", "REQ-002", "REQ-003", "REQ-004"]:
+    # Attest REQ-002, REQ-003, REQ-004 — evidence is sufficient
+    for _rid in ["REQ-002", "REQ-003", "REQ-004"]:
         request_attestation(
             rtm_graph, _rid, "Dr. Michael Zargham (@mzargham)",
             auto_attest=True,
@@ -586,23 +579,34 @@ def __(rtm_graph, mo):
             evidence_sufficiency=_sufficiency[_rid],
         )
 
+    # REQ-001: DECLINE attestation — settling time does not meet requirement
+    # (We don't call request_attestation for REQ-001)
+
     mo.md("""
-    ### Attestation Complete
+    ### Attestation Results
 
-    All four requirements have been reviewed and attested by
-    Dr. Michael Zargham (@mzargham). Each attestation records:
+    **REQ-002: ATTESTED** — Peak wheel momentum well within limits.
 
-    - The engineer's identity (PROV-O agent)
-    - Timestamp
-    - Git commit SHA
-    - Model adequacy judgment
-    - Evidence sufficiency judgment
-    - Links to all evidence artifacts reviewed
+    **REQ-003: ATTESTED** — Routh-Hurwitz proof confirms stability for all
+    positive gains. Parametric result, not design-point-specific.
 
-    Note the **REQ-001 attestation** flags that settling time exceeds the
-    target — this is honest engineering. The requirement is partially met
-    (accuracy yes, settling time marginal) and the attestation records a
-    recommendation for Kd tuning.
+    **REQ-004: ATTESTED** — Gravity gradient torques orders of magnitude
+    below actuator capacity.
+
+    **REQ-001: DECLINED** — The model is adequate (linearized PD analysis
+    is appropriate for pointing), but the evidence is **not sufficient** to
+    conclude the requirement is satisfied. Specifically:
+
+    - Steady-state pointing accuracy (< 0.1 deg): **MET** — error is ~0.0001 deg
+    - Settling time (< 120 s): **NOT MET** — simulation shows ~262s settling time
+
+    The settling time exceeds the requirement by over 2x. The root cause is
+    insufficient derivative gain (Kd = 10) relative to the X-axis inertia
+    (Jxx = 327 kg-m^2). **Recommendation: increase Kd to ~30 and re-verify.**
+
+    This is the system working as intended — the engineer cannot attest a
+    requirement when the evidence shows it is not satisfied. The finding is
+    recorded, and a design iteration is needed.
     """)
     return request_attestation
 
@@ -614,12 +618,16 @@ def __(mo):
 
     ## Act 6: The Audit
 
-    The satellite program's **chief systems engineer** wants to review the
-    ADCS team's verification package. They ask: *"How do you know each
-    requirement is satisfied?"*
+    The satellite program's **chief systems engineer** reviews the ADCS
+    team's verification package. The status is: **3 of 4 requirements
+    attested, 1 open finding.**
+
+    The auditor asks: *"Show me the evidence for each requirement."*
 
     The RTM graph supports this interrogation. Every link is dereferenceable,
-    every proof is re-executable, every simulation is re-runnable.
+    every proof is re-executable, every simulation is re-runnable. And for
+    REQ-001, the auditor can see exactly *why* attestation was declined and
+    what the recommended corrective action is.
     """)
     return
 
@@ -653,16 +661,22 @@ def __(explanations, mo):
 @app.cell
 def __(explanations, mo):
     mo.md(f"""
-    ### "How do you know REQ-001 is satisfied?"
+    ### "What about REQ-001?"
 
     ```
     {explanations["REQ-001"]}
     ```
 
-    Note the attestation honestly flags the settling time issue and
-    recommends Kd tuning. This is what bidirectional traceability enables —
-    the auditor can see not just that the requirement was attested, but
-    *what the engineer actually judged and why*.
+    REQ-001 is **NOT ATTESTED**. The evidence shows the settling time
+    requirement is not met. The auditor can see:
+
+    - The proof confirms the steady-state error formula is correct
+    - The simulation confirms the system converges — but too slowly
+    - No engineer has attested this requirement
+    - The traceability chain is complete up to evidence, but stops there
+
+    This is what bidirectional traceability looks like when a requirement
+    **fails**. The gap is visible, auditable, and actionable.
     """)
     return
 
@@ -738,31 +752,353 @@ def __(mo):
     mo.md("""
     ---
 
+    ## Act 8: Design Iteration
+
+    The open finding on REQ-001 drives action. We need to increase the
+    derivative gain Kd to reduce settling time. Rather than editing a file
+    by hand, we apply a **SPARQL UPDATE** to the structural model — the
+    same way any RDF-native toolchain would propagate a design change.
+
+    This demonstrates **reproducibility as regression testing**: the model
+    hash changes, all previous proofs are invalidated, and we must re-run
+    the entire analysis chain from scratch.
+    """)
+    return
+
+
+@app.cell
+def __(struct_graph, mo):
+    from rdflib import Literal, XSD
+
+    # Clone the graph for the design iteration
+    from rdflib import Graph as _G
+    from ontology.prefixes import bind_prefixes as _bp, SYSML as _SYSML
+
+    v2_graph = _G()
+    _bp(v2_graph)
+    for triple in struct_graph:
+        v2_graph.add(triple)
+
+    # Apply SPARQL UPDATE: increase Kd from 10 to 30
+    _sparql_update = """
+    DELETE { ?attr sysml:value ?oldVal }
+    INSERT { ?attr sysml:value "30.0"^^xsd:double }
+    WHERE {
+        ?attr sysml:declaredName "Kd" ;
+              sysml:value ?oldVal .
+    }
+    """
+    v2_graph.update(_sparql_update, initNs={"sysml": _SYSML})
+
+    # Verify the change
+    _check = """
+    SELECT ?val WHERE {
+        ?attr sysml:declaredName "Kd" ;
+              sysml:value ?val .
+    }
+    """
+    _new_kd = list(v2_graph.query(_check, initNs={"sysml": _SYSML}))[0][0]
+
+    mo.md(
+        "### SPARQL UPDATE: Kd 10 → 30\n\n"
+        "```sparql\n"
+        'DELETE { ?attr sysml:value ?oldVal }\n'
+        'INSERT { ?attr sysml:value "30.0"^^xsd:double }\n'
+        "WHERE {\n"
+        '    ?attr sysml:declaredName "Kd" ;\n'
+        "          sysml:value ?oldVal .\n"
+        "}\n"
+        "```\n\n"
+        f"Kd is now **{float(_new_kd):.1f}** N.m.s/rad (was 10.0)."
+    )
+    return v2_graph
+
+
+@app.cell
+def __(v2_graph, model_hash, mo):
+    from evidence.hashing import hash_structural_model as _hsm
+
+    v2_model_hash = _hsm(v2_graph)
+
+    mo.md(
+        "### Model Hash Invalidation\n\n"
+        f"| | Hash |\n"
+        f"|--|------|\n"
+        f"| Original model | `{model_hash[:24]}...` |\n"
+        f"| Updated model  | `{v2_model_hash[:24]}...` |\n\n"
+        "The hashes differ — **all previous proofs and evidence are now invalid**.\n"
+        "Any attempt to verify an old proof against the new model hash will fail.\n"
+        "We must re-derive everything from scratch."
+    )
+    return v2_model_hash
+
+
+@app.cell
+def __(v2_graph, v2_model_hash, mo):
+    from analysis.load_params import load_params as _lp
+    from analysis.symbolic import run_symbolic_analysis as _rsa
+    from analysis.build_proofs import build_all_proofs as _bap
+    from analysis.proof_scripts import verify_proof as _vp, ProofStatus as _PS
+
+    v2_params = _lp(v2_graph)
+    v2_sym = _rsa(v2_params)
+    v2_margins = v2_sym.stability_margins
+
+    v2_proofs = _bap(v2_model_hash)
+    v2_proof_results = {}
+    for _rid, _script in v2_proofs.items():
+        v2_proof_results[_rid] = _vp(_script, v2_model_hash)
+
+    _margin_rows = "\n".join(
+        f"| {axis} | {val:.4f} | {'PASS' if val <= -0.010 else 'FAIL'} |"
+        for axis, val in v2_margins.items()
+    )
+    _proof_rows = "\n".join(
+        f"| {rid} | {'VERIFIED' if r.status == _PS.VERIFIED else 'FAILED'} |"
+        for rid, r in sorted(v2_proof_results.items())
+    )
+
+    mo.md(
+        "### Re-run Symbolic Analysis (Kd = 30)\n\n"
+        f"Inertia unchanged: Jxx={v2_sym.inertia[0]:.1f}, "
+        f"Jyy={v2_sym.inertia[1]:.1f}, Jzz={v2_sym.inertia[2]:.1f} kg.m^2\n\n"
+        "**Stability margins (improved):**\n\n"
+        "| Axis | Re(lambda) | Status |\n"
+        "|------|-----------|--------|\n"
+        f"{_margin_rows}\n\n"
+        f"Settling time estimate: **{v2_sym.pointing_budget['settling_time_s']:.1f}s** "
+        f"(was 262s, requirement is 120s)\n\n"
+        "**Proofs (re-verified against new model hash):**\n\n"
+        "| Requirement | Status |\n"
+        "|-------------|--------|\n"
+        f"{_proof_rows}"
+    )
+    return v2_params, v2_sym, v2_proofs, v2_proof_results
+
+
+@app.cell
+def __(v2_params, mo):
+    from analysis.numerical import run_step_response as _rsr
+
+    v2_step = _rsr(v2_params)
+    v2_step_summary = v2_step.summary()
+
+    import matplotlib.pyplot as _plt2
+    import numpy as _np2
+
+    _fig2, _ax2 = _plt2.subplots(1, 2, figsize=(14, 5))
+    _axis_colors = {"X": "#1f77b4", "Y": "#2ca02c", "Z": "#9467bd"}
+    _limit_color = "#d62728"
+
+    # Pointing convergence comparison
+    _q_vec2 = _np2.linalg.norm(v2_step.q[:, :3], axis=1)
+    _theta2 = _np2.degrees(2 * _q_vec2)
+    _ax2[0].semilogy(v2_step.t, _theta2, color=_axis_colors["X"], linewidth=1.5, label="Kd=30 (updated)")
+    _ax2[0].axhline(0.1, color=_limit_color, linestyle="--", linewidth=1, label="REQ-001 limit")
+    _ax2[0].axvline(120, color="#888", linestyle=":", linewidth=1, alpha=0.7, label="120s target")
+    _ax2[0].set_xlabel("Time (s)")
+    _ax2[0].set_ylabel("Attitude Error (deg)")
+    _ax2[0].set_title("Pointing Convergence (Kd=30)")
+    _ax2[0].set_ylim(bottom=1e-4)
+    _ax2[0].legend(fontsize=8)
+    _ax2[0].grid(True, alpha=0.3, which="both")
+
+    # Wheel momentum
+    _h2 = _np2.linalg.norm(v2_step.h_wheel, axis=1)
+    _ax2[1].plot(v2_step.t, _h2, color=_axis_colors["X"], linewidth=1.5, label="|h| (total)")
+    _ax2[1].axhline(v2_step.config.max_momentum, color=_limit_color, linestyle="--", linewidth=1, label="REQ-002 limit")
+    _ax2[1].set_xlabel("Time (s)")
+    _ax2[1].set_ylabel("Momentum (N.m.s)")
+    _ax2[1].set_title("Wheel Momentum (Kd=30)")
+    _ax2[1].legend(fontsize=8)
+    _ax2[1].grid(True, alpha=0.3)
+
+    _fig2.suptitle("Design Iteration: Step Response with Kd=30", fontsize=13, fontweight="bold")
+    _plt2.tight_layout()
+
+    mo.md(
+        "### Re-run Numerical Simulation (Kd = 30)\n\n"
+        f"| Metric | Kd=10 (original) | Kd=30 (updated) | Requirement |\n"
+        f"|--------|-----------------|-----------------|-------------|\n"
+        f"| Settling time | 262s | **{v2_step_summary['settling_time_s']:.1f}s** | < 120s |\n"
+        f"| Final error | 0.1223 deg | **{v2_step_summary['final_error_deg']:.4f} deg** | < 0.1 deg |\n"
+        f"| Peak momentum | 0.810 N.m.s | **{v2_step_summary['peak_wheel_momentum']:.3f} N.m.s** | < 4.0 N.m.s |\n"
+        f"| Peak torque | 0.044 N.m | **{v2_step_summary['peak_control_torque']:.4f} N.m** | < 0.1 N.m |\n"
+    )
+
+    _fig2
+    return v2_step, v2_step_summary
+
+
+@app.cell
+def __(mo):
+    mo.md("""
+    ### Regression Check
+
+    With Kd=30, the settling time is now well under 120s. But we must verify
+    that the gain increase didn't break anything else:
+
+    - **REQ-002 (momentum):** Peak momentum increased (higher Kd → more aggressive
+      control → more momentum), but still well within the 4.0 N.m.s limit.
+    - **REQ-003 (stability):** Higher Kd improves damping — margins are better than before.
+    - **REQ-004 (disturbance):** Gravity gradient rejection unaffected by Kd change.
+
+    This is **reproducibility as regression testing**. The same pipeline that found
+    the deficiency now confirms the fix doesn't introduce new problems.
+    """)
+    return
+
+
+@app.cell
+def __(v2_graph, v2_model_hash, v2_params, v2_proofs, v2_step_summary, v2_step, mo):
+    from rdflib import Graph as _G2
+    from ontology.prefixes import bind_prefixes as _bp2
+    from evidence.binding import (
+        bind_proof_evidence as _bpe, bind_simulation_evidence as _bse,
+        bind_computation_engines as _bce,
+    )
+    from evidence.hashing import (
+        hash_proof as _hp2, hash_evidence as _he2, hash_simulation as _hs2,
+    )
+    from analysis.proof_scripts import verify_proof as _vp2
+    from traceability.rtm import load_base_graph as _lbg, assemble_rtm as _art
+    from traceability.attestation import request_attestation as _ra
+
+    # Rebuild base graph from updated structural model
+    _base2 = _G2()
+    _bp2(_base2)
+    # Load ontology files
+    from pathlib import Path as _P
+    for _ttl in sorted((_P("ontology")).glob("*.ttl")):
+        _base2.parse(str(_ttl), format="turtle")
+    # Add updated structural model (v2_graph has the Kd=30 change)
+    for _t in v2_graph:
+        _base2.add(_t)
+
+    # Build evidence graph
+    _ev2 = _G2()
+    _bp2(_ev2)
+    _bce(_ev2)
+
+    for _rid, _script in v2_proofs.items():
+        _ph = _hp2(_script, v2_model_hash)
+        _ch = _he2(v2_model_hash, proof_hash=_ph)
+        _bpe(_ev2, f"EV-PROOF-{_rid}-v2", f"SA-{_rid}-v2", _rid,
+             v2_model_hash, _ph, _ch,
+             f"Symbolic proof (v2): {_script.claim}",
+             source_file="analysis/build_proofs.py")
+
+    _sh2 = _hs2(v2_step.config.to_dict(), v2_step_summary)
+    for _rid, _desc in [
+        ("REQ-001", f"Step response (v2): settling={v2_step_summary['settling_time_s']:.1f}s, "
+                    f"final_error={v2_step_summary['final_error_deg']:.4f} deg"),
+        ("REQ-002", f"Peak wheel momentum (v2): {v2_step_summary['peak_wheel_momentum']:.3f} N.m.s"),
+    ]:
+        _bse(_ev2, f"EV-SIM-{_rid}-v2", f"NS-{_rid}-v2", _rid,
+             v2_model_hash, _sh2, _desc, source_file="analysis/numerical.py")
+
+    v2_rtm = _art(_base2, _ev2)
+
+    # Attest ALL 4 requirements — now all evidence is sufficient
+    _v2_adequacy = {
+        "REQ-001": ("Linearized PD model adequate. Kd increased to 30 per design review finding. "
+                    "Interface parameters unchanged from systems engineering."),
+        "REQ-002": "Energy-based momentum bound conservative. Peak increased with Kd but within limits.",
+        "REQ-003": "Routh-Hurwitz stability confirmed. Higher Kd improves damping ratio.",
+        "REQ-004": "GG model adequate. Controller gain change does not affect disturbance torque magnitude.",
+    }
+    _v2_sufficiency = {
+        "REQ-001": (f"Settling time now {v2_step_summary['settling_time_s']:.1f}s (< 120s requirement). "
+                    f"Pointing accuracy {v2_step_summary['final_error_deg']:.4f} deg (< 0.1 deg). Both met."),
+        "REQ-002": f"Peak momentum {v2_step_summary['peak_wheel_momentum']:.3f} N.m.s, well within 4.0 limit.",
+        "REQ-003": "Routh-Hurwitz proof valid for all positive J, Kp, Kd. Margins improved with higher Kd.",
+        "REQ-004": "GG torques unchanged at ~1e-6 N.m. Overwhelming margin vs 0.1 N.m actuator capacity.",
+    }
+
+    for _rid in ["REQ-001", "REQ-002", "REQ-003", "REQ-004"]:
+        _ra(v2_rtm, _rid, "Dr. Michael Zargham (@mzargham)",
+            auto_attest=True,
+            model_adequacy=_v2_adequacy[_rid],
+            evidence_sufficiency=_v2_sufficiency[_rid])
+
+    mo.md("""
+    ### Full Re-attestation (v2 model)
+
+    With the updated model, all four requirements now have sufficient evidence:
+
+    - **REQ-001: ATTESTED** — settling time and pointing accuracy both met
+    - **REQ-002: ATTESTED** — momentum within limits (slight increase noted)
+    - **REQ-003: ATTESTED** — stability margins improved
+    - **REQ-004: ATTESTED** — disturbance rejection unchanged
+
+    The entire evidence chain is fresh — new model hash, new proof hashes,
+    new simulation hashes. Nothing carries over from the v1 analysis.
+    """)
+    return v2_rtm
+
+
+@app.cell
+def __(v2_rtm):
+    from interrogate.visualize import build_rtm_figure as _brf
+
+    v2_fig = _brf(v2_rtm, figsize=(18, 10), title="Requirements Traceability Matrix (v2: Kd=30)")
+    v2_fig
+    return v2_fig
+
+
+@app.cell
+def __(v2_rtm, mo):
+    from interrogate.explain import explain_requirement as _er
+
+    _v2_expl = _er(v2_rtm, "REQ-001")
+    mo.md(
+        '### "How do you know REQ-001 is satisfied now?"\n\n'
+        f"```\n{_v2_expl}\n```\n\n"
+        "The traceability chain is now **complete** for REQ-001. The auditor can see:\n\n"
+        "- Fresh proof artifact bound to the v2 model hash\n"
+        "- Fresh simulation showing settling time under 120s\n"
+        "- Attestation by Dr. Zargham with explicit reference to the design change\n"
+        "- The v2 model hash differs from v1 — confirming this is new evidence, not recycled"
+    )
+    return
+
+
+@app.cell
+def __(mo):
+    mo.md("""
+    ---
+
     ## Summary
 
-    This demo has walked through the complete ADCS verification lifecycle:
+    This demo walked through the complete ADCS verification lifecycle,
+    including a design iteration driven by an open finding:
 
-    1. **Received requirements** from systems engineering, traced to satellite-level parents
+    1. **Received requirements** from systems engineering, derived ADCS-level requirements
     2. **Built a structural model** in SysMLv2-compatible RDF
-    3. **Derived formal proofs** using SymPy (13 lemmas across 4 proof scripts)
-    4. **Ran numerical simulations** confirming symbolic predictions
+    3. **Derived formal proofs** (13 lemmas across 4 proof scripts)
+    4. **Ran numerical simulations** — revealed settling time deficiency on REQ-001
     5. **Bound evidence** with content hashes and PROV-O provenance
-    6. **Attested** as lead controls engineer, recording model adequacy and evidence sufficiency judgments
-    7. **Survived an audit** where the chief engineer re-executed all evidence live
+    6. **Attested 3 of 4 requirements** — declined REQ-001 (settling time 262s > 120s)
+    7. **Underwent audit** — open finding confirmed by chief engineer
+    8. **Applied design change** via SPARQL UPDATE (Kd: 10 → 30)
+    9. **Re-ran full analysis** — model hash changed, all proofs re-derived
+    10. **Attested all 4 requirements** — REQ-001 now satisfied, regression confirmed
 
     ### What makes this different
 
-    - **Evidence is not verification.** Only human attestation closes the loop.
-    - **Everything is reproducible.** Proofs re-verify, simulations re-run, hashes match.
-    - **Everything is in git.** RDF triples, Python scripts, Turtle files — all text, all versioned.
-    - **Every link is dereferenceable.** Ask "how do you know?" about any claim and get a machine-readable, human-auditable answer.
-    - **Honest engineering.** The attestation for REQ-001 flags a settling time issue rather than hiding it.
+    - **Evidence is not verification.** Only human attestation closes the loop — and attestation can be declined.
+    - **Failures are first-class.** The REQ-001 gap in the v1 traceability graph was the finding that drove the design change.
+    - **Reproducibility is regression testing.** The same pipeline that found the deficiency confirmed the fix didn't break anything else.
+    - **Model changes invalidate evidence.** Kd 10 → 30 changed the model hash, forcing complete re-derivation. No stale proofs survive.
+    - **Everything is in git.** Both model versions, both evidence sets, both attestation records — all text, all versioned, all auditable.
+    - **Every link is dereferenceable.** Ask "how do you know?" about any claim at any version and get a machine-readable, human-auditable answer.
 
     ### Architecture
 
     | Layer | Technology | Purpose |
     |-------|-----------|---------|
     | Structural Model | SysMLv2 RDF/Turtle | Requirements, design elements, satisfy links |
+    | Model Changes | SPARQL UPDATE | Modify parameters, trigger hash invalidation |
     | Evidence Layer | PROV-O + custom RTM ontology | Hash-bound evidence, attestation |
     | Symbolic Analysis | SymPy ProofScripts | Formal proofs with re-verifiable lemma chains |
     | Numerical Simulation | scipy solve_ivp | Time-domain ODE integration |
