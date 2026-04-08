@@ -1,0 +1,23 @@
+[project]
+name = "adcs-lifecycle-demo"
+version = "0.1.0"
+description = "ADCS lifecycle demo with bidirectional requirements traceability"
+requires-python = ">=3.12"
+dependencies = [
+    "rdflib>=7.0",
+    "sympy>=1.12",
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "matplotlib>=3.8",
+    "pydantic>=2.0",
+    "graphviz>=0.20",
+]
+
+[project.scripts]
+adcs-pipeline = "pipeline.runner:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+]

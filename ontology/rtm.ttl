@@ -1,0 +1,205 @@
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix sysml:   <https://www.omg.org/spec/SysML/2.0/> .
+@prefix rtm:     <http://example.org/ontology/rtm#> .
+
+# =============================================================================
+# Ontology declaration
+# =============================================================================
+
+rtm: a owl:Ontology ;
+    dcterms:title "Requirements Traceability Matrix Ontology" ;
+    dcterms:description """Lightweight ontology for bidirectional requirements
+        traceability with reproducible computational evidence and human
+        attestation. Layers on top of SysMLv2 (structural model + requirements)
+        and W3C PROV-O (provenance). The RTM ontology adds only the evidence
+        and attestation concepts needed to close the traceability loop.
+
+        Core epistemological principle: computational evidence does not verify
+        requirements. Evidence supports a human judgment (attestation) that
+        requirements are satisfied. Models are imperfect representations;
+        the engineer judges model adequacy and evidence sufficiency.""" ;
+    owl:imports <http://www.w3.org/ns/prov#> .
+
+# =============================================================================
+# Evidence classes
+# =============================================================================
+
+rtm:Evidence a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Evidence" ;
+    rdfs:comment """A computational artifact that constitutes a claim true
+        within a model. Evidence is produced by computational activities
+        (symbolic analysis, numerical simulation) and is consumed by
+        human attestation. Evidence alone does not verify a requirement.""" .
+
+rtm:ProofArtifact a owl:Class ;
+    rdfs:subClassOf rtm:Evidence ;
+    rdfs:label "Proof Artifact" ;
+    rdfs:comment """A symbolic proof produced by SymPy — a chain of lemmas
+        each independently verifiable. Bound to a specific model version
+        via content hash.""" .
+
+rtm:SimulationResult a owl:Class ;
+    rdfs:subClassOf rtm:Evidence ;
+    rdfs:label "Simulation Result" ;
+    rdfs:comment """Numerical simulation output produced by scipy. Contains
+        simulation configuration and summary results, bound to a specific
+        model version via content hash.""" .
+
+# =============================================================================
+# Computational activity classes
+# =============================================================================
+
+rtm:SymbolicAnalysis a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Symbolic Analysis" ;
+    rdfs:comment """A computational activity that uses SymPy to derive
+        symbolic results (eigenvalues, stability margins, bounds) from
+        structural model parameters. Produces ProofArtifact evidence.""" .
+
+rtm:NumericalSimulation a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Numerical Simulation" ;
+    rdfs:comment """A computational activity that uses scipy to integrate
+        dynamical equations and produce time-domain simulation results.
+        Produces SimulationResult evidence.""" .
+
+# =============================================================================
+# Attestation — the only link from evidence to requirement satisfaction
+# =============================================================================
+
+rtm:Attestation a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Attestation" ;
+    rdfs:comment """A human judgment that computational evidence is sufficient
+        to deem a requirement satisfied. The engineer judges two things:
+        (a) model adequacy — whether the model is an adequate representation
+        of the physical system for this requirement, and (b) evidence
+        sufficiency — whether the computational results within that model
+        support the requirement. This is the ONLY class that connects
+        evidence to requirement satisfaction.""" .
+
+# =============================================================================
+# Agent classes
+# =============================================================================
+
+rtm:Engineer a owl:Class ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:label "Engineer" ;
+    rdfs:comment "A human expert who reviews evidence and attests to requirements." .
+
+rtm:ComputationEngine a owl:Class ;
+    rdfs:subClassOf prov:SoftwareAgent ;
+    rdfs:label "Computation Engine" ;
+    rdfs:comment "Software that produced computational evidence (SymPy, scipy)." .
+
+# =============================================================================
+# Evidence method enumeration
+# =============================================================================
+
+rtm:EvidenceMethod a owl:Class ;
+    rdfs:label "Evidence Method" ;
+    rdfs:comment "The computational method used to produce evidence." .
+
+# =============================================================================
+# Object properties
+# =============================================================================
+
+rtm:attests a owl:ObjectProperty ;
+    rdfs:domain rtm:Attestation ;
+    rdfs:range sysml:RequirementDefinition ;
+    rdfs:label "attests" ;
+    rdfs:comment """Links an attestation to the requirement it attests.
+        This is the ONLY property that connects evidence to requirement
+        satisfaction — it always passes through a human judgment.""" ;
+    owl:inverseOf rtm:attestedBy .
+
+rtm:attestedBy a owl:ObjectProperty ;
+    rdfs:domain sysml:RequirementDefinition ;
+    rdfs:range rtm:Attestation ;
+    rdfs:label "attested by" ;
+    rdfs:comment "Inverse of rtm:attests." ;
+    owl:inverseOf rtm:attests .
+
+rtm:hasEvidence a owl:ObjectProperty ;
+    rdfs:domain rtm:Attestation ;
+    rdfs:range rtm:Evidence ;
+    rdfs:label "has evidence" ;
+    rdfs:comment """Links an attestation to the evidence artifacts the
+        engineer reviewed when making their judgment.""" .
+
+rtm:evidenceMethod a owl:ObjectProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range rtm:EvidenceMethod ;
+    rdfs:label "evidence method" ;
+    rdfs:comment "The computational method used to produce this evidence." .
+
+rtm:derivedFrom a owl:ObjectProperty ;
+    rdfs:domain sysml:RequirementDefinition ;
+    rdfs:range sysml:RequirementDefinition ;
+    rdfs:label "derived from" ;
+    rdfs:comment """Traces a subsystem-level requirement back to the
+        system-level requirement it was derived from. E.g., an ADCS
+        pointing requirement derived from a satellite-level pointing
+        requirement.""" .
+
+# =============================================================================
+# Datatype properties
+# =============================================================================
+
+rtm:contentHash a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:string ;
+    rdfs:label "content hash" ;
+    rdfs:comment "SHA-256 hash of the evidence artifact content." .
+
+rtm:modelHash a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:string ;
+    rdfs:label "model hash" ;
+    rdfs:comment """SHA-256 hash of the structural model at the time
+        evidence was produced. Binds evidence to a specific model version.""" .
+
+rtm:proofHash a owl:DatatypeProperty ;
+    rdfs:domain rtm:ProofArtifact ;
+    rdfs:range xsd:string ;
+    rdfs:label "proof hash" ;
+    rdfs:comment "SHA-256 hash of the proof script content + model hash." .
+
+rtm:gitCommit a owl:DatatypeProperty ;
+    rdfs:domain prov:Entity ;
+    rdfs:range xsd:string ;
+    rdfs:label "git commit" ;
+    rdfs:comment "Git commit SHA that produced or contains this artifact." .
+
+rtm:modelAdequacy a owl:DatatypeProperty ;
+    rdfs:domain rtm:Attestation ;
+    rdfs:range xsd:string ;
+    rdfs:label "model adequacy" ;
+    rdfs:comment """The engineer's statement on whether the model is an
+        adequate representation of the physical system for the purpose
+        of evaluating the attested requirement.""" .
+
+rtm:evidenceSufficiency a owl:DatatypeProperty ;
+    rdfs:domain rtm:Attestation ;
+    rdfs:range xsd:string ;
+    rdfs:label "evidence sufficiency" ;
+    rdfs:comment """The engineer's statement on whether the computational
+        evidence is sufficient to conclude the requirement is satisfied.""" .
+
+rtm:sourceFile a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:string ;
+    rdfs:label "source file" ;
+    rdfs:comment "Path to the script or data file that produced this evidence." .
+
+rtm:resultSummary a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:string ;
+    rdfs:label "result summary" ;
+    rdfs:comment "Human-readable summary of the evidence content." .

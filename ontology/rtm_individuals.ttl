@@ -1,0 +1,19 @@
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rtm:   <http://example.org/ontology/rtm#> .
+
+# =============================================================================
+# Evidence method individuals
+# =============================================================================
+
+rtm:Analysis a rtm:EvidenceMethod ;
+    rdfs:label "Analysis" ;
+    rdfs:comment "Mathematical or analytical derivation (symbolic computation)." .
+
+rtm:Simulation a rtm:EvidenceMethod ;
+    rdfs:label "Simulation" ;
+    rdfs:comment "Numerical simulation (time-domain integration, Monte Carlo)." .
+
+rtm:FormalProof a rtm:EvidenceMethod ;
+    rdfs:label "Formal Proof" ;
+    rdfs:comment """Machine-checked formal proof via SymPy lemma chain.
+        Each lemma independently re-verifiable.""" .

@@ -1,0 +1,209 @@
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix sysml:   <https://www.omg.org/spec/SysML/2.0/> .
+@prefix adcs:    <http://example.org/adcs-demo/> .
+@prefix sat:     <http://example.org/adcs-demo/satellite/> .
+
+# =============================================================================
+# Satellite-level parameters (interface — given by systems engineering)
+# =============================================================================
+
+sat:GeoSat
+    sysml:ownedAttribute sat:attr_mass ,
+                         sat:attr_bodyLength ,
+                         sat:attr_bodyWidth ,
+                         sat:attr_bodyHeight ,
+                         sat:attr_orbitalRate .
+
+sat:attr_mass a sysml:AttributeUsage ;
+    sysml:declaredName "mass" ;
+    rdfs:comment "Total satellite bus mass (excluding panels and antenna)." ;
+    sysml:value "550.0"^^xsd:double ;
+    sysml:unit "kg" .
+
+sat:attr_bodyLength a sysml:AttributeUsage ;
+    sysml:declaredName "bodyLength" ;
+    rdfs:comment "Satellite body dimension along X axis." ;
+    sysml:value "0.90"^^xsd:double ;
+    sysml:unit "m" .
+
+sat:attr_bodyWidth a sysml:AttributeUsage ;
+    sysml:declaredName "bodyWidth" ;
+    rdfs:comment "Satellite body dimension along Y axis." ;
+    sysml:value "1.00"^^xsd:double ;
+    sysml:unit "m" .
+
+sat:attr_bodyHeight a sysml:AttributeUsage ;
+    sysml:declaredName "bodyHeight" ;
+    rdfs:comment "Satellite body dimension along Z axis." ;
+    sysml:value "1.10"^^xsd:double ;
+    sysml:unit "m" .
+
+sat:attr_orbitalRate a sysml:AttributeUsage ;
+    sysml:declaredName "orbitalRate" ;
+    rdfs:comment "GEO orbital angular rate (2*pi / 86400 s)." ;
+    sysml:value "7.2722e-05"^^xsd:double ;
+    sysml:unit "rad/s" .
+
+# =============================================================================
+# Solar panel parameters (interface — given by structure/power teams)
+# =============================================================================
+
+sat:GeoSat
+    sysml:ownedAttribute sat:attr_panelSpan ,
+                         sat:attr_panelChord ,
+                         sat:attr_panelMass .
+
+sat:attr_panelSpan a sysml:AttributeUsage ;
+    sysml:declaredName "panelSpan" ;
+    rdfs:comment "Solar panel span (single panel, along Y axis)." ;
+    sysml:value "2.50"^^xsd:double ;
+    sysml:unit "m" .
+
+sat:attr_panelChord a sysml:AttributeUsage ;
+    sysml:declaredName "panelChord" ;
+    rdfs:comment "Solar panel chord (along X axis)." ;
+    sysml:value "0.90"^^xsd:double ;
+    sysml:unit "m" .
+
+sat:attr_panelMass a sysml:AttributeUsage ;
+    sysml:declaredName "panelMass" ;
+    rdfs:comment "Mass of a single solar panel." ;
+    sysml:value "30.0"^^xsd:double ;
+    sysml:unit "kg" .
+
+# =============================================================================
+# Antenna parameters (interface — given by comms team)
+# =============================================================================
+
+sat:GeoSat
+    sysml:ownedAttribute sat:attr_antennaDiameter ,
+                         sat:attr_antennaOffset ,
+                         sat:attr_antennaMass .
+
+sat:attr_antennaDiameter a sysml:AttributeUsage ;
+    sysml:declaredName "antennaDiameter" ;
+    rdfs:comment "Parabolic antenna diameter." ;
+    sysml:value "0.80"^^xsd:double ;
+    sysml:unit "m" .
+
+sat:attr_antennaOffset a sysml:AttributeUsage ;
+    sysml:declaredName "antennaOffset" ;
+    rdfs:comment "Antenna offset from satellite center along Z axis." ;
+    sysml:value "0.75"^^xsd:double ;
+    sysml:unit "m" .
+
+sat:attr_antennaMass a sysml:AttributeUsage ;
+    sysml:declaredName "antennaMass" ;
+    rdfs:comment "Antenna mass." ;
+    sysml:value "18.0"^^xsd:double ;
+    sysml:unit "kg" .
+
+# =============================================================================
+# Reaction wheel parameters (owned by ADCS team)
+# =============================================================================
+
+adcs:ReactionWheelDef
+    sysml:ownedAttribute adcs:attr_rw_maxTorque ,
+                         adcs:attr_rw_maxMomentum ,
+                         adcs:attr_rw_mass .
+
+adcs:attr_rw_maxTorque a sysml:AttributeUsage ;
+    sysml:declaredName "maxTorque" ;
+    rdfs:comment "Maximum torque output of a single reaction wheel." ;
+    sysml:value "0.1"^^xsd:double ;
+    sysml:unit "N.m" .
+
+adcs:attr_rw_maxMomentum a sysml:AttributeUsage ;
+    sysml:declaredName "maxMomentum" ;
+    rdfs:comment "Maximum angular momentum storage of a single reaction wheel." ;
+    sysml:value "4.0"^^xsd:double ;
+    sysml:unit "N.m.s" .
+
+adcs:attr_rw_mass a sysml:AttributeUsage ;
+    sysml:declaredName "wheelMass" ;
+    rdfs:comment "Mass of a single reaction wheel." ;
+    sysml:value "2.5"^^xsd:double ;
+    sysml:unit "kg" .
+
+# =============================================================================
+# Star tracker parameters (owned by ADCS team)
+# =============================================================================
+
+adcs:StarTrackerDef
+    sysml:ownedAttribute adcs:attr_st_accuracy ,
+                         adcs:attr_st_updateRate ,
+                         adcs:attr_st_mass .
+
+adcs:attr_st_accuracy a sysml:AttributeUsage ;
+    sysml:declaredName "stAccuracy" ;
+    rdfs:comment "Star tracker pointing accuracy (1-sigma)." ;
+    sysml:value "5.0"^^xsd:double ;
+    sysml:unit "arcsec" .
+
+adcs:attr_st_updateRate a sysml:AttributeUsage ;
+    sysml:declaredName "stUpdateRate" ;
+    rdfs:comment "Star tracker measurement update rate." ;
+    sysml:value "4.0"^^xsd:double ;
+    sysml:unit "Hz" .
+
+adcs:attr_st_mass a sysml:AttributeUsage ;
+    sysml:declaredName "stMass" ;
+    rdfs:comment "Star tracker mass." ;
+    sysml:value "2.0"^^xsd:double ;
+    sysml:unit "kg" .
+
+# =============================================================================
+# IMU parameters (owned by ADCS team)
+# =============================================================================
+
+adcs:IMUDef
+    sysml:ownedAttribute adcs:attr_imu_arw ,
+                         adcs:attr_imu_bias ,
+                         adcs:attr_imu_bandwidth ,
+                         adcs:attr_imu_mass .
+
+adcs:attr_imu_arw a sysml:AttributeUsage ;
+    sysml:declaredName "gyroARW" ;
+    rdfs:comment "Gyroscope angle random walk." ;
+    sysml:value "0.0017"^^xsd:double ;
+    sysml:unit "rad/s/sqrt(Hz)" .
+
+adcs:attr_imu_bias a sysml:AttributeUsage ;
+    sysml:declaredName "gyroBias" ;
+    rdfs:comment "Gyroscope bias stability." ;
+    sysml:value "0.0001"^^xsd:double ;
+    sysml:unit "rad/s" .
+
+adcs:attr_imu_bandwidth a sysml:AttributeUsage ;
+    sysml:declaredName "controlBandwidth" ;
+    rdfs:comment "Control loop bandwidth." ;
+    sysml:value "1.0"^^xsd:double ;
+    sysml:unit "Hz" .
+
+adcs:attr_imu_mass a sysml:AttributeUsage ;
+    sysml:declaredName "imuMass" ;
+    rdfs:comment "IMU mass." ;
+    sysml:value "0.5"^^xsd:double ;
+    sysml:unit "kg" .
+
+# =============================================================================
+# PD Controller parameters (owned by ADCS team)
+# =============================================================================
+
+adcs:PDControllerDef
+    sysml:ownedAttribute adcs:attr_pd_Kp ,
+                         adcs:attr_pd_Kd .
+
+adcs:attr_pd_Kp a sysml:AttributeUsage ;
+    sysml:declaredName "Kp" ;
+    rdfs:comment "Proportional gain of PD attitude controller." ;
+    sysml:value "1.0"^^xsd:double ;
+    sysml:unit "N.m/rad" .
+
+adcs:attr_pd_Kd a sysml:AttributeUsage ;
+    sysml:declaredName "Kd" ;
+    rdfs:comment "Derivative gain of PD attitude controller." ;
+    sysml:value "10.0"^^xsd:double ;
+    sysml:unit "N.m.s/rad" .

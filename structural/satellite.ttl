@@ -1,0 +1,189 @@
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix sysml:   <https://www.omg.org/spec/SysML/2.0/> .
+@prefix rtm:     <http://example.org/ontology/rtm#> .
+@prefix adcs:    <http://example.org/adcs-demo/> .
+@prefix sat:     <http://example.org/adcs-demo/satellite/> .
+
+# =============================================================================
+# Satellite — system of interest (owned by systems engineering)
+# =============================================================================
+
+sat:GeoSat a sysml:PartDefinition ;
+    sysml:declaredName "GeoSat" ;
+    rdfs:comment """Geostationary communications satellite — system of interest.
+        Owned by the systems engineering team. The ADCS team references
+        satellite-level properties as interface parameters but does not
+        own or modify them.""" ;
+    sysml:ownedPart adcs:ADCSSubsystem ,
+                    sat:PowerSubsystem ,
+                    sat:CommsSubsystem ,
+                    sat:ThermalSubsystem ,
+                    sat:StructureSubsystem .
+
+# Interface subsystems (stubs — not modeled in detail by ADCS team)
+sat:PowerSubsystem a sysml:PartDefinition ;
+    sysml:declaredName "Power" ;
+    rdfs:comment "Power subsystem — ADCS team consumes power budget allocation." .
+
+sat:CommsSubsystem a sysml:PartDefinition ;
+    sysml:declaredName "Communications" ;
+    rdfs:comment "Comms subsystem — ADCS team points the antenna, comms defines link budget." .
+
+sat:ThermalSubsystem a sysml:PartDefinition ;
+    sysml:declaredName "Thermal" ;
+    rdfs:comment "Thermal subsystem — ADCS team generates heat from reaction wheels." .
+
+sat:StructureSubsystem a sysml:PartDefinition ;
+    sysml:declaredName "Structure" ;
+    rdfs:comment "Structural subsystem — defines mass properties, ADCS needs inertia tensor." .
+
+# =============================================================================
+# Satellite-level requirements (given to ADCS team, not owned)
+# =============================================================================
+
+sat:SAT-REQ-POINTING a sysml:RequirementDefinition ;
+    sysml:declaredName "SAT-REQ-POINTING" ;
+    sysml:text """The satellite shall maintain antenna boresight within 0.1 degrees
+        of the target ground station under nominal operating conditions.""" ;
+    rdfs:comment """Satellite-level pointing requirement — owned by systems
+        engineering. ADCS team receives this as a derived requirement source.""" .
+
+sat:SAT-REQ-MOMENTUM a sysml:RequirementDefinition ;
+    sysml:declaredName "SAT-REQ-MOMENTUM" ;
+    sysml:text """The satellite shall not accumulate angular momentum beyond
+        the capacity of onboard momentum management devices.""" ;
+    rdfs:comment "Satellite-level momentum management requirement." .
+
+sat:SAT-REQ-STABILITY a sysml:RequirementDefinition ;
+    sysml:declaredName "SAT-REQ-STABILITY" ;
+    sysml:text """The satellite attitude control system shall be asymptotically
+        stable under all nominal operating conditions.""" ;
+    rdfs:comment "Satellite-level stability requirement." .
+
+sat:SAT-REQ-DISTURBANCE a sysml:RequirementDefinition ;
+    sysml:declaredName "SAT-REQ-DISTURBANCE" ;
+    sysml:text """The satellite shall reject environmental disturbance torques
+        encountered in geostationary orbit.""" ;
+    rdfs:comment "Satellite-level disturbance rejection requirement." .
+
+# =============================================================================
+# ADCS Subsystem (owned by controls team)
+# =============================================================================
+
+adcs:ADCSSubsystem a sysml:PartDefinition ;
+    sysml:declaredName "ADCS" ;
+    rdfs:comment """Attitude Determination and Control System. Owned by
+        the controls team. Contains all ADCS components and requirements.""" ;
+    sysml:ownedPart adcs:ReactionWheel_X ,
+                    adcs:ReactionWheel_Y ,
+                    adcs:ReactionWheel_Z ,
+                    adcs:StarTracker ,
+                    adcs:IMU ,
+                    adcs:PDController .
+
+# --- Reaction Wheels ---
+
+adcs:ReactionWheelDef a sysml:PartDefinition ;
+    sysml:declaredName "ReactionWheel" ;
+    rdfs:comment "Reaction wheel definition — single-axis momentum exchange device." .
+
+adcs:ReactionWheel_X a sysml:PartUsage ;
+    sysml:declaredName "ReactionWheel_X" ;
+    sysml:type adcs:ReactionWheelDef ;
+    rdfs:comment "Reaction wheel on X axis." .
+
+adcs:ReactionWheel_Y a sysml:PartUsage ;
+    sysml:declaredName "ReactionWheel_Y" ;
+    sysml:type adcs:ReactionWheelDef ;
+    rdfs:comment "Reaction wheel on Y axis." .
+
+adcs:ReactionWheel_Z a sysml:PartUsage ;
+    sysml:declaredName "ReactionWheel_Z" ;
+    sysml:type adcs:ReactionWheelDef ;
+    rdfs:comment "Reaction wheel on Z axis." .
+
+# --- Sensors ---
+
+adcs:StarTrackerDef a sysml:PartDefinition ;
+    sysml:declaredName "StarTracker" ;
+    rdfs:comment "Star tracker — primary attitude determination sensor." .
+
+adcs:StarTracker a sysml:PartUsage ;
+    sysml:declaredName "StarTracker" ;
+    sysml:type adcs:StarTrackerDef ;
+    rdfs:comment "Star tracker instance." .
+
+adcs:IMUDef a sysml:PartDefinition ;
+    sysml:declaredName "IMU" ;
+    rdfs:comment "Inertial measurement unit — provides angular rate measurements." .
+
+adcs:IMU a sysml:PartUsage ;
+    sysml:declaredName "IMU" ;
+    sysml:type adcs:IMUDef ;
+    rdfs:comment "IMU instance." .
+
+# --- Controller ---
+
+adcs:PDControllerDef a sysml:ConstraintDefinition ;
+    sysml:declaredName "PDController" ;
+    rdfs:comment """Proportional-derivative attitude controller. Constraint
+        block defining Kp and Kd gains. Computes control torque as:
+        tau = -Kp/2 * theta_error - Kd * omega""" .
+
+adcs:PDController a sysml:PartUsage ;
+    sysml:declaredName "PDController" ;
+    sysml:type adcs:PDControllerDef ;
+    rdfs:comment "PD controller instance." .
+
+# =============================================================================
+# ADCS-level requirements (our scope)
+# =============================================================================
+
+adcs:REQ-001 a sysml:RequirementDefinition ;
+    sysml:declaredName "REQ-001" ;
+    sysml:text """The ADCS shall maintain pointing accuracy within 0.1 degrees
+        (3-sigma) under nominal disturbance conditions within 120 seconds
+        of a slew maneuver.""" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement adcs:PDController , adcs:StarTracker
+    ] ;
+    rtm:derivedFrom sat:SAT-REQ-POINTING .
+
+adcs:REQ-002 a sysml:RequirementDefinition ;
+    sysml:declaredName "REQ-002" ;
+    sysml:text """Reaction wheel angular momentum shall not exceed the rated
+        maximum momentum capacity (4.0 N.m.s) during nominal operations.""" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement adcs:ReactionWheel_X ,
+                                adcs:ReactionWheel_Y ,
+                                adcs:ReactionWheel_Z
+    ] ;
+    rtm:derivedFrom sat:SAT-REQ-MOMENTUM .
+
+adcs:REQ-003 a sysml:RequirementDefinition ;
+    sysml:declaredName "REQ-003" ;
+    sysml:text """The closed-loop ADCS shall be asymptotically stable with
+        all eigenvalues having real parts less than or equal to -0.010 rad/s.""" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement adcs:PDController
+    ] ;
+    rtm:derivedFrom sat:SAT-REQ-STABILITY .
+
+adcs:REQ-004 a sysml:RequirementDefinition ;
+    sysml:declaredName "REQ-004" ;
+    sysml:text """The ADCS shall reject gravity gradient disturbance torques
+        encountered in geostationary orbit without exceeding actuator
+        torque capacity.""" ;
+    sysml:ownedRelationship [
+        a sysml:SatisfyRequirementUsage ;
+        sysml:satisfyingElement adcs:PDController ,
+                                adcs:ReactionWheel_X ,
+                                adcs:ReactionWheel_Y ,
+                                adcs:ReactionWheel_Z
+    ] ;
+    rtm:derivedFrom sat:SAT-REQ-DISTURBANCE .
