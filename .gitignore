@@ -5,8 +5,6 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .coverage
-output/*.ttl
-output/*.json
-!output/index.html
+output/
 plots/
 *.DS_Store
