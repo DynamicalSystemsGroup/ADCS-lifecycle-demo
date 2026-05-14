@@ -34,6 +34,7 @@ from pipeline.dataset import graph_for, load_into, triples_by_graph
 from pipeline.stage0_assembly import run_stage_0
 from pipeline.stages import LifecycleStage, check_gate
 from traceability.attestation import request_attestation
+from traceability.plan_execution import emit_stage_activity
 from traceability.rtm import (
     STRUCTURAL_DIR,
     export_rtm,
@@ -67,6 +68,7 @@ def run_pipeline(
     stage = LifecycleStage.STRUCTURAL_DEFINED
 
     # ── Stage 1: STRUCTURAL_DEFINED ──────────────────────────────
+    emit_stage_activity(rtm_ds, "LoadStructural")
     print("\n[Stage 1] Loading structural model...")
     for ttl in sorted(STRUCTURAL_DIR.glob("*.ttl")):
         load_into(rtm_ds, "structural", ttl)
@@ -84,6 +86,7 @@ def run_pipeline(
 
     # ── Stage 2: SYMBOLICALLY_ANALYZED ───────────────────────────
     stage = LifecycleStage.SYMBOLICALLY_ANALYZED
+    emit_stage_activity(rtm_ds, "SymbolicAnalysis")
     print("\n[Stage 2] Running symbolic analysis...")
     sym_result = run_symbolic_analysis(params)
     print(f"  Inertia: Jxx={sym_result.inertia[0]:.1f}, "
@@ -103,6 +106,7 @@ def run_pipeline(
 
     # ── Stage 3: NUMERICALLY_SIMULATED ───────────────────────────
     stage = LifecycleStage.NUMERICALLY_SIMULATED
+    emit_stage_activity(rtm_ds, "NumericalSimulation")
     print("\n[Stage 3] Running numerical simulations...")
     step_result = run_step_response(params)
     step_summary = step_result.summary()
@@ -119,6 +123,7 @@ def run_pipeline(
 
     # ── Stage 4: EVIDENCE_BOUND ──────────────────────────────────
     stage = LifecycleStage.EVIDENCE_BOUND
+    emit_stage_activity(rtm_ds, "BindEvidence")
     print("\n[Stage 4] Binding evidence to RDF graph...")
     ev_graph = graph_for(rtm_ds, "evidence")
     bind_computation_engines(ev_graph)
@@ -176,6 +181,7 @@ def run_pipeline(
 
     # ── Stage 5: RTM_ASSEMBLED ───────────────────────────────────
     stage = LifecycleStage.RTM_ASSEMBLED
+    emit_stage_activity(rtm_ds, "AssembleRTM")
     print("\n[Stage 5] Assembling RTM...")
     # The Dataset already contains structural + ontology + evidence in
     # their respective named graphs; assembly is a no-op for the runtime
@@ -194,6 +200,7 @@ def run_pipeline(
     # ── Stage 6: ATTESTATION ─────────────────────────────────────
     if not skip_attestation:
         stage = LifecycleStage.ATTESTATION
+        emit_stage_activity(rtm_ds, "Attest")
         print("\n[Stage 6] Human attestation...")
 
         adequacy_statements = {
@@ -231,6 +238,7 @@ def run_pipeline(
 
     # ── Stage 7: REPORTED ────────────────────────────────────────
     stage = LifecycleStage.REPORTED
+    emit_stage_activity(rtm_ds, "Report")
     print("\n[Stage 7] Generating reports...")
     export_rtm(rtm, OUTPUT_DIR / "rtm.ttl")
     print(f"  Final RTM exported to output/rtm.ttl")
@@ -240,6 +248,7 @@ def run_pipeline(
 
     # ── Stage 8: VISUALIZED_AND_INTERROGABLE ─────────────────────
     stage = LifecycleStage.VISUALIZED_AND_INTERROGABLE
+    emit_stage_activity(rtm_ds, "Interrogate")
     print("\n[Stage 8] Visualization and interrogation ready.")
     print("  Use interrogate/explain.py for 'How do you know X?' queries")
     print("  Use interrogate/reproduce.py to re-verify evidence")

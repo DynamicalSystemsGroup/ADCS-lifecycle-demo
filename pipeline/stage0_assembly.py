@@ -32,12 +32,14 @@ from pipeline.dataset import create_dataset, graph_for, load_into
 
 ROOT = Path(__file__).resolve().parent.parent
 ONTOLOGY_DIR = ROOT / "ontology"
+PIPELINE_DIR = ROOT / "pipeline"
 MANIFEST_PATH = ONTOLOGY_DIR / "assembly_manifest.json"
 ARTIFACT_PATH = ONTOLOGY_DIR / "rtm.ttl"
 SHAPES_PATH = ONTOLOGY_DIR / "rtm_shapes.ttl"
 INDIVIDUALS_PATH = ONTOLOGY_DIR / "rtm_individuals.ttl"
+PLAN_PATH = PIPELINE_DIR / "plan.ttl"
 
-# Stage-0 step IRI — referenced by the P-PLAN plan definition (Phase E).
+# Stage-0 step IRI — referenced by the P-PLAN plan definition (pipeline/plan.ttl).
 STAGE0_STEP_IRI = URIRef(f"{RTM}plan/step/OntologyAssembly")
 
 BANNER_WIDTH = 78
@@ -172,6 +174,10 @@ def run_stage_0(*, rebuild: bool = False) -> Dataset:
         load_into(ds, "ontology", INDIVIDUALS_PATH)
     if SHAPES_PATH.exists():
         load_into(ds, "ontology", SHAPES_PATH)
+
+    # Load the P-PLAN process model into <rtm:plan>.
+    if PLAN_PATH.exists():
+        load_into(ds, "plan", PLAN_PATH)
 
     onto_g = graph_for(ds, "ontology")
     ontology_triples = len(onto_g)
