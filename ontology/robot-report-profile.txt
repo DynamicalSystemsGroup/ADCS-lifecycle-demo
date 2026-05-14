@@ -1,0 +1,3 @@
+WARN	missing_label
+WARN	missing_definition
+WARN	missing_ontology_license

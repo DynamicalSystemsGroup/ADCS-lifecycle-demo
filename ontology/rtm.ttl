@@ -1,7 +1,7 @@
 # =============================================================================
 # AUTO-GENERATED ARTIFACT — DO NOT EDIT DIRECTLY
 #
-# Built 2026-05-14T00:33:55Z by scripts/build_ontology.py from:
+# Built 2026-05-14T00:51:52Z by scripts/build_ontology.py from:
 #   - ontology/rtm-edit.ttl
 #   - ontology/sysml_term_map.csv (SysMLv2 equivalences)
 #   - ontology/imports/*.ttl (validation only; full MIREOT merge is
@@ -29,6 +29,7 @@ rtm: a owl:Ontology ;
         Contributes convenience handles, content-addressing properties, and
         the closure-rule suite. Introduces no novel epistemic vocabulary —
         adequacy and sufficiency are gsn:Assumption and gsn:Justification.""" ;
+    dcterms:license <https://www.apache.org/licenses/LICENSE-2.0> ;
     dcterms:title "RTM Integration Ontology" ;
     owl:imports oslc_qm:,
         oslc_rm:,
@@ -146,21 +147,29 @@ rtm:sourceFile a owl:DatatypeProperty ;
     rdfs:domain rtm:Evidence ;
     rdfs:range xsd:string .
 
-sysml:AttributeUsage owl:equivalentClass omg-sysml:AttributeUsage .
+sysml:AttributeUsage a owl:Class ;
+    owl:equivalentClass omg-sysml:AttributeUsage .
 
-sysml:PartDefinition owl:equivalentClass omg-sysml:PartDefinition .
+sysml:PartDefinition a owl:Class ;
+    owl:equivalentClass omg-sysml:PartDefinition .
 
-sysml:PartUsage owl:equivalentClass omg-sysml:PartUsage .
+sysml:PartUsage a owl:Class ;
+    owl:equivalentClass omg-sysml:PartUsage .
 
-sysml:RequirementUsage owl:equivalentClass omg-sysml:RequirementUsage .
+sysml:RequirementUsage a owl:Class ;
+    owl:equivalentClass omg-sysml:RequirementUsage .
 
-sysml:SatisfyRequirementUsage owl:equivalentClass omg-sysml:SatisfyRequirementUsage .
+sysml:SatisfyRequirementUsage a owl:Class ;
+    owl:equivalentClass omg-sysml:SatisfyRequirementUsage .
 
-sysml:declaredName owl:equivalentProperty omg-sysml:declaredName .
+sysml:declaredName a owl:DatatypeProperty ;
+    owl:equivalentProperty omg-sysml:declaredName .
 
-sysml:ownedRelationship owl:equivalentProperty omg-sysml:ownedRelationship .
+sysml:ownedRelationship a owl:ObjectProperty ;
+    owl:equivalentProperty omg-sysml:ownedRelationship .
 
-sysml:text owl:equivalentProperty omg-sysml:text .
+sysml:text a owl:DatatypeProperty ;
+    owl:equivalentProperty omg-sysml:text .
 
 rtm:EvidenceMethod a owl:Class ;
     rdfs:label "Evidence Method" ;
@@ -201,7 +210,26 @@ rtm:attests a owl:ObjectProperty ;
         earl:test ;
     owl:inverseOf rtm:attestedBy .
 
-sysml:RequirementDefinition rdfs:subClassOf oslc_rm:Requirement ;
+omg-sysml:AttributeUsage a owl:Class .
+
+omg-sysml:PartDefinition a owl:Class .
+
+omg-sysml:PartUsage a owl:Class .
+
+omg-sysml:RequirementDefinition a owl:Class .
+
+omg-sysml:RequirementUsage a owl:Class .
+
+omg-sysml:SatisfyRequirementUsage a owl:Class .
+
+omg-sysml:declaredName a owl:DatatypeProperty .
+
+omg-sysml:ownedRelationship a owl:ObjectProperty .
+
+omg-sysml:text a owl:DatatypeProperty .
+
+sysml:RequirementDefinition a owl:Class ;
+    rdfs:subClassOf oslc_rm:Requirement ;
     owl:equivalentClass omg-sysml:RequirementDefinition .
 
 rtm:Attestation a owl:Class ;
