@@ -42,6 +42,7 @@ from traceability.rtm import (
     validate_evidence_completeness,
     validate_structural_completeness,
 )
+from traceability.audit import audit as run_audit, emit_audit_graph, render_report
 from traceability.validation import validate as validate_closure_rules
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
@@ -265,6 +266,33 @@ def run_pipeline(
     # We surface violations but do not fail the pipeline by default —
     # the audit module (Phase H) renders a structured report. CI can opt
     # into hard-fail behavior by checking `report.conforms`.
+
+    # ── Stage 7a: AUDIT TRACE ────────────────────────────────────
+    emit_stage_activity(rtm_ds, "AuditTrace")
+    print("\n[Stage 7a] Auditing forward / backward / bidirectional traceability...")
+    audit_report = run_audit(rtm_ds)
+    print(f"  {audit_report.forward.summary()}")
+    print(f"  {audit_report.backward.summary()}")
+    bidirect = audit_report.bidirectional()
+    print(f"  Bidirectional: {'PASS' if bidirect.passed else 'FAIL'}")
+    if audit_report.orphans.any:
+        if audit_report.orphans.requirements_without_evidence:
+            print(f"  Orphan reqs (no evidence): "
+                  f"{audit_report.orphans.requirements_without_evidence}")
+        if audit_report.orphans.evidence_without_requirement:
+            print(f"  Orphan evidence: {len(audit_report.orphans.evidence_without_requirement)}")
+        if audit_report.orphans.attestations_with_broken_refs:
+            print(f"  Broken attestations: {len(audit_report.orphans.attestations_with_broken_refs)}")
+    else:
+        print("  Orphans: none")
+    emit_audit_graph(rtm_ds, audit_report)
+
+    # Write a human-readable audit report alongside the RTM export.
+    audit_md = OUTPUT_DIR / "audit.md"
+    audit_md.parent.mkdir(parents=True, exist_ok=True)
+    audit_md.write_text(render_report(audit_report, fmt="md"))
+    (OUTPUT_DIR / "audit.csv").write_text(render_report(audit_report, fmt="csv"))
+    print(f"  Audit report -> output/audit.md, output/audit.csv")
 
     # ── Stage 7: REPORTED ────────────────────────────────────────
     stage = LifecycleStage.REPORTED
