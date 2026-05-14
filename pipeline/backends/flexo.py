@@ -24,13 +24,18 @@ Authentication: two supported modes
     the local Compose-up stack from flexo-mms-deployment.
 
 Environment variables (kwargs override env):
-  FLEXO_URL        Layer1 base URL                  default: http://localhost:8080
-  FLEXO_AUTH_URL   Auth service URL                 default: http://localhost:8082
+  FLEXO_URL        Layer1 base URL                  default: https://try-layer1.starforge.app
+  FLEXO_AUTH_URL   Auth service URL (login mode)    default: http://localhost:8082
   FLEXO_TOKEN      Pre-issued bearer token          default: (empty)
   FLEXO_USER       Username for login flow          default: user01
   FLEXO_PASS       Password for login flow          default: password1
   FLEXO_ORG        Org slug                         default: adcs-demo
   FLEXO_REPO       Repo slug                        default: lifecycle
+
+The default URL targets the remote starforge instance, which is the
+collaboration target shared with the team. Set FLEXO_TOKEN to a token
+obtained from a collaborator. For a local Compose-up stack instead,
+set FLEXO_URL=http://localhost:8080 and rely on the login flow.
 """
 
 from __future__ import annotations
@@ -64,7 +69,7 @@ class FlexoBackend:
         repo: str | None = None,
         timeout: float = 60.0,
     ) -> None:
-        self.url = (url or os.environ.get("FLEXO_URL", "http://localhost:8080")).rstrip("/")
+        self.url = (url or os.environ.get("FLEXO_URL", "https://try-layer1.starforge.app")).rstrip("/")
         self.auth_url = (auth_url or os.environ.get("FLEXO_AUTH_URL", "http://localhost:8082")).rstrip("/")
         self.token = token or os.environ.get("FLEXO_TOKEN", "") or None
         self.user = user or os.environ.get("FLEXO_USER", "user01")

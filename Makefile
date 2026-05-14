@@ -97,17 +97,21 @@ clean-imports:
 	rm -rf ontology/imports/
 
 # ----------------------------------------------------------------------------
-# Flexo MMS targets (Phase J)
+# Flexo MMS targets
+#
+# Default target is the remote starforge instance (FLEXO_URL=
+# https://try-layer1.starforge.app), set FLEXO_TOKEN to a bearer token
+# you obtained from a collaborator. For offline work, use the local
+# Compose stack from openmbee/flexo-mms-deployment and override
+# FLEXO_URL=http://localhost:8080.
 # ----------------------------------------------------------------------------
 
-flexo-up:
-	@echo "Phase J not yet landed. Will run: docker compose -f flexo/docker-compose.yml up -d"
-	@exit 1
-
 flexo-init:
-	@echo "Phase J not yet landed. Will run: ./flexo/init.sh"
-	@exit 1
+	./flexo/init.sh
 
 flexo-down:
-	@echo "Phase J not yet landed. Will run: docker compose -f flexo/docker-compose.yml down -v"
-	@exit 1
+	./flexo/teardown.sh
+
+# Live pipeline run against whichever Flexo target FLEXO_URL points at.
+flexo-run:
+	uv run python -m pipeline.runner --auto --backend=flexo
