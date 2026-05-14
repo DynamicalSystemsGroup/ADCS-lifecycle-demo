@@ -30,6 +30,7 @@ from evidence.hashing import (
     hash_simulation,
     hash_structural_model,
 )
+from pipeline.backends import get_backend
 from pipeline.dataset import graph_for, load_into, triples_by_graph
 from pipeline.stage0_assembly import run_stage_0
 from pipeline.stages import LifecycleStage, check_gate
@@ -54,6 +55,7 @@ def run_pipeline(
     skip_attestation: bool = False,
     engineer_name: str = "ADCS Engineer",
     rebuild_ontology: bool = False,
+    backend: str = "local",
 ) -> Dataset:
     """Execute the full ADCS lifecycle pipeline.
 
@@ -298,8 +300,11 @@ def run_pipeline(
     stage = LifecycleStage.REPORTED
     emit_stage_activity(rtm_ds, "Report")
     print("\n[Stage 7] Generating reports...")
-    export_rtm(rtm, OUTPUT_DIR / "rtm.ttl")
-    print(f"  Final RTM exported to output/rtm.ttl")
+    store = get_backend(backend)
+    print(f"  Backend: {store.describe()}")
+    persisted = store.persist(rtm_ds, OUTPUT_DIR)
+    print(f"  Persisted {len(persisted)} named graphs "
+          f"({sum(persisted.values())} triples total)")
 
     summary = print_rtm_summary(rtm)
     print(summary)
@@ -325,6 +330,8 @@ def main():
                         help="Engineer name for attestation")
     parser.add_argument("--rebuild", action="store_true",
                         help="Invoke `make ontology` before Stage 0 (live-demo rebuild path)")
+    parser.add_argument("--backend", choices=["local", "flexo", "fuseki"], default="local",
+                        help="Persistence backend (default: local filesystem)")
     args = parser.parse_args()
 
     run_pipeline(
@@ -332,6 +339,7 @@ def main():
         skip_attestation=args.no_attest,
         engineer_name=args.engineer,
         rebuild_ontology=args.rebuild,
+        backend=args.backend,
     )
 
 
