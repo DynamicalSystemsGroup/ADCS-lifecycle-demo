@@ -19,15 +19,37 @@ from rdflib import Graph
 from ontology.prefixes import PROV, RTM, SYSML
 from traceability.queries import query_to_dicts
 
-# Color scheme
+# Color scheme.
+#
+# Green and red are reserved exclusively for attestation outcomes
+# (earl:passed / earl:failed) so the viewer can see at a glance which
+# requirements are satisfied. Every other node type uses a color that
+# is neither green nor red, freeing the semantic load of those two
+# colors for the engineering verdict.
 COLORS = {
-    "sat_requirement": "#7FB3DE",  # light blue
-    "requirement": "#4A90D9",      # blue
-    "design_element": "#7BC67E",   # green
-    "proof": "#F5A623",            # orange
-    "simulation": "#E8C840",       # gold
-    "attestation": "#D94A4A",      # red
+    "sat_requirement":     "#7FB3DE",  # light blue
+    "requirement":         "#4A90D9",  # blue
+    "design_element":      "#9B7AB8",  # purple (was green)
+    "proof":               "#F5A623",  # orange
+    "simulation":          "#E8C840",  # gold
+    # Attestation colors keyed on earl outcome short-name.
+    "attestation_passed":       "#2EA84E",  # green
+    "attestation_failed":       "#D94A4A",  # red
+    "attestation_cantTell":     "#A6794D",  # brown (distinct from yellow/orange)
+    "attestation_inapplicable": "#888888",  # gray
+    "attestation_untested":     "#888888",  # gray
+    "attestation_unknown":      "#888888",  # gray fallback
 }
+
+# Neutral edge color for `attests` so the line itself doesn't take on
+# pass/fail semantics — the attestation node carries that signal.
+ATTESTS_EDGE_COLOR = "#555555"
+
+
+def _attestation_color(outcome_short: str) -> str:
+    """Map an earl outcome short-name to its node fill color."""
+    key = f"attestation_{outcome_short}" if outcome_short else "attestation_unknown"
+    return COLORS.get(key, COLORS["attestation_unknown"])
 
 # Layers for hierarchical layout (left to right)
 _LAYER_X = {
@@ -144,24 +166,34 @@ def _extract_graph_data(rdf_graph: Graph) -> tuple[nx.DiGraph, dict, dict]:
         G.add_edge(row["reqName"], node_id, rel="addresses")
 
     # --- Attestation nodes ---
+    # Pull the earl outcome so we can color-code passed/failed/cantTell.
+    # OPTIONAL on hasOutcome so older graphs without the GSN/EARL refactor
+    # still render (the attestation gets the gray "unknown" fill).
     q = """
-    SELECT ?reqName ?engineer ?timestamp WHERE {
+    SELECT ?reqName ?engineer ?timestamp ?outcomeShort WHERE {
         ?att a rtm:Attestation ;
              rtm:attests ?req ;
              prov:wasAssociatedWith ?agent ;
              prov:generatedAtTime ?timestamp .
         ?agent rdfs:label ?engineer .
         ?req sysml:declaredName ?reqName .
+        OPTIONAL {
+            ?att rtm:hasOutcome ?outcome .
+            BIND(REPLACE(STR(?outcome), "^.*[#/]", "") AS ?outcomeShort)
+        }
     }
     """
     for row in query_to_dicts(rdf_graph, q):
         att_id = f"att_{row['reqName']}"
         ts = row["timestamp"][:10] if row["timestamp"] else ""
+        outcome = (row.get("outcomeShort") or "").strip() or None
         # Shorten engineer name for display
         eng = row["engineer"].split("(")[0].strip()
-        label = f"Attested\n{eng}\n{ts}"
+        # Surface the verdict in the node label as well as in color.
+        verdict = f"earl:{outcome}" if outcome else "(no outcome)"
+        label = f"Attestation\n{verdict}\n{eng}\n{ts}"
         G.add_node(att_id, label=label)
-        node_colors[att_id] = COLORS["attestation"]
+        node_colors[att_id] = _attestation_color(outcome or "")
         node_types[att_id] = "attestation"
         G.add_edge(att_id, row["reqName"], rel="attests")
 
@@ -300,7 +332,7 @@ def build_rtm_figure(
         "derivedFrom": {"style": "solid", "color": "#888888", "width": 1.5},
         "satisfiedBy": {"style": "solid", "color": "#555555", "width": 1.5},
         "addresses": {"style": "dashed", "color": "#999999", "width": 1.0},
-        "attests": {"style": "solid", "color": COLORS["attestation"], "width": 2.0},
+        "attests": {"style": "solid", "color": ATTESTS_EDGE_COLOR, "width": 2.0},
     }
 
     for rel_type, style in edge_styles.items():
@@ -356,18 +388,22 @@ def build_rtm_figure(
         bbox=dict(boxstyle="round,pad=0.15", facecolor="white", edgecolor="none", alpha=0.8),
     )
 
-    # Legend — positioned below the graph
+    # Legend — positioned below the graph. Attestation color shows the
+    # engineering verdict (earl:passed / earl:failed / earl:cantTell);
+    # only those three colors carry pass/fail semantics in the figure.
     legend_items = [
         mpatches.Patch(facecolor=COLORS["sat_requirement"], edgecolor="#333", label="Satellite Requirement"),
         mpatches.Patch(facecolor=COLORS["requirement"], edgecolor="#333", label="ADCS Requirement"),
         mpatches.Patch(facecolor=COLORS["design_element"], edgecolor="#333", label="Design Element"),
         mpatches.Patch(facecolor=COLORS["proof"], edgecolor="#333", label="Proof Artifact"),
         mpatches.Patch(facecolor=COLORS["simulation"], edgecolor="#333", label="Simulation Result"),
-        mpatches.Patch(facecolor=COLORS["attestation"], edgecolor="#333", label="Attestation"),
+        mpatches.Patch(facecolor=COLORS["attestation_passed"], edgecolor="#333", label="Attestation (earl:passed)"),
+        mpatches.Patch(facecolor=COLORS["attestation_failed"], edgecolor="#333", label="Attestation (earl:failed)"),
+        mpatches.Patch(facecolor=COLORS["attestation_cantTell"], edgecolor="#333", label="Attestation (earl:cantTell)"),
     ]
     ax.legend(
         handles=legend_items, loc="upper center",
-        bbox_to_anchor=(0.5, -0.02), ncol=6, fontsize=8, framealpha=0.9,
+        bbox_to_anchor=(0.5, -0.02), ncol=4, fontsize=8, framealpha=0.9,
     )
 
     # Column headers — positioned above the graph content
