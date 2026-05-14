@@ -14,11 +14,23 @@ from __future__ import annotations
 import subprocess
 from datetime import datetime, timezone
 
-from rdflib import Graph, Literal, URIRef
+from rdflib import Dataset, Graph, Literal, URIRef
 from rdflib.namespace import RDF, RDFS, XSD
 
-from ontology.prefixes import ADCS, PROV, RTM, SYSML
+from ontology.prefixes import ADCS, G_ATTESTATIONS, PROV, RTM, SYSML
 from traceability.queries import EVIDENCE_FOR_REQUIREMENT, query_to_dicts
+
+
+def _writable_graph(target: Graph | Dataset) -> Graph:
+    """Return the graph where attestation triples should be written.
+
+    If `target` is a Dataset, return its <adcs:attestations> named graph
+    view. Otherwise return `target` itself (legacy / flat-Graph path).
+    Queries against `target` always see the union (Dataset default_union).
+    """
+    if isinstance(target, Dataset):
+        return target.graph(URIRef(G_ATTESTATIONS))
+    return target
 
 
 def _get_git_commit() -> str:
@@ -94,7 +106,7 @@ def present_evidence(graph: Graph, req_name: str) -> str:
 
 
 def request_attestation(
-    graph: Graph,
+    graph: Graph | Dataset,
     req_name: str,
     engineer_name: str,
     *,
@@ -143,34 +155,38 @@ def request_attestation(
                 "auto_attest=True requires model_adequacy and evidence_sufficiency"
             )
 
-    # Create attestation node
+    # Create attestation node. Writes route to <adcs:attestations> when
+    # `graph` is a Dataset; queries (above and below) continue to see
+    # the union via default_union.
+    write = _writable_graph(graph)
+
     att_id = f"ATT-{req_name}"
     att_uri = ADCS[att_id]
     req_uri = ADCS[req_name]
     engineer_uri = ADCS[f"engineer-{engineer_name.replace(' ', '_')}"]
 
-    graph.add((att_uri, RDF.type, RTM.Attestation))
-    graph.add((att_uri, RTM.attests, req_uri))
-    graph.add((att_uri, RTM.modelAdequacy, Literal(model_adequacy)))
-    graph.add((att_uri, RTM.evidenceSufficiency, Literal(evidence_sufficiency)))
-    graph.add((att_uri, PROV.wasAssociatedWith, engineer_uri))
-    graph.add((att_uri, PROV.generatedAtTime, Literal(
+    write.add((att_uri, RDF.type, RTM.Attestation))
+    write.add((att_uri, RTM.attests, req_uri))
+    write.add((att_uri, RTM.modelAdequacy, Literal(model_adequacy)))
+    write.add((att_uri, RTM.evidenceSufficiency, Literal(evidence_sufficiency)))
+    write.add((att_uri, PROV.wasAssociatedWith, engineer_uri))
+    write.add((att_uri, PROV.generatedAtTime, Literal(
         datetime.now(timezone.utc).isoformat(), datatype=XSD.dateTime,
     )))
 
     git_sha = _get_git_commit()
     if git_sha:
-        graph.add((att_uri, RTM.gitCommit, Literal(git_sha)))
+        write.add((att_uri, RTM.gitCommit, Literal(git_sha)))
 
     # Link attestation to all evidence for this requirement
     evidence = query_to_dicts(graph, EVIDENCE_FOR_REQUIREMENT % req_name)
     for ev in evidence:
         ev_uri = URIRef(ev["ev"])
-        graph.add((att_uri, RTM.hasEvidence, ev_uri))
+        write.add((att_uri, RTM.hasEvidence, ev_uri))
 
     # Engineer agent node
-    graph.add((engineer_uri, RDF.type, RTM.Engineer))
-    graph.add((engineer_uri, RDFS.label, Literal(engineer_name)))
+    write.add((engineer_uri, RDF.type, RTM.Engineer))
+    write.add((engineer_uri, RDFS.label, Literal(engineer_name)))
 
     print(f"\n  {req_name}: ATTESTED by {engineer_name}")
     return att_uri

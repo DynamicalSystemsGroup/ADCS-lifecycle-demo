@@ -1,16 +1,25 @@
 """Requirements Traceability Matrix assembly and validation.
 
-Merges the structural graph with evidence and attestation graphs,
-validates completeness, and exports the full RTM.
+The RTM is held in an rdflib Dataset with named graphs sized to match
+Flexo MMS conventions (see pipeline/dataset.py and the named-graph IRIs
+exported by ontology/prefixes). Existing SPARQL queries continue to
+work unmodified because the Dataset is built with default_union=True.
+
+Layer assignments:
+- <rtm:ontology>      ontology/*.ttl (TBox + shapes + individuals)
+- <adcs:structural>   structural/*.ttl (SysMLv2 instance data)
+- <adcs:evidence>     evidence artifacts (populated by stage 4)
+- <adcs:attestations> attestation events (populated by stage 6)
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from rdflib import Graph
+from rdflib import Dataset, Graph
 
 from ontology.prefixes import ADCS, PROV, RTM, SYSML, bind_prefixes
+from pipeline.dataset import create_dataset, graph_for, load_into
 from traceability.queries import (
     ADCS_REQUIREMENTS,
     ATTESTATION_STATUS,
@@ -21,31 +30,64 @@ from traceability.queries import (
 ONTOLOGY_DIR = Path(__file__).resolve().parent.parent / "ontology"
 STRUCTURAL_DIR = Path(__file__).resolve().parent.parent / "structural"
 
+# Runtime TBox files (loaded into <rtm:ontology>). Explicit allow-list
+# rather than glob — keeps ROBOT validation artifacts and rtm-edit.ttl
+# (the build-source) out of the runtime graph.
+_RUNTIME_ONTOLOGY_FILES = (
+    "rtm.ttl",
+    "rtm_individuals.ttl",
+    "rtm_shapes.ttl",
+)
 
-def load_base_graph() -> Graph:
-    """Load ontology + structural model into a graph."""
-    g = Graph()
-    bind_prefixes(g)
-    for d in [ONTOLOGY_DIR, STRUCTURAL_DIR]:
-        for ttl in sorted(d.glob("*.ttl")):
-            g.parse(ttl, format="turtle")
-    return g
+
+def load_base_dataset() -> Dataset:
+    """Build the base Dataset with ontology in <rtm:ontology> and
+    structural model in <adcs:structural>.
+
+    Only the canonical runtime TBox (rtm.ttl + rtm_individuals.ttl +
+    rtm_shapes.ttl) is loaded. ROBOT validation artifacts, the
+    hand-edited source rtm-edit.ttl, and the vendored imports under
+    ontology/imports/ are build-time only and not part of the runtime.
+    """
+    ds = create_dataset()
+    for filename in _RUNTIME_ONTOLOGY_FILES:
+        load_into(ds, "ontology", ONTOLOGY_DIR / filename)
+    for ttl in sorted(STRUCTURAL_DIR.glob("*.ttl")):
+        load_into(ds, "structural", ttl)
+    return ds
+
+
+def load_base_graph() -> Dataset:
+    """Backward-compatible alias. Returns the Dataset; consumers treating
+    it as a Graph see the union view via default_union=True."""
+    return load_base_dataset()
 
 
 def assemble_rtm(
-    base_graph: Graph,
+    base_graph: Graph | Dataset,
     evidence_graph: Graph,
-) -> Graph:
-    """Merge base (structural + ontology) with evidence into a single RTM graph."""
+) -> Graph | Dataset:
+    """Merge evidence into the base.
+
+    Two modes:
+    - If base is a Dataset (the runtime), copy evidence triples into the
+      <adcs:evidence> named graph and return the same Dataset.
+    - If base is a plain Graph (legacy / test fixtures), produce a merged
+      Graph that contains both — preserves the original signature.
+    """
+    if isinstance(base_graph, Dataset):
+        ev_named = graph_for(base_graph, "evidence")
+        for triple in evidence_graph:
+            ev_named.add(triple)
+        return base_graph
+
+    # Legacy path: flat Graph merge
     rtm = Graph()
     bind_prefixes(rtm)
-
-    # Copy all triples from both graphs
     for triple in base_graph:
         rtm.add(triple)
     for triple in evidence_graph:
         rtm.add(triple)
-
     return rtm
 
 
@@ -108,11 +150,23 @@ def get_unattested_requirements(graph: Graph) -> list[str]:
     return [r["reqName"] for r in rows]
 
 
-def export_rtm(graph: Graph, path: str | Path) -> None:
-    """Serialize the RTM graph as Turtle."""
+def export_rtm(graph: Graph | Dataset, path: str | Path) -> None:
+    """Serialize the RTM as Turtle (flat union if Dataset).
+
+    Side effect: if `graph` is a Dataset, also writes a .trig file at
+    the same base path so the named-graph structure is preserved.
+    """
+    from pipeline.dataset import export_trig, export_union_turtle
+
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    graph.serialize(str(path), format="turtle")
+
+    if isinstance(graph, Dataset):
+        export_union_turtle(graph, path)
+        trig_path = path.with_suffix(".trig")
+        export_trig(graph, trig_path)
+    else:
+        graph.serialize(str(path), format="turtle")
 
 
 def print_rtm_summary(graph: Graph) -> str:

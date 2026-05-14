@@ -12,7 +12,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from rdflib import Graph
+from rdflib import Dataset
 
 from analysis.build_proofs import build_all_proofs
 from analysis.load_params import load_params, load_structural_graph
@@ -30,13 +30,12 @@ from evidence.hashing import (
     hash_simulation,
     hash_structural_model,
 )
-from ontology.prefixes import bind_prefixes
+from pipeline.dataset import graph_for, triples_by_graph
 from pipeline.stages import LifecycleStage, check_gate
 from traceability.attestation import request_attestation
 from traceability.rtm import (
-    assemble_rtm,
     export_rtm,
-    load_base_graph,
+    load_base_dataset,
     print_rtm_summary,
     validate_evidence_completeness,
     validate_structural_completeness,
@@ -50,18 +49,26 @@ def run_pipeline(
     auto_attest: bool = False,
     skip_attestation: bool = False,
     engineer_name: str = "ADCS Engineer",
-) -> Graph:
-    """Execute the full ADCS lifecycle pipeline."""
+) -> Dataset:
+    """Execute the full ADCS lifecycle pipeline.
+
+    Returns the populated Dataset with eight named graphs:
+        <rtm:ontology>, <rtm:plan>, <adcs:structural>, <adcs:context>,
+        <adcs:evidence>, <adcs:attestations>, <adcs:plan-execution>,
+        <adcs:audit>.
+    Default-union is enabled so consumers can query across the union
+    with plain SPARQL.
+    """
     stage = LifecycleStage.STRUCTURAL_DEFINED
 
     # ── Stage 1: STRUCTURAL_DEFINED ──────────────────────────────
     print("\n[Stage 1] Loading structural model...")
-    base_graph = load_base_graph()
+    rtm_ds = load_base_dataset()
     struct_graph = load_structural_graph()
     model_hash = hash_structural_model(struct_graph)
     params = load_params(struct_graph)
 
-    issues = validate_structural_completeness(base_graph)
+    issues = validate_structural_completeness(rtm_ds)
     if issues:
         print(f"  STRUCTURAL ISSUES: {issues}")
         sys.exit(1)
@@ -107,8 +114,7 @@ def run_pipeline(
     # ── Stage 4: EVIDENCE_BOUND ──────────────────────────────────
     stage = LifecycleStage.EVIDENCE_BOUND
     print("\n[Stage 4] Binding evidence to RDF graph...")
-    ev_graph = Graph()
-    bind_prefixes(ev_graph)
+    ev_graph = graph_for(rtm_ds, "evidence")
     bind_computation_engines(ev_graph)
 
     # Proof evidence for all 4 requirements
@@ -159,12 +165,16 @@ def run_pipeline(
         source_file="analysis/numerical.py",
     )
 
-    print(f"  Evidence artifacts created: {len(list(ev_graph.subjects()))} nodes")
+    print(f"  Evidence artifacts created: {len(list(ev_graph.subjects()))} nodes "
+          f"(written to <adcs:evidence>)")
 
     # ── Stage 5: RTM_ASSEMBLED ───────────────────────────────────
     stage = LifecycleStage.RTM_ASSEMBLED
     print("\n[Stage 5] Assembling RTM...")
-    rtm = assemble_rtm(base_graph, ev_graph)
+    # The Dataset already contains structural + ontology + evidence in
+    # their respective named graphs; assembly is a no-op for the runtime
+    # path (default_union exposes the merged view to queries).
+    rtm = rtm_ds
 
     ev_issues = validate_evidence_completeness(rtm)
     if ev_issues:
@@ -173,7 +183,7 @@ def run_pipeline(
         print(f"  Evidence completeness: PASS (all requirements have evidence)")
 
     export_rtm(rtm, OUTPUT_DIR / "rtm_pre_attestation.ttl")
-    print(f"  Pre-attestation RTM exported to output/rtm_pre_attestation.ttl")
+    print(f"  Pre-attestation RTM exported to output/rtm_pre_attestation.{{ttl,trig}}")
 
     # ── Stage 6: ATTESTATION ─────────────────────────────────────
     if not skip_attestation:
