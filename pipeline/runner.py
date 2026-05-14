@@ -30,12 +30,13 @@ from evidence.hashing import (
     hash_simulation,
     hash_structural_model,
 )
-from pipeline.dataset import graph_for, triples_by_graph
+from pipeline.dataset import graph_for, load_into, triples_by_graph
+from pipeline.stage0_assembly import run_stage_0
 from pipeline.stages import LifecycleStage, check_gate
 from traceability.attestation import request_attestation
 from traceability.rtm import (
+    STRUCTURAL_DIR,
     export_rtm,
-    load_base_dataset,
     print_rtm_summary,
     validate_evidence_completeness,
     validate_structural_completeness,
@@ -49,6 +50,7 @@ def run_pipeline(
     auto_attest: bool = False,
     skip_attestation: bool = False,
     engineer_name: str = "ADCS Engineer",
+    rebuild_ontology: bool = False,
 ) -> Dataset:
     """Execute the full ADCS lifecycle pipeline.
 
@@ -59,11 +61,15 @@ def run_pipeline(
     Default-union is enabled so consumers can query across the union
     with plain SPARQL.
     """
+    # ── Stage 0: ONTOLOGY_ASSEMBLED ──────────────────────────────
+    rtm_ds = run_stage_0(rebuild=rebuild_ontology)
+
     stage = LifecycleStage.STRUCTURAL_DEFINED
 
     # ── Stage 1: STRUCTURAL_DEFINED ──────────────────────────────
     print("\n[Stage 1] Loading structural model...")
-    rtm_ds = load_base_dataset()
+    for ttl in sorted(STRUCTURAL_DIR.glob("*.ttl")):
+        load_into(rtm_ds, "structural", ttl)
     struct_graph = load_structural_graph()
     model_hash = hash_structural_model(struct_graph)
     params = load_params(struct_graph)
@@ -250,12 +256,15 @@ def main():
                         help="Skip attestation stage")
     parser.add_argument("--engineer", default="Dr. Michael Zargham (@mzargham)",
                         help="Engineer name for attestation")
+    parser.add_argument("--rebuild", action="store_true",
+                        help="Invoke `make ontology` before Stage 0 (live-demo rebuild path)")
     args = parser.parse_args()
 
     run_pipeline(
         auto_attest=args.auto,
         skip_attestation=args.no_attest,
         engineer_name=args.engineer,
+        rebuild_ontology=args.rebuild,
     )
 
 

@@ -24,6 +24,7 @@ from ontology.prefixes import (
     G_EVIDENCE,
     G_ONTOLOGY,
     G_STRUCTURAL,
+    NAMED_GRAPHS,
 )
 from pipeline.runner import run_pipeline
 
@@ -77,8 +78,8 @@ def test_no_leakage_into_default_graph(pipeline_dataset):
     """Every triple should live in some named graph; the default graph
     should be empty (or near-empty) since the runtime always uses
     named-graph views for writes."""
-    named = {URIRef(G_ONTOLOGY), URIRef(G_STRUCTURAL),
-             URIRef(G_EVIDENCE), URIRef(G_ATTESTATIONS)}
+    # Authoritative allow-list: every planned named graph from prefixes.py.
+    named = {URIRef(iri) for iri in NAMED_GRAPHS.values()}
     # rdflib's Dataset.quads() returns the 4th element as a URIRef (the
     # graph identifier), not a Graph context object.
     leaked = [
