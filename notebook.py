@@ -813,18 +813,26 @@ def __(rtm_graph, mo):
         f"    Bidirectional: {'PASS' if audit_report.bidirectional().passed else 'FAIL'}\n"
         f"    Orphans: {'none' if not audit_report.orphans.any else 'see report'}\n"
         "```\n\n"
-        "**Forward and backward are independent.** Forward asks: *"
-        "is every requirement reached by evidence + an attestation?* "
-        "Backward asks: *does every attestation reference evidence that "
-        "actually addresses the same requirement?* Either can fail while "
-        "the other passes — and the failure message identifies which "
-        "direction broke. Bidirectional is `forward ∧ backward`, never a "
-        "primary check.\n\n"
-        f"Coverage matrix below — REQ-001 cells show `covered+failed` "
-        "because the attestation outcome is `earl:failed`. That cell "
-        "wouldn't exist at all if we'd silently omitted REQ-001's "
-        "attestation; recording the declination as a well-formed "
-        "attestation keeps it in the audit."
+        "**Two orthogonal questions, not one.** The audit decouples\n\n"
+        "- **traceability** — *is the structural chain intact?* "
+        "Forward asks if every requirement is reached by evidence + an "
+        "attestation; backward asks if every attestation's evidence "
+        "actually addresses its claimed requirement. Bidirectional is "
+        "the conjunction. These are structural facts about the graph.\n"
+        "- **coverage status** — *is the requirement satisfied?* "
+        "Outcome-derived per cell of the coverage matrix: "
+        "`covered+passed` / `covered+failed` / `covered+cantTell` / "
+        "`uncovered`. These are the engineering verdicts captured in "
+        "each attestation's `earl:outcome`.\n\n"
+        "**The v1 verdict (this stage).** Traceability passes — the "
+        "chain is structurally sound, no orphans, every attestation "
+        "lines up with its evidence. **REQ-001 is `covered+failed` and "
+        "this is the *expected* output of v1**: the engineering analysis "
+        "produced a real finding (settling time > spec) and the audit "
+        "surfaces it as a coverage gap rather than hiding it behind "
+        "'unattested'. Act 8 — Design Iteration — is the response, and "
+        "Act 10's audit shows the same matrix flipping to all "
+        "`covered+passed`."
     )
     return audit_report, _render
 
@@ -879,15 +887,22 @@ def __(explanations, mo):
     {explanations["REQ-001"]}
     ```
 
-    REQ-001 is **attested with outcome `earl:failed`**. The audit
-    distinguishes this cleanly from "no attestation" — both forward and
-    backward traceability *pass* for REQ-001 (there IS an attestation;
-    it points at the right evidence; the evidence DOES address the
-    requirement). What fails is the requirement itself, captured in the
-    outcome value. Forward traceability returning PASS while an
-    `earl:failed` outcome is present is the correct shape: the trace
-    chain is sound, the engineering finding is real, and the gap is
-    visible to the auditor with its reasoning.
+    REQ-001 is **`covered+failed` at v1** — the structural trace from
+    requirement → evidence → attestation is complete (which is why
+    forward/backward both PASS), and the engineer recorded an
+    `earl:failed` outcome with a precise reason (settling time > spec)
+    and an action item (retune gains).
+
+    This is the lifecycle state the demo is *designed* to produce at
+    v1. The auditor sees three things separately:
+
+    1. **The trace is intact.** No "missing attestation", no orphan
+       evidence — the graph is internally consistent.
+    2. **The engineering verdict is recorded.** Outcome = `earl:failed`,
+       with adequacy and sufficiency text on linked GSN nodes.
+    3. **The next action is in the record.** The sufficiency
+       `gsn:Justification` carries the corrective recommendation, so
+       the design iteration in Act 8 has a documented starting point.
     """)
     return
 
@@ -927,9 +942,25 @@ def __(mo):
 
     ## Act 7: The Traceability Graph
 
-    The complete RTM as a directed graph. Requirements (blue) flow through
-    design elements (green) to evidence (orange/yellow) to attestations (red).
-    Every edge is a queryable RDF triple in git.
+    The complete v1 RTM as a directed graph. Requirements (blue) flow
+    through design elements (green) to evidence (orange/yellow) to
+    attestations (red). Every edge is a queryable RDF triple in git.
+
+    What you should see at v1:
+
+    - **All four requirements have full chains** to evidence and an
+      attestation node — that's why Act 6's audit reported the trace
+      as PASS. The chain is structurally complete for every
+      requirement.
+    - **REQ-001's attestation carries `earl:failed`** in the outcome —
+      the engineering verdict — even though its trace looks just like
+      the other three at the graph level. Outcome lives on the
+      attestation node as a property, not in the link shape.
+
+    The `print_rtm_summary` block below makes this distinction
+    explicit: requirements are categorized as ATTESTED with their
+    EARL outcome surfaced, separating "trace intact + verdict pending
+    work" from "trace incomplete."
     """)
     return
 

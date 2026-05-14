@@ -23,6 +23,7 @@ from pipeline.dataset import create_dataset, graph_for, load_into
 from traceability.queries import (
     ADCS_REQUIREMENTS,
     ATTESTATION_STATUS,
+    REQUIREMENT_OUTCOMES,
     UNATTESTED_REQUIREMENTS,
     query_to_dicts,
 )
@@ -170,29 +171,65 @@ def export_rtm(graph: Graph | Dataset, path: str | Path) -> None:
 
 
 def print_rtm_summary(graph: Graph) -> str:
-    """Format an RTM summary table as a string."""
+    """Format an RTM summary table as a string.
+
+    Separates two orthogonal facts per requirement:
+      - Whether an attestation EXISTS (trace integrity)
+      - The attestation's earl outcome (engineering verdict)
+
+    A requirement attested with `earl:failed` is structurally traced
+    (the chain is intact) but not satisfied (engineering work needed).
+    The previous version conflated these by reporting only "ATTESTED" /
+    "UNATTESTED" — masking failed outcomes.
+    """
     lines = []
     lines.append("=" * 72)
     lines.append("REQUIREMENTS TRACEABILITY MATRIX — STATUS SUMMARY")
     lines.append("=" * 72)
 
     reqs = query_to_dicts(graph, ADCS_REQUIREMENTS)
-    status = {r["reqName"]: r["attestCount"] for r in get_attestation_status(graph)}
+    outcomes = {
+        r["reqName"]: r["outcomeShort"]
+        for r in query_to_dicts(graph, REQUIREMENT_OUTCOMES)
+    }
+
+    needs_work: list[str] = []  # attested but earl:failed / earl:cantTell
+    not_traced: list[str] = []  # no attestation at all
 
     for req in reqs:
         name = req["name"]
         text = req["text"].strip().replace("\n", " ")[:60]
-        count = status.get(name, "0")
-        attested = "ATTESTED" if int(count) > 0 else "UNATTESTED"
+        outcome = outcomes.get(name) or ""
+
+        if outcome == "passed":
+            status = "ATTESTED (earl:passed)"
+        elif outcome == "failed":
+            status = "ATTESTED (earl:failed) — engineering finding"
+            needs_work.append(name)
+        elif outcome == "cantTell":
+            status = "ATTESTED (earl:cantTell) — insufficient evidence"
+            needs_work.append(name)
+        elif outcome == "inapplicable":
+            status = "ATTESTED (earl:inapplicable)"
+        elif outcome == "untested":
+            status = "ATTESTED (earl:untested)"
+        elif outcome:
+            status = f"ATTESTED (earl:{outcome})"
+        else:
+            status = "NO ATTESTATION — trace incomplete"
+            not_traced.append(name)
+
         lines.append(f"\n  {name}: {text}...")
-        lines.append(f"    Status: {attested}")
+        lines.append(f"    Status: {status}")
 
     lines.append("\n" + "=" * 72)
-    unattested = get_unattested_requirements(graph)
-    if unattested:
-        lines.append(f"  Unattested: {', '.join(unattested)}")
-    else:
-        lines.append("  All requirements attested.")
+    if not_traced:
+        lines.append(f"  Untraced (no attestation): {', '.join(not_traced)}")
+    if needs_work:
+        lines.append(f"  Open engineering findings (covered+failed/cantTell): "
+                     f"{', '.join(needs_work)}")
+    if not not_traced and not needs_work:
+        lines.append("  All requirements attested with earl:passed.")
     lines.append("=" * 72)
 
     return "\n".join(lines)

@@ -117,6 +117,26 @@ GROUP BY ?reqName
 ORDER BY ?reqName
 """
 
+# Per-requirement outcome with the EARL outcome value short name.
+# Returns one row per requirement; ?outcome is "passed" / "failed" /
+# "cantTell" / "inapplicable" / "untested" / "" (no attestation).
+# Distinguishes "ATTESTED+failed" from "no attestation" — neither was
+# possible before the GSN/EARL refactor (Phase F).
+REQUIREMENT_OUTCOMES = """
+SELECT ?reqName ?outcomeShort WHERE {
+    ?req a sysml:RequirementDefinition ;
+         sysml:declaredName ?reqName .
+    FILTER(STRSTARTS(?reqName, "REQ-"))
+    OPTIONAL {
+        ?att a rtm:Attestation ;
+             rtm:attests ?req ;
+             rtm:hasOutcome ?outcome .
+        BIND(REPLACE(STR(?outcome), "^.*[#/]", "") AS ?outcomeShort)
+    }
+}
+ORDER BY ?reqName
+"""
+
 UNATTESTED_REQUIREMENTS = """
 SELECT ?reqName WHERE {
     ?req a sysml:RequirementDefinition ;
