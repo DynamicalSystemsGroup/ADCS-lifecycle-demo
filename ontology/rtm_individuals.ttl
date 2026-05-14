@@ -1,5 +1,7 @@
-@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix rtm:   <http://example.org/ontology/rtm#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix rtm:     <http://example.org/ontology/rtm#> .
 
 # =============================================================================
 # Evidence method individuals
@@ -17,3 +19,33 @@ rtm:FormalProof a rtm:EvidenceMethod ;
     rdfs:label "Formal Proof" ;
     rdfs:comment """Machine-checked formal proof via SymPy lemma chain.
         Each lemma independently re-verifiable.""" .
+
+# =============================================================================
+# Role individuals — referenced from prov:qualifiedAssociation/prov:hadRole
+# =============================================================================
+
+rtm:role-AttestingEngineer a prov:Role ;
+    rdfs:label "Attesting Engineer" ;
+    rdfs:comment """The role held by an agent at the time they perform an
+        attestation. Distinct from the agent's organizational role; this is
+        the specific function being exercised in this particular event.""" .
+
+# =============================================================================
+# Plan individuals — referenced from rtm:followedProcedure/prov:hadPlan
+# =============================================================================
+
+rtm:plan-StandardAttestationProcedure-v1 a prov:Plan ;
+    rdfs:label "Standard Attestation Procedure v1" ;
+    dcterms:description """Standard attestation checklist:
+        1. Review the structural model and confirm the requirement is
+           well-defined.
+        2. Examine each evidence artifact for re-verifiability and
+           relevance to the requirement.
+        3. Form a model-adequacy judgment (recorded as gsn:Assumption):
+           is the model an adequate representation of the physical system
+           for evaluating this requirement?
+        4. Form an evidence-sufficiency judgment (recorded as gsn:Justification):
+           do the computational results within that model support concluding
+           the requirement is satisfied?
+        5. Record outcome from the EARL lattice (passed / failed / cantTell
+           / inapplicable / untested).""" .

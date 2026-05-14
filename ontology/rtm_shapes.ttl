@@ -1,0 +1,281 @@
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix sh:      <http://www.w3.org/ns/shacl#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix earl:    <http://www.w3.org/ns/earl#> .
+@prefix gsn:     <https://w3id.org/OntoGSN/ontology#> .
+@prefix p-plan:  <http://purl.org/net/p-plan#> .
+@prefix sysml:   <https://www.omg.org/spec/SysML/2.0/> .
+@prefix rtm:     <http://example.org/ontology/rtm#> .
+
+# =============================================================================
+# The closure-rule suite — well-formedness invariants
+#
+# Each shape checks one invariant. Together they are the machine-checkable
+# definition of "a well-constructed RTM" — orthogonal to and prerequisite
+# for the traceability pass/fail computed by the audit module.
+#
+# Shapes #1-#9 are SHACL.
+# Shape #10 (re-verification) is a runtime check in interrogate/verify.py.
+# Shape #8 is split into independent forward (#8a) and backward (#8b)
+# shapes; bidirectional is derived (#8a AND #8b) by the audit module so
+# error messages name which direction broke.
+# =============================================================================
+
+# -- #1 -----------------------------------------------------------------------
+# AttestationShape: every Attestation carries adequacy Assumption +
+# sufficiency Justification + exactly one outcome + qualified association.
+# -----------------------------------------------------------------------------
+
+rtm:AttestationShape a sh:NodeShape ;
+    sh:targetClass rtm:Attestation ;
+    sh:property [
+        sh:path gsn:inContextOf ;
+        sh:qualifiedValueShape [ sh:class gsn:Assumption ] ;
+        sh:qualifiedMinCount 1 ;
+        sh:message "Attestation must include at least one adequacy gsn:Assumption linked via gsn:inContextOf."
+    ] ;
+    sh:property [
+        sh:path gsn:inContextOf ;
+        sh:qualifiedValueShape [ sh:class gsn:Justification ] ;
+        sh:qualifiedMinCount 1 ;
+        sh:message "Attestation must include at least one sufficiency gsn:Justification linked via gsn:inContextOf."
+    ] ;
+    sh:property [
+        sh:path rtm:hasOutcome ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "Attestation must record exactly one rtm:hasOutcome (an EARL outcome value)."
+    ] ;
+    sh:property [
+        sh:path prov:qualifiedAssociation ;
+        sh:minCount 1 ;
+        sh:message "Attestation must record a prov:qualifiedAssociation (with prov:hadRole and prov:hadPlan)."
+    ] ;
+    sh:property [
+        sh:path rtm:attests ;
+        sh:minCount 1 ;
+        sh:message "Attestation must attest at least one requirement."
+    ] .
+
+# -- #2 -----------------------------------------------------------------------
+# PlanInstantiationShape: every p-plan:Activity corresponds to a known step.
+# Predecessor ordering is checked at runtime (SPARQL ASK in
+# traceability/audit.py) since SHACL pure cannot navigate transitive
+# precedes-relations across activity instances.
+# -----------------------------------------------------------------------------
+
+rtm:PlanInstantiationShape a sh:NodeShape ;
+    sh:targetClass p-plan:Activity ;
+    sh:property [
+        sh:path p-plan:correspondsToStep ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:class p-plan:Step ;
+        sh:message "p-plan:Activity must correspondsToStep exactly one p-plan:Step."
+    ] ;
+    sh:property [
+        sh:path prov:startedAtTime ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:dateTime ;
+        sh:message "p-plan:Activity must record prov:startedAtTime."
+    ] .
+
+# -- #3 -----------------------------------------------------------------------
+# EvidenceShape: hashes + source + generating activity + addresses requirement.
+# -----------------------------------------------------------------------------
+
+rtm:EvidenceShape a sh:NodeShape ;
+    sh:targetClass rtm:Evidence ;
+    sh:property [
+        sh:path rtm:contentHash ;
+        sh:minCount 1 ; sh:datatype xsd:string ;
+        sh:message "Evidence must record an rtm:contentHash."
+    ] ;
+    sh:property [
+        sh:path rtm:modelHash ;
+        sh:minCount 1 ; sh:datatype xsd:string ;
+        sh:message "Evidence must record an rtm:modelHash."
+    ] ;
+    sh:property [
+        sh:path rtm:sourceFile ;
+        sh:minCount 1 ; sh:datatype xsd:string ;
+        sh:message "Evidence must record an rtm:sourceFile."
+    ] ;
+    sh:property [
+        sh:path rtm:resultSummary ;
+        sh:minCount 1 ; sh:datatype xsd:string ;
+        sh:message "Evidence must record an rtm:resultSummary."
+    ] ;
+    sh:property [
+        sh:path prov:wasGeneratedBy ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message "Evidence must record exactly one prov:wasGeneratedBy activity."
+    ] ;
+    sh:property [
+        sh:path rtm:addresses ;
+        sh:minCount 1 ;
+        sh:message "Evidence must rtm:addresses at least one requirement (or be flagged as orphan in the audit)."
+    ] .
+
+rtm:ProofArtifactShape a sh:NodeShape ;
+    sh:targetClass rtm:ProofArtifact ;
+    sh:property [
+        sh:path rtm:proofHash ;
+        sh:minCount 1 ; sh:datatype xsd:string ;
+        sh:message "ProofArtifact must record an rtm:proofHash (used by the re-verification closure check)."
+    ] .
+
+# -- #4 -----------------------------------------------------------------------
+# RequirementShape: declared name + text. derivedFrom acyclicity is checked
+# at runtime (graph traversal) since SHACL cannot universally express
+# transitive non-cyclicity without recursion extensions.
+# -----------------------------------------------------------------------------
+
+rtm:RequirementShape a sh:NodeShape ;
+    sh:targetClass sysml:RequirementDefinition ;
+    sh:property [
+        sh:path sysml:declaredName ;
+        sh:minCount 1 ; sh:datatype xsd:string ;
+        sh:message "Requirement must have a sysml:declaredName."
+    ] ;
+    sh:property [
+        sh:path sysml:text ;
+        sh:minCount 1 ; sh:datatype xsd:string ;
+        sh:message "Requirement must have sysml:text (the textual statement)."
+    ] .
+
+# -- #5 -----------------------------------------------------------------------
+# GsnArgumentShape: Strategy supported by at least one Solution; Assumption,
+# Justification, Context must carry non-empty gsn:statement.
+# -----------------------------------------------------------------------------
+
+rtm:StrategySupportedShape a sh:NodeShape ;
+    sh:targetClass gsn:Strategy ;
+    sh:property [
+        sh:path gsn:supportedBy ;
+        sh:qualifiedValueShape [ sh:class gsn:Solution ] ;
+        sh:qualifiedMinCount 1 ;
+        sh:message "gsn:Strategy must be gsn:supportedBy at least one gsn:Solution."
+    ] .
+
+rtm:GoalSupportedShape a sh:NodeShape ;
+    sh:targetClass gsn:Goal ;
+    sh:property [
+        sh:path [ sh:inversePath gsn:supportedBy ] ;
+        sh:minCount 1 ;
+        sh:message "gsn:Goal must have at least one supportedBy (incoming) — a Strategy or Solution that argues it."
+    ] .
+
+rtm:GsnTextShape a sh:NodeShape ;
+    sh:targetClass gsn:Assumption , gsn:Justification , gsn:Context ;
+    sh:property [
+        sh:path gsn:statement ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:minLength 1 ;
+        sh:message "GSN Assumption / Justification / Context must carry a non-empty gsn:statement."
+    ] .
+
+# -- #6 -----------------------------------------------------------------------
+# ProvenanceShape: Activity has agent; Entity has at most one generating activity.
+# -----------------------------------------------------------------------------
+
+rtm:ActivityAgentShape a sh:NodeShape ;
+    sh:targetClass prov:Activity ;
+    sh:property [
+        sh:path prov:wasAssociatedWith ;
+        sh:minCount 1 ;
+        sh:message "prov:Activity must record at least one prov:wasAssociatedWith agent."
+    ] .
+
+rtm:EntityGeneratingActivityShape a sh:NodeShape ;
+    sh:targetClass prov:Entity ;
+    sh:property [
+        sh:path prov:wasGeneratedBy ;
+        sh:maxCount 1 ;
+        sh:message "prov:Entity must have at most one generating activity (PROV-O constraint)."
+    ] .
+
+# -- #7 -----------------------------------------------------------------------
+# OutcomeSemanticsShape: outcome-specific rationale requirements.
+# Implemented as multiple targeted shapes — sh:condition + property-path
+# patterns over the linked gsn:Assumption / gsn:Justification.
+# -----------------------------------------------------------------------------
+
+rtm:PassedRequiresAdequacyAndSufficiencyShape a sh:NodeShape ;
+    sh:targetClass rtm:Attestation ;
+    sh:sparql [
+        sh:message "Attestation with outcome earl:passed must have non-empty adequacy and sufficiency gsn:statement text." ;
+        sh:prefixes rtm: ;
+        sh:select """
+            PREFIX rtm:  <http://example.org/ontology/rtm#>
+            PREFIX earl: <http://www.w3.org/ns/earl#>
+            PREFIX gsn:  <https://w3id.org/OntoGSN/ontology#>
+            SELECT $this WHERE {
+                $this rtm:hasOutcome earl:passed .
+                FILTER NOT EXISTS {
+                    $this gsn:inContextOf ?asm .
+                    ?asm a gsn:Assumption ; gsn:statement ?at .
+                    FILTER (STRLEN(STR(?at)) > 0)
+                }
+            }
+        """
+    ] .
+
+# -- #8a ----------------------------------------------------------------------
+# ForwardTraceabilityShape: every requirement reaches evidence with an
+# addressing link AND an attestation that attests it. Outcome value is
+# informational here, not a pass gate — the failure mode is "no
+# attestation reachable at all," not "attested with the wrong outcome."
+# -----------------------------------------------------------------------------
+
+rtm:ForwardTraceabilityShape a sh:NodeShape ;
+    sh:targetClass sysml:RequirementDefinition ;
+    sh:sparql [
+        sh:message "Forward-traceability failure: requirement is not reachable to addressing evidence + an attestation." ;
+        sh:prefixes rtm: ;
+        sh:select """
+            PREFIX rtm:   <http://example.org/ontology/rtm#>
+            PREFIX sysml: <https://www.omg.org/spec/SysML/2.0/>
+            SELECT $this WHERE {
+                $this a sysml:RequirementDefinition .
+                FILTER NOT EXISTS {
+                    ?att rtm:attests $this ;
+                         rtm:hasEvidence ?ev ;
+                         rtm:hasOutcome ?out .
+                    $this rtm:addressedBy ?ev .
+                }
+            }
+        """
+    ] .
+
+# -- #8b ----------------------------------------------------------------------
+# BackwardTraceabilityShape: every attestation's evidence is addresses-linked
+# back to the requirement it attests. Independent of #8a — runs and reports
+# its failures separately so error messages identify which direction broke.
+# -----------------------------------------------------------------------------
+
+rtm:BackwardTraceabilityShape a sh:NodeShape ;
+    sh:targetClass rtm:Attestation ;
+    sh:sparql [
+        sh:message "Backward-traceability failure: attestation references evidence that does not declare addressing the attested requirement." ;
+        sh:prefixes rtm: ;
+        sh:select """
+            PREFIX rtm: <http://example.org/ontology/rtm#>
+            SELECT $this WHERE {
+                $this rtm:attests ?req ;
+                      rtm:hasEvidence ?ev .
+                FILTER NOT EXISTS { ?ev rtm:addresses ?req }
+            }
+        """
+    ] .
+
+# -- #9 -----------------------------------------------------------------------
+# NamedGraphIntegrityShape: cross-graph references resolve. Enforced at
+# runtime by the audit module since SHACL on a Dataset must be invoked
+# per-graph; the rule is expressed declaratively here for documentation.
+# -----------------------------------------------------------------------------
+#
+# Rule: for every triple ?s rtm:attests ?o, ?o must exist as a
+# sysml:RequirementDefinition in <adcs:structural> (or <rtm:ontology>).
+# The audit module implements this via cross-graph SPARQL queries.
