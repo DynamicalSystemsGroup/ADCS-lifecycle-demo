@@ -42,6 +42,7 @@ from traceability.rtm import (
     validate_evidence_completeness,
     validate_structural_completeness,
 )
+from traceability.validation import validate as validate_closure_rules
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 
@@ -219,12 +220,31 @@ def run_pipeline(
                         "0.1 N.m actuator capacity. Simulation confirms negligible pointing impact."),
         }
 
-        # REQ-001: DECLINED — settling time 262s exceeds 120s requirement
+        # REQ-001: explicit DECLINATION — settling time 262s exceeds 120s requirement.
+        # Emitted as a well-formed attestation with outcome=earl:failed so the
+        # closure-rule suite can validate against an audit-complete graph.
+        from traceability.attestation import OUTCOME_FAILED
         print(f"\n  REQ-001: ATTESTATION DECLINED")
         print(f"    Settling time {step_summary['settling_time_s']:.0f}s exceeds 120s requirement.")
         print(f"    Action: retune gains (Kp: {params['Kp']:.0f}->4, Kd: {params['Kd']:.0f}->30) and re-verify.")
+        if auto_attest:
+            request_attestation(
+                rtm, "REQ-001", engineer_name,
+                auto_attest=True,
+                model_adequacy=(
+                    "Step-response simulation is adequate for evaluating pointing-"
+                    "accuracy settling time at this point in the lifecycle."
+                ),
+                evidence_sufficiency=(
+                    f"Evidence is sufficient to conclude REQ-001 is NOT yet satisfied: "
+                    f"settling time {step_summary['settling_time_s']:.0f}s exceeds the "
+                    f"120s requirement. Action item: retune gains "
+                    f"(Kp: {params['Kp']:.0f}->4, Kd: {params['Kd']:.0f}->30) and re-verify."
+                ),
+                outcome=OUTCOME_FAILED,
+            )
 
-        # Attest REQ-002, REQ-003, REQ-004
+        # Attest REQ-002, REQ-003, REQ-004 with earl:passed
         for req_id in ["REQ-002", "REQ-003", "REQ-004"]:
             if auto_attest:
                 request_attestation(
@@ -235,6 +255,16 @@ def run_pipeline(
                 )
             else:
                 request_attestation(rtm, req_id, engineer_name)
+
+    # ── Stage 6.5: VALIDATE CLOSURE RULES ────────────────────────
+    emit_stage_activity(rtm_ds, "ValidateShapes")
+    print("\n[Stage 6.5] Validating closure-rule suite...")
+    report = validate_closure_rules(rtm_ds, skip_reverification=False)
+    for line in report.summary_lines():
+        print(f"  {line}")
+    # We surface violations but do not fail the pipeline by default —
+    # the audit module (Phase H) renders a structured report. CI can opt
+    # into hard-fail behavior by checking `report.conforms`.
 
     # ── Stage 7: REPORTED ────────────────────────────────────────
     stage = LifecycleStage.REPORTED

@@ -45,12 +45,17 @@ class TestExplain:
         assert "Evidence" in explanation
         assert "Attested by" in explanation
 
-    def test_explain_unattested_requirement(self):
-        """REQ-001 should NOT be attested (settling time not met)."""
+    def test_explain_declined_requirement(self):
+        """REQ-001 should be attested with an earl:failed outcome
+        (settling time not met). The declination is recorded as a
+        well-formed attestation so the closure-rule suite can validate
+        against an audit-complete graph."""
         rtm = run_pipeline(auto_attest=True, engineer_name="Dr. Test")
         explanation = explain_requirement(rtm, "REQ-001")
         assert "REQ-001" in explanation
-        assert "NOT ATTESTED" in explanation
+        assert "earl:failed" in explanation, (
+            "REQ-001 declination should surface as earl:failed in the explanation"
+        )
 
     def test_explain_all(self):
         rtm = run_pipeline(auto_attest=True, engineer_name="Dr. Test")

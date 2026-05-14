@@ -34,6 +34,12 @@ from rdflib.namespace import RDF, XSD
 from ontology.prefixes import ADCS, P_PLAN, PROV, RTM
 from pipeline.dataset import graph_for
 
+# Default agent for pipeline-stage executions. Concrete identity (a
+# specific engineer, or a CI runner) belongs to the attestation; this
+# agent represents the pipeline orchestrator itself, which is what
+# actually runs each stage.
+PIPELINE_AGENT = ADCS["agent/pipeline-runner"]
+
 
 # Mapping from stage short-name to the step IRI fragment in plan.ttl.
 # Keep this in sync with pipeline/plan.ttl.
@@ -74,6 +80,9 @@ def start_step(ds: Dataset, step_name: str) -> URIRef:
     plan_g.add((activity, P_PLAN.correspondsToStep, step_iri(step_name)))
     plan_g.add((activity, PROV.startedAtTime,
                 Literal(started.isoformat(), datatype=XSD.dateTime)))
+    plan_g.add((activity, PROV.wasAssociatedWith, PIPELINE_AGENT))
+    # Declare the pipeline agent once; idempotent if already present.
+    plan_g.add((PIPELINE_AGENT, RDF.type, PROV.SoftwareAgent))
     return activity
 
 

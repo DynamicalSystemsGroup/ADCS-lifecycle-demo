@@ -223,27 +223,30 @@ rtm:PassedRequiresAdequacyAndSufficiencyShape a sh:NodeShape ;
     ] .
 
 # -- #8a ----------------------------------------------------------------------
-# ForwardTraceabilityShape: every requirement reaches evidence with an
-# addressing link AND an attestation that attests it. Outcome value is
-# informational here, not a pass gate — the failure mode is "no
-# attestation reachable at all," not "attested with the wrong outcome."
+# ForwardTraceabilityShape: every ADCS-level requirement reaches evidence
+# with an addressing link AND an attestation (any outcome value, since
+# declined attestations are well-formed too). Satellite-level requirements
+# (SAT-REQ-*) are out of scope here — they are attested at a higher
+# integration level. The shape scopes itself via STRSTARTS on declaredName.
 # -----------------------------------------------------------------------------
 
 rtm:ForwardTraceabilityShape a sh:NodeShape ;
     sh:targetClass sysml:RequirementDefinition ;
     sh:sparql [
-        sh:message "Forward-traceability failure: requirement is not reachable to addressing evidence + an attestation." ;
+        sh:message "Forward-traceability failure: ADCS requirement is not reachable to addressing evidence + an attestation." ;
         sh:prefixes rtm: ;
         sh:select """
             PREFIX rtm:   <http://example.org/ontology/rtm#>
             PREFIX sysml: <https://www.omg.org/spec/SysML/2.0/>
             SELECT $this WHERE {
-                $this a sysml:RequirementDefinition .
+                $this a sysml:RequirementDefinition ;
+                      sysml:declaredName ?name .
+                FILTER(STRSTARTS(?name, "REQ-"))
                 FILTER NOT EXISTS {
                     ?att rtm:attests $this ;
                          rtm:hasEvidence ?ev ;
                          rtm:hasOutcome ?out .
-                    $this rtm:addressedBy ?ev .
+                    ?ev rtm:addresses $this .
                 }
             }
         """

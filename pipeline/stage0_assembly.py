@@ -122,6 +122,8 @@ def _count_shapes(ds: Dataset) -> int:
 
 def _emit_plan_activity(ds: Dataset, started: datetime, ended: datetime) -> URIRef:
     """Record this Stage-0 execution as a p-plan:Activity in <adcs:plan-execution>."""
+    from traceability.plan_execution import PIPELINE_AGENT
+
     plan_g = graph_for(ds, "plan_execution")
     activity_id = f"exec/Stage0-{started.strftime('%Y%m%dT%H%M%SZ')}"
     activity = ADCS[activity_id]
@@ -132,6 +134,8 @@ def _emit_plan_activity(ds: Dataset, started: datetime, ended: datetime) -> URIR
                 Literal(started.isoformat(), datatype=XSD.dateTime)))
     plan_g.add((activity, PROV.endedAtTime,
                 Literal(ended.isoformat(), datatype=XSD.dateTime)))
+    plan_g.add((activity, PROV.wasAssociatedWith, PIPELINE_AGENT))
+    plan_g.add((PIPELINE_AGENT, RDF.type, PROV.SoftwareAgent))
     return activity
 
 
