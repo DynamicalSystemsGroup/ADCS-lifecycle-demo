@@ -115,3 +115,25 @@ flexo-down:
 # Live pipeline run against whichever Flexo target FLEXO_URL points at.
 flexo-run:
 	uv run python -m pipeline.runner --auto --backend=flexo
+
+# ----------------------------------------------------------------------------
+# Docker-emulated remote compute (Phase L)
+#
+# Emulates a remote analysis server for Stage 2 / Stage 3. The provenance
+# captured (image digest, container ID, container hostname) lands in the
+# attestation graph so the RTM records WHERE and HOW each piece of
+# evidence was produced.
+# ----------------------------------------------------------------------------
+
+COMPUTE_IMAGE ?= adcs-compute:latest
+
+.PHONY: compute-build compute-run compute-shell
+
+compute-build:
+	docker build -t $(COMPUTE_IMAGE) -f compute/Dockerfile .
+
+compute-run:
+	uv run python -m pipeline.runner --auto --compute=docker
+
+compute-shell:
+	docker run --rm -it -v $$(pwd):/work -w /work $(COMPUTE_IMAGE) bash

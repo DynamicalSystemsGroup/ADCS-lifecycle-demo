@@ -16,9 +16,8 @@ from rdflib import Dataset
 
 from analysis.build_proofs import build_all_proofs
 from analysis.load_params import load_params, load_structural_graph
-from analysis.numerical import run_disturbance_rejection, run_step_response
 from analysis.proof_scripts import ProofStatus, verify_proof
-from analysis.symbolic import run_symbolic_analysis
+from compute import get_compute_backend
 from evidence.binding import (
     bind_computation_engines,
     bind_proof_evidence,
@@ -56,6 +55,7 @@ def run_pipeline(
     engineer_name: str = "ADCS Engineer",
     rebuild_ontology: bool = False,
     backend: str = "local",
+    compute: str = "local",
 ) -> Dataset:
     """Execute the full ADCS lifecycle pipeline.
 
@@ -88,11 +88,15 @@ def run_pipeline(
     print(f"  Parameters loaded: {len(params)}")
     print(f"  Structural validation: PASS")
 
+    # ── Compute backend (used by Stages 2 & 3) ───────────────────
+    compute_backend = get_compute_backend(compute)
+    print(f"\n  Compute: {compute_backend.describe()}")
+
     # ── Stage 2: SYMBOLICALLY_ANALYZED ───────────────────────────
     stage = LifecycleStage.SYMBOLICALLY_ANALYZED
     emit_stage_activity(rtm_ds, "SymbolicAnalysis")
     print("\n[Stage 2] Running symbolic analysis...")
-    sym_result = run_symbolic_analysis(params)
+    sym_result, sym_meta = compute_backend.run_symbolic_analysis(params)
     print(f"  Inertia: Jxx={sym_result.inertia[0]:.1f}, "
           f"Jyy={sym_result.inertia[1]:.1f}, "
           f"Jzz={sym_result.inertia[2]:.1f} kg.m^2")
@@ -112,7 +116,7 @@ def run_pipeline(
     stage = LifecycleStage.NUMERICALLY_SIMULATED
     emit_stage_activity(rtm_ds, "NumericalSimulation")
     print("\n[Stage 3] Running numerical simulations...")
-    step_result = run_step_response(params)
+    step_result, step_meta = compute_backend.run_step_response(params)
     step_summary = step_result.summary()
     print(f"  Step response: settling={step_summary['settling_time_s']:.1f}s, "
           f"final_error={step_summary['final_error_deg']:.4f} deg")
@@ -121,8 +125,12 @@ def run_pipeline(
     print(f"  Peak control torque: {step_summary['peak_control_torque']:.4f} N.m "
           f"(limit: {params['maxTorque']})")
 
-    dist_result = run_disturbance_rejection(params)
+    dist_result, dist_meta = compute_backend.run_disturbance_rejection(params)
     dist_summary = dist_result.summary()
+    if compute != "local":
+        print(f"  Execution captured: host={step_meta.hostname}, "
+              f"image={step_meta.image_label or 'n/a'}, "
+              f"container={step_meta.container_id or 'n/a'}")
     print(f"  Disturbance rejection: peak_error={dist_summary['peak_error_deg']:.6f} deg")
 
     # ── Stage 4: EVIDENCE_BOUND ──────────────────────────────────
@@ -132,7 +140,10 @@ def run_pipeline(
     ev_graph = graph_for(rtm_ds, "evidence")
     bind_computation_engines(ev_graph)
 
-    # Proof evidence for all 4 requirements
+    # Proof evidence for all 4 requirements — analysis ran on the
+    # selected compute backend; ExecutionMetadata is forwarded to the
+    # binding so the SA-* activity carries prov:atLocation +
+    # prov:wasAssociatedWith for the executor agent.
     for req_id, script in proofs.items():
         p_hash = hash_proof(script, model_hash)
         c_hash = hash_evidence(model_hash, proof_hash=p_hash)
@@ -146,6 +157,7 @@ def run_pipeline(
             content_hash=c_hash,
             result_summary=f"Symbolic proof: {script.claim}",
             source_file="analysis/build_proofs.py",
+            execution_metadata=sym_meta,
         )
 
     # Simulation evidence
@@ -165,6 +177,7 @@ def run_pipeline(
             sim_hash=sim_hash,
             result_summary=desc,
             source_file="analysis/numerical.py",
+            execution_metadata=step_meta,
         )
 
     # Disturbance rejection evidence for REQ-004
@@ -178,6 +191,7 @@ def run_pipeline(
         sim_hash=dist_hash,
         result_summary=f"Disturbance rejection: peak_error={dist_summary['peak_error_deg']:.6f} deg",
         source_file="analysis/numerical.py",
+        execution_metadata=dist_meta,
     )
 
     print(f"  Evidence artifacts created: {len(list(ev_graph.subjects()))} nodes "
@@ -332,6 +346,10 @@ def main():
                         help="Invoke `make ontology` before Stage 0 (live-demo rebuild path)")
     parser.add_argument("--backend", choices=["local", "flexo", "fuseki"], default="local",
                         help="Persistence backend (default: local filesystem)")
+    parser.add_argument("--compute", choices=["local", "docker"], default="local",
+                        help="Compute backend for Stage 2/3 analysis. "
+                             "`docker` emulates remote compute and captures "
+                             "image/hostname/container-ID as RTM provenance.")
     args = parser.parse_args()
 
     run_pipeline(
@@ -340,6 +358,7 @@ def main():
         engineer_name=args.engineer,
         rebuild_ontology=args.rebuild,
         backend=args.backend,
+        compute=args.compute,
     )
 
 

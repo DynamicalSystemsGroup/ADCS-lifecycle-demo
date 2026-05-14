@@ -15,3 +15,6 @@ plots/
 ontology/rtm-robot-merged.ttl
 ontology/rtm-robot-reasoned.ttl
 ontology/rtm-robot-report.tsv
+
+# Docker compute IPC scratch space (regenerated per run)
+.docker-ipc/
