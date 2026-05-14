@@ -260,21 +260,8 @@ rtm:resultSummary a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "result summary" .
 
-# =============================================================================
-# DEPRECATED — to be removed in Phase F.
-# Adequacy and sufficiency are properly expressed as gsn:Assumption and
-# gsn:Justification nodes (with text in gsn:statement) linked from the
-# attestation via gsn:inContextOf — the Hawkins-Habli ACP categorization.
-# The pairing-as-closure rule lives in rtm_shapes.ttl. These datatype
-# properties are retained only so the pre-Phase-F pipeline keeps loading.
-# =============================================================================
-
-rtm:modelAdequacy a owl:DatatypeProperty ;
-    rdfs:domain rtm:Attestation ; rdfs:range xsd:string ;
-    rdfs:label "model adequacy (deprecated)" ;
-    owl:deprecated true .
-
-rtm:evidenceSufficiency a owl:DatatypeProperty ;
-    rdfs:domain rtm:Attestation ; rdfs:range xsd:string ;
-    rdfs:label "evidence sufficiency (deprecated)" ;
-    owl:deprecated true .
+# Adequacy and sufficiency are not novel epistemic terms — they map to
+# gsn:Assumption and gsn:Justification (Hawkins-Habli ACP categorization).
+# The attestation links them via gsn:inContextOf; their textual content
+# lives on those nodes in gsn:statement. The pairing-as-closure rule is a
+# SHACL shape in rtm_shapes.ttl (rtm:AttestationShape).

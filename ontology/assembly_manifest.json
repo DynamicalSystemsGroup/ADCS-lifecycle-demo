@@ -2,15 +2,15 @@
   "artifact": {
     "equivalence_axioms": 9,
     "path": "ontology/rtm.ttl",
-    "sha256": "c6b71b6a3ec1b2d36bec26485678a0b5c94dd9bf0bef0af57ea1e25511803b33",
+    "sha256": "4631b36422ccfa1e53cec64f0247c9d04f1058f15795139a550fbfbb8ddfee43",
     "subclass_axioms": 13,
     "subproperty_axioms": 7,
-    "total_triples": 166
+    "total_triples": 156
   },
-  "build_time": "2026-05-14T01:11:51Z",
+  "build_time": "2026-05-14T01:26:27Z",
   "edit_source": {
     "path": "ontology/rtm-edit.ttl",
-    "sha256": "4c1d2a1b8b17bd038010e1927f1cc9c3d16cae8dbf7f29e8256c44ea9baf62e4"
+    "sha256": "32cf81d5b7286119b0a013221ece82174daf0fde553972c4ec2616734a500ca0"
   },
   "imports": {
     "EARL": {

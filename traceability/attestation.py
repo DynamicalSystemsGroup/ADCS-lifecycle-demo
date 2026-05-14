@@ -14,11 +14,26 @@ from __future__ import annotations
 import subprocess
 from datetime import datetime, timezone
 
-from rdflib import Dataset, Graph, Literal, URIRef
+from rdflib import BNode, Dataset, Graph, Literal, URIRef
 from rdflib.namespace import RDF, RDFS, XSD
 
-from ontology.prefixes import ADCS, G_ATTESTATIONS, PROV, RTM, SYSML
+from ontology.prefixes import ADCS, EARL, G_ATTESTATIONS, GSN, PROV, RTM, SYSML
 from traceability.queries import EVIDENCE_FOR_REQUIREMENT, query_to_dicts
+
+# Stable individuals declared in ontology/rtm_individuals.ttl
+ROLE_ATTESTING_ENGINEER = URIRef(f"{RTM}role-AttestingEngineer")
+PLAN_STANDARD_PROCEDURE = URIRef(f"{RTM}plan-StandardAttestationProcedure-v1")
+
+# EARL outcome values (declared in upstream EARL vocabulary)
+OUTCOME_PASSED = EARL.passed
+OUTCOME_FAILED = EARL.failed
+OUTCOME_CANT_TELL = EARL.cantTell
+OUTCOME_INAPPLICABLE = EARL.inapplicable
+OUTCOME_UNTESTED = EARL.untested
+
+MODE_MANUAL = EARL.manual
+MODE_SEMI_AUTO = EARL.semiAuto
+MODE_AUTO = EARL.automatic
 
 
 def _writable_graph(target: Graph | Dataset) -> Graph:
@@ -113,20 +128,32 @@ def request_attestation(
     auto_attest: bool = False,
     model_adequacy: str = "",
     evidence_sufficiency: str = "",
+    outcome: URIRef = OUTCOME_PASSED,
 ) -> URIRef | None:
     """Present evidence and request human attestation for a requirement.
 
-    If auto_attest is True, skips the CLI prompt (for testing/scripted runs).
-    Otherwise, prompts the engineer interactively.
+    Emits a well-formed attestation per the closure-rule suite:
+      - rtm:Attestation (multi-typed earl:Assertion + gsn:Strategy + prov:Activity)
+      - rtm:attests -> the requirement
+      - gsn:inContextOf -> gsn:Assumption (adequacy text in gsn:statement)
+      - gsn:inContextOf -> gsn:Justification (sufficiency text in gsn:statement)
+      - rtm:hasOutcome -> one of the EARL outcome values
+      - rtm:attestationMode -> earl:manual or earl:semiAuto
+      - prov:qualifiedAssociation -> [agent + hadRole + hadPlan]
+      - rtm:hasEvidence -> evidence artifacts linked to this requirement
+      - rtm:followedProcedure -> the standard SOP
 
-    Returns the attestation URI if attested, None if declined.
+    auto_attest=True skips the CLI prompt (scripted runs). Otherwise the
+    engineer is prompted interactively and may decline (outcome=failed
+    or cantTell). Returns the attestation URI in all paths — declinations
+    are well-formed attestations, just with a non-passed outcome.
     """
-    # Show evidence summary
     summary = present_evidence(graph, req_name)
     print(summary)
 
+    mode = MODE_SEMI_AUTO if auto_attest else MODE_MANUAL
+
     if not auto_attest:
-        # Interactive prompts
         print(f"\n  Attestation for {req_name}:")
         print(f"  Engineer: {engineer_name}")
         print()
@@ -136,49 +163,74 @@ def request_attestation(
             "      this requirement? (Enter statement or 'no' to decline): "
         ).strip()
         if adequacy.lower() in ("no", "n", ""):
-            print(f"  {req_name}: attestation DECLINED (model inadequacy)")
-            return None
-
-        sufficiency = input(
-            "  (b) Evidence sufficiency — Is the evidence sufficient to\n"
-            "      conclude the requirement is satisfied? (Enter statement or 'no'): "
-        ).strip()
-        if sufficiency.lower() in ("no", "n", ""):
-            print(f"  {req_name}: attestation DECLINED (insufficient evidence)")
-            return None
-
-        model_adequacy = adequacy
-        evidence_sufficiency = sufficiency
+            adequacy = "Model deemed inadequate for this requirement."
+            sufficiency = "Not evaluated; attestation declined on adequacy grounds."
+            outcome = OUTCOME_FAILED
+            model_adequacy, evidence_sufficiency = adequacy, sufficiency
+            print(f"  {req_name}: outcome=earl:failed (model inadequacy)")
+        else:
+            sufficiency = input(
+                "  (b) Evidence sufficiency — Is the evidence sufficient to\n"
+                "      conclude the requirement is satisfied? (Enter statement or 'no'): "
+            ).strip()
+            if sufficiency.lower() in ("no", "n", ""):
+                sufficiency = "Evidence deemed insufficient to conclude satisfaction."
+                outcome = OUTCOME_CANT_TELL
+                model_adequacy, evidence_sufficiency = adequacy, sufficiency
+                print(f"  {req_name}: outcome=earl:cantTell (insufficient evidence)")
+            else:
+                model_adequacy, evidence_sufficiency = adequacy, sufficiency
+                outcome = OUTCOME_PASSED
     else:
         if not model_adequacy or not evidence_sufficiency:
             raise ValueError(
                 "auto_attest=True requires model_adequacy and evidence_sufficiency"
             )
 
-    # Create attestation node. Writes route to <adcs:attestations> when
-    # `graph` is a Dataset; queries (above and below) continue to see
-    # the union via default_union.
     write = _writable_graph(graph)
 
     att_id = f"ATT-{req_name}"
     att_uri = ADCS[att_id]
     req_uri = ADCS[req_name]
     engineer_uri = ADCS[f"engineer-{engineer_name.replace(' ', '_')}"]
+    adequacy_uri = ADCS[f"adequacy/{att_id}"]
+    sufficiency_uri = ADCS[f"sufficiency/{att_id}"]
 
+    # Core attestation
     write.add((att_uri, RDF.type, RTM.Attestation))
     write.add((att_uri, RTM.attests, req_uri))
-    write.add((att_uri, RTM.modelAdequacy, Literal(model_adequacy)))
-    write.add((att_uri, RTM.evidenceSufficiency, Literal(evidence_sufficiency)))
+    write.add((att_uri, RTM.hasOutcome, outcome))
+    write.add((att_uri, RTM.attestationMode, mode))
+    write.add((att_uri, RTM.followedProcedure, PLAN_STANDARD_PROCEDURE))
     write.add((att_uri, PROV.wasAssociatedWith, engineer_uri))
+    write.add((att_uri, EARL.assertedBy, engineer_uri))
     write.add((att_uri, PROV.generatedAtTime, Literal(
         datetime.now(timezone.utc).isoformat(), datatype=XSD.dateTime,
     )))
+
+    # Adequacy claim as a gsn:Assumption (Hawkins-Habli ACP: AssertedContext)
+    write.add((adequacy_uri, RDF.type, GSN.Assumption))
+    write.add((adequacy_uri, GSN.statement, Literal(model_adequacy)))
+    write.add((att_uri, GSN.inContextOf, adequacy_uri))
+
+    # Sufficiency claim as a gsn:Justification (Hawkins-Habli ACP: AssertedInference)
+    write.add((sufficiency_uri, RDF.type, GSN.Justification))
+    write.add((sufficiency_uri, GSN.statement, Literal(evidence_sufficiency)))
+    write.add((att_uri, GSN.inContextOf, sufficiency_uri))
+
+    # PROV qualified association: who (agent), in what role, following what plan
+    assoc = BNode()
+    write.add((att_uri, PROV.qualifiedAssociation, assoc))
+    write.add((assoc, RDF.type, PROV.Association))
+    write.add((assoc, PROV.agent, engineer_uri))
+    write.add((assoc, PROV.hadRole, ROLE_ATTESTING_ENGINEER))
+    write.add((assoc, PROV.hadPlan, PLAN_STANDARD_PROCEDURE))
 
     git_sha = _get_git_commit()
     if git_sha:
         write.add((att_uri, RTM.gitCommit, Literal(git_sha)))
 
-    # Link attestation to all evidence for this requirement
+    # Evidence linkage
     evidence = query_to_dicts(graph, EVIDENCE_FOR_REQUIREMENT % req_name)
     for ev in evidence:
         ev_uri = URIRef(ev["ev"])
@@ -188,5 +240,6 @@ def request_attestation(
     write.add((engineer_uri, RDF.type, RTM.Engineer))
     write.add((engineer_uri, RDFS.label, Literal(engineer_name)))
 
-    print(f"\n  {req_name}: ATTESTED by {engineer_name}")
+    outcome_short = str(outcome).rsplit("#", 1)[-1]
+    print(f"\n  {req_name}: outcome=earl:{outcome_short} ({engineer_name})")
     return att_uri

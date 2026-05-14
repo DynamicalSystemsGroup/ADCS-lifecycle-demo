@@ -8,9 +8,12 @@ from __future__ import annotations
 
 from rdflib import Graph
 
-from ontology.prefixes import ADCS, PROV, RTM, SYSML
+from ontology.prefixes import ADCS, EARL, GSN, PROV, RTM, SYSML
 
-_INIT_NS = {"sysml": SYSML, "rtm": RTM, "prov": PROV, "adcs": ADCS}
+_INIT_NS = {
+    "sysml": SYSML, "rtm": RTM, "prov": PROV, "adcs": ADCS,
+    "earl": EARL, "gsn": GSN,
+}
 
 # ---------------------------------------------------------------------------
 # Requirement queries
@@ -81,13 +84,19 @@ ORDER BY ?ev
 # ---------------------------------------------------------------------------
 
 ALL_ATTESTATIONS = """
-SELECT ?att ?reqName ?engineer ?adequacy ?sufficiency ?timestamp WHERE {
+SELECT ?att ?reqName ?engineer ?adequacy ?sufficiency ?outcome ?mode ?timestamp WHERE {
     ?att a rtm:Attestation ;
          rtm:attests ?req ;
-         rtm:modelAdequacy ?adequacy ;
-         rtm:evidenceSufficiency ?sufficiency ;
+         rtm:hasOutcome ?outcome ;
          prov:wasAssociatedWith ?agent ;
          prov:generatedAtTime ?timestamp .
+    OPTIONAL { ?att rtm:attestationMode ?mode }
+    ?att gsn:inContextOf ?adequacyNode .
+    ?adequacyNode a gsn:Assumption ;
+                  gsn:statement ?adequacy .
+    ?att gsn:inContextOf ?sufficiencyNode .
+    ?sufficiencyNode a gsn:Justification ;
+                     gsn:statement ?sufficiency .
     ?req sysml:declaredName ?reqName .
     ?agent rdfs:label ?engineer .
 }

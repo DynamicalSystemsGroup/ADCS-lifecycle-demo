@@ -1,7 +1,7 @@
 # =============================================================================
 # AUTO-GENERATED ARTIFACT — DO NOT EDIT DIRECTLY
 #
-# Built 2026-05-14T01:11:51Z by scripts/build_ontology.py from:
+# Built 2026-05-14T01:26:27Z by scripts/build_ontology.py from:
 #   - ontology/rtm-edit.ttl
 #   - ontology/sysml_term_map.csv (SysMLv2 equivalences)
 #   - ontology/imports/*.ttl (validation only; full MIREOT merge is
@@ -83,12 +83,6 @@ rtm:evidenceMethod a owl:ObjectProperty ;
     rdfs:domain rtm:Evidence ;
     rdfs:range rtm:EvidenceMethod .
 
-rtm:evidenceSufficiency a owl:DatatypeProperty ;
-    rdfs:label "evidence sufficiency (deprecated)" ;
-    rdfs:domain rtm:Attestation ;
-    rdfs:range xsd:string ;
-    owl:deprecated true .
-
 rtm:followedProcedure a owl:ObjectProperty ;
     rdfs:label "followed procedure" ;
     rdfs:comment "The SOP / checklist the attester followed (content-hashable plan instance)." ;
@@ -118,12 +112,6 @@ rtm:hasOutcome a owl:ObjectProperty ;
         a binary verify/not-verify.""" ;
     rdfs:domain rtm:Attestation ;
     rdfs:subPropertyOf earl:outcome .
-
-rtm:modelAdequacy a owl:DatatypeProperty ;
-    rdfs:label "model adequacy (deprecated)" ;
-    rdfs:domain rtm:Attestation ;
-    rdfs:range xsd:string ;
-    owl:deprecated true .
 
 rtm:modelHash a owl:DatatypeProperty ;
     rdfs:label "model hash" ;
@@ -228,10 +216,6 @@ omg-sysml:ownedRelationship a owl:ObjectProperty .
 
 omg-sysml:text a owl:DatatypeProperty .
 
-sysml:RequirementDefinition a owl:Class ;
-    rdfs:subClassOf oslc_rm:Requirement ;
-    owl:equivalentClass omg-sysml:RequirementDefinition .
-
 rtm:Attestation a owl:Class ;
     rdfs:label "Attestation" ;
     rdfs:comment """Human judgment event linking a requirement to evidence
@@ -243,6 +227,10 @@ rtm:Attestation a owl:Class ;
     rdfs:subClassOf earl:Assertion,
         prov:Activity,
         gsn:Strategy .
+
+sysml:RequirementDefinition a owl:Class ;
+    rdfs:subClassOf oslc_rm:Requirement ;
+    owl:equivalentClass omg-sysml:RequirementDefinition .
 
 rtm:Evidence a owl:Class ;
     rdfs:label "Evidence" ;
