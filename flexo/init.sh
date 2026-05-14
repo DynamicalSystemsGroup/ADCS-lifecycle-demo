@@ -68,7 +68,16 @@ put_resource() {
 
 put_resource "$FLEXO_URL/orgs/$FLEXO_ORG" "$FLEXO_ORG"
 put_resource "$FLEXO_URL/orgs/$FLEXO_ORG/repos/$FLEXO_REPO" "$FLEXO_REPO"
-put_resource "$FLEXO_URL/orgs/$FLEXO_ORG/repos/$FLEXO_REPO/branches/master" "master"
+
+# master is auto-created with the repo — verify rather than create
+# (PUT to /branches/master without mms:ref returns 400 by design)
+master_code=$(curl -s -m "$TIMEOUT" -o /dev/null -w "%{http_code}" \
+    -I -H "Authorization: Bearer $TOKEN" \
+    "$FLEXO_URL/orgs/$FLEXO_ORG/repos/$FLEXO_REPO/branches/master")
+case "$master_code" in
+    200|204) echo "  OK   master ($master_code, auto-created by repo)";;
+    *)       echo "  FAIL master not visible (HEAD -> $master_code)" >&2; exit 1;;
+esac
 
 echo
 echo "Flexo init complete. Run:"

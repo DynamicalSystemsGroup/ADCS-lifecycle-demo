@@ -76,7 +76,14 @@ def test_local_backend_describe():
 # ---------------------------------------------------------------------------
 
 def _flexo_mock_transport(record: list[dict]) -> httpx.MockTransport:
-    """A MockTransport that records every request and returns 200/201."""
+    """A MockTransport that records every request and simulates a
+    Flexo instance with no pre-existing resources.
+
+    HEAD requests return 404 (resources don't exist yet) so the
+    head-first ensure_* code proceeds to PUT. For master specifically
+    we simulate "auto-created with the repo" by returning 200 only
+    AFTER the repo PUT has been recorded.
+    """
     def handler(request: httpx.Request) -> httpx.Response:
         record.append({
             "method": request.method,
@@ -87,7 +94,19 @@ def _flexo_mock_transport(record: list[dict]) -> httpx.MockTransport:
         # /login returns a token
         if request.url.path.endswith("/login"):
             return httpx.Response(200, json={"token": "fake-token-abc123"})
-        # All other requests succeed
+        # HEAD: simulate fresh state, except master returns 204 once
+        # the repo PUT has happened (master is auto-created with the repo).
+        if request.method == "HEAD":
+            path = request.url.path
+            if path.endswith("/branches/master"):
+                repo_put_seen = any(
+                    r["method"] == "PUT"
+                    and r["url"].endswith("/repos/lifecycle")
+                    for r in record
+                )
+                return httpx.Response(204 if repo_put_seen else 404)
+            return httpx.Response(404)
+        # All other (PUT, POST, GET) requests succeed
         return httpx.Response(200, text="")
     return httpx.MockTransport(handler)
 
@@ -159,17 +178,20 @@ def test_flexo_backend_creates_org_repo_branches(pipeline_dataset, monkeypatch):
     put_paths = [r["url"].replace("http://flexo.test", "") for r in puts]
     assert "/orgs/adcs-demo" in put_paths, "org PUT missing"
     assert "/orgs/adcs-demo/repos/lifecycle" in put_paths, "repo PUT missing"
-    assert "/orgs/adcs-demo/repos/lifecycle/branches/master" in put_paths, (
-        "master branch PUT missing"
+
+    # master is auto-created by the repo PUT on the real Flexo, so the
+    # backend only HEADs to verify rather than PUTting. Confirm we did
+    # HEAD it, and we did NOT try to PUT it (PUT would 400 — see the
+    # ConstraintViolationException debugged against starforge during
+    # Phase J).
+    heads = [r for r in record if r["method"] == "HEAD"]
+    head_paths = [r["url"].replace("http://flexo.test", "") for r in heads]
+    assert "/orgs/adcs-demo/repos/lifecycle/branches/master" in head_paths, (
+        "master branch HEAD missing"
     )
-    # Branches for our named graphs
-    expected_branches = set(NAMED_GRAPHS) - {"plan"}  # plan graph may be empty in some runs
-    for layer in expected_branches:
-        branch_path = f"/orgs/adcs-demo/repos/lifecycle/branches/{layer}"
-        if branch_path not in put_paths:
-            # The runtime emits some-but-not-all named graphs; only require
-            # that branches for *populated* graphs got created.
-            pass
+    assert "/orgs/adcs-demo/repos/lifecycle/branches/master" not in put_paths, (
+        "master branch should NOT be PUT — Flexo auto-creates it with the repo"
+    )
 
     # Data is loaded via SPARQL UPDATE (not via PUT /graph), per the
     # known Flexo PUT/graph quirk documented in

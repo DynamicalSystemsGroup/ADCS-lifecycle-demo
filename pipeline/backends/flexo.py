@@ -67,7 +67,7 @@ class FlexoBackend:
         password: str | None = None,
         org: str | None = None,
         repo: str | None = None,
-        timeout: float = 60.0,
+        timeout: float | None = None,
     ) -> None:
         self.url = (url or os.environ.get("FLEXO_URL", "https://try-layer1.starforge.app")).rstrip("/")
         self.auth_url = (auth_url or os.environ.get("FLEXO_AUTH_URL", "http://localhost:8082")).rstrip("/")
@@ -76,6 +76,10 @@ class FlexoBackend:
         self.password = password or os.environ.get("FLEXO_PASS", "password1")
         self.org = org or os.environ.get("FLEXO_ORG", "adcs-demo")
         self.repo = repo or os.environ.get("FLEXO_REPO", "lifecycle")
+        # Flexo INSERT DATA can be slow on larger graphs against a
+        # shared remote; default 180s and let env override.
+        if timeout is None:
+            timeout = float(os.environ.get("FLEXO_TIMEOUT", "180"))
         self.timeout = timeout
         self._client: httpx.Client | None = None
 
@@ -113,26 +117,49 @@ class FlexoBackend:
         if response.status_code not in (200, 201, 409):
             response.raise_for_status()
 
+    def _ensure_resource(self, client: httpx.Client, token: str,
+                          url: str, title: str) -> None:
+        """HEAD-first then PUT. Re-PUT of an existing resource on Flexo
+        can trigger a slow update path that times out at Cloudflare
+        (524); skipping it when the resource already exists is both
+        faster and idempotent."""
+        head = client.head(url, headers={"Authorization": f"Bearer {token}"})
+        if head.status_code in (200, 204):
+            return
+        self._put_resource(client, token, url, title=title)
+
     def _ensure_org(self, client: httpx.Client, token: str) -> None:
-        self._put_resource(client, token,
-                           f"{self.url}/orgs/{self.org}", title=self.org)
+        self._ensure_resource(client, token,
+                              f"{self.url}/orgs/{self.org}", title=self.org)
 
     def _ensure_repo(self, client: httpx.Client, token: str) -> None:
-        self._put_resource(client, token,
-                           f"{self.url}/orgs/{self.org}/repos/{self.repo}",
-                           title=self.repo)
+        self._ensure_resource(client, token,
+                              f"{self.url}/orgs/{self.org}/repos/{self.repo}",
+                              title=self.repo)
 
     def _ensure_branch(self, client: httpx.Client, token: str, branch: str,
                         base: str = "master") -> None:
-        extra = (
-            f'\n<> <https://mms.openmbee.org/rdf/ontology/ref> <./{base}> .'
-            if branch != base else ""
-        )
-        self._put_resource(
-            client, token,
-            f"{self.url}/orgs/{self.org}/repos/{self.repo}/branches/{branch}",
-            title=branch, extra_body=extra,
-        )
+        """Create the branch if absent.
+
+        Flexo creates `master` automatically with the repo, and rejects
+        PUTs that don't carry an mms:ref / mms:commit. So:
+          - For any branch (including master), HEAD first; if 200, skip.
+          - For new branches, PUT with mms:ref pointing at `base`.
+          - master itself is never recreated — only verified to exist.
+        """
+        branch_url = f"{self.url}/orgs/{self.org}/repos/{self.repo}/branches/{branch}"
+        head = client.head(branch_url, headers={"Authorization": f"Bearer {token}"})
+        if head.status_code in (200, 204):
+            return  # already exists (Flexo returns 204 No Content on HEAD)
+        if branch == base:
+            # master should have been auto-created by the repo PUT.
+            raise httpx.HTTPStatusError(
+                f"branch {branch!r} missing on {self.url} (HEAD -> {head.status_code}); "
+                f"repo creation should have auto-provisioned it",
+                request=head.request, response=head,
+            )
+        extra = f'\n<> <https://mms.openmbee.org/rdf/ontology/ref> <./{base}> .'
+        self._put_resource(client, token, branch_url, title=branch, extra_body=extra)
 
     # --- Data load -------------------------------------------------------
 
@@ -170,13 +197,12 @@ class FlexoBackend:
             token = self._ensure_token(client)
             self._ensure_org(client, token)
             self._ensure_repo(client, token)
-            # Ensure master branch always exists (other branches ref it).
+            # master is auto-created with the repo — just verify it.
             self._ensure_branch(client, token, "master")
 
             for graph_iri, count in counts.items():
                 branch = _branch_id(graph_iri)
-                if branch != "master":
-                    self._ensure_branch(client, token, branch, base="master")
+                self._ensure_branch(client, token, branch, base="master")
                 self._load_graph(client, token, branch,
                                  ds.graph(URIRef(graph_iri)))
                 persisted[graph_iri] = count
