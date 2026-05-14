@@ -293,6 +293,38 @@ is data-driven from that manifest.
 - [`scripts/`](scripts/) — `fetch_imports.py` + `build_ontology.py`
 - [`tests/`](tests/) — 166 tests across ontology, named graphs, shapes, audit, backends, compute, live Flexo
 
+## Future Work
+
+The demo deliberately stops short of several production-grade extensions.
+Each is documented in [the plan file](/Users/z/.claude/plans/i-want-to-look-hidden-balloon.md)
+and summarized here so it's easy to pick up:
+
+- **Cryptographic envelopes & signatures.** Today's hashes are bare
+  SHA-256: content identity but not authenticity. Production should
+  layer W3C VC Data Integrity (Ed25519 over RDF canonicalization),
+  in-toto/SLSA build attestations, and sigstore/Rekor transparency logs.
+- **Formal authority & credential model.** FOAF + W3C Org Ontology +
+  `schema:hasCredential` + W3C Verifiable Credentials layered on top
+  of `prov:Agent` — so an attestation records who attested, what role
+  they were authorized in, and what credentials backed that authority.
+- **OntoGSN confidence arguments.** Reify confidence in each
+  Assumption / Justification node so "how confident are you in the
+  adequacy claim?" is a queryable graph instead of prose.
+- **Defeaters & revocation** (SACM-style) — invalidate attestations
+  when later evidence contradicts an earlier assumption.
+- **Multi-attestation aggregation policy.** Sign-off gates
+  (Engineering + QA + Certifier must all attest `earl:passed`)
+  expressed as SHACL constraints on requirement transitions.
+- **Production Flexo deployment.** Multi-user SSO auth, PR-style
+  branches for RTM evolution, CI hooks, federation across program-
+  level Flexo instances.
+- **OSLC connector** for DOORS Next / Jama / RQM, on top of the
+  alignment axioms already in place.
+- **Federated SPARQL** for cross-program traceability when satellite-
+  and ADCS-level requirements live in different repositories.
+- **Continuous re-verification in CI** plus a **live traceability
+  dashboard** — both compose with the cryptographic-envelope work.
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).

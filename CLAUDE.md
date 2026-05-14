@@ -114,3 +114,26 @@ make ontology-robot                 # ROBOT merge + ELK reason + report
 ```
 
 `rtm.ttl` is a built artifact. Edit `rtm-edit.ttl` and rebuild.
+
+## Future work (priority order)
+
+Captured in the plan file at `/Users/z/.claude/plans/i-want-to-look-hidden-balloon.md`:
+
+1. **Cryptographic envelopes & signatures** — W3C VC Data Integrity
+   (eddsa-rdfc-2022) + in-toto/SLSA + sigstore/Rekor. Today's bare
+   SHA-256 gives content identity, not authenticity.
+2. **Formal authority/credential model** — FOAF + Org Ontology +
+   `schema:hasCredential` + W3C Verifiable Credentials on top of
+   `prov:Agent`.
+3. **OntoGSN confidence arguments** — reify per-ACP confidence.
+4. **Defeaters & revocation** (SACM-style).
+5. **Multi-attestation aggregation policy** — sign-off gates as SHACL.
+6. **Production Flexo deployment** — multi-user auth, PR branches for
+   RTM evolution, federation.
+7. **OSLC connector** for DOORS Next / Jama / RQM.
+8. **Federated SPARQL** for cross-program traceability.
+9. **Continuous re-verification in CI** + **live traceability dashboard.**
+
+Notebook Act 9–10 demonstrate the *capture* side of remote compute
+provenance. Production replay against a pulled image is a future
+addition that pairs with item #1.

@@ -22,6 +22,7 @@ adcs-pipeline = "pipeline.runner:main"
 
 [dependency-groups]
 dev = [
+    "marimo>=0.22.5",
     "pytest>=8.0",
     "pytest-cov>=5.0",
 ]

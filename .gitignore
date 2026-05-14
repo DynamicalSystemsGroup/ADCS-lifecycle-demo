@@ -18,3 +18,6 @@ ontology/rtm-robot-report.tsv
 
 # Docker compute IPC scratch space (regenerated per run)
 .docker-ipc/
+
+# Marimo session state (regenerated on edit; not part of the notebook source)
+__marimo__/
