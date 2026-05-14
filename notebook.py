@@ -1575,38 +1575,116 @@ def __(mo):
 
     ## Summary
 
-    This demo walked through the complete ADCS verification lifecycle,
-    including a design iteration driven by an open finding:
+    The complete ADCS verification lifecycle, numbered to the Acts so it
+    doubles as a table of contents. Sub-indexes (a/b/c) call out
+    multiple distinct actions inside one Act.
 
-    1. **Received requirements** from systems engineering, derived ADCS-level requirements
-    2. **Built a structural model** in SysMLv2-compatible RDF
-    3. **Derived formal proofs** (13 lemmas across 4 proof scripts)
-    4. **Ran numerical simulations** — revealed settling time deficiency on REQ-001
-    5. **Bound evidence** with content hashes and PROV-O provenance
-    6. **Attested 3 of 4 requirements** — declined REQ-001 (settling time 262s > 120s)
-    7. **Underwent audit** — open finding confirmed by chief engineer
-    8. **Applied design change** via SPARQL UPDATE (Kd: 10 → 30)
-    9. **Re-ran full analysis** — model hash changed, all proofs re-derived
-    10. **Attested all 4 requirements** — REQ-001 now satisfied, regression confirmed
+    **Prologue.** Assembled the integration ontology from PROV-O + EARL
+    + OntoGSN + P-PLAN + OSLC RM/QM + the openCAESAR SysMLv2 OWL
+    rendering. No novel epistemic vocabulary in `rtm:` — adequacy and
+    sufficiency are `gsn:Assumption` / `gsn:Justification` per the
+    Hawkins–Habli ACP categorization.
+
+    1. **The Assignment** —
+       a. received four requirements from systems engineering,
+          allocated to the ADCS subsystem;
+       b. loaded the structural model (SysMLv2 RDF) into
+          `<adcs:structural>`.
+    2. **Symbolic Analysis** — SymPy derived 13 lemmas across 4 proof
+       scripts (inertia tensor, stability margins, pointing budget,
+       gravity-gradient bound, wheel-momentum bound). Each lemma is
+       independently re-verifiable; the proof hash binds the script to
+       a specific model hash.
+    3. **Numerical Simulation** — scipy integrated quaternion + Euler
+       dynamics under the PD controller. The step response revealed
+       settling time ≈ 262s, exceeding the 120s spec for REQ-001 — the
+       v1 engineering finding.
+    4. **Evidence Binding** — emitted 4 proof artifacts + 3 simulation
+       results into `<adcs:evidence>`, each with content / model / proof
+       hashes and PROV-O provenance.
+    5. **Attestation (GSN + EARL)** — emitted four well-formed
+       attestations into `<adcs:attestations>`, each with an adequacy
+       `gsn:Assumption`, a sufficiency `gsn:Justification`, an EARL
+       outcome, and a `prov:qualifiedAssociation`. REQ-001 carries
+       `earl:failed` rather than being silently omitted, keeping the
+       audit graph complete.
+    6. **Closure-Rule Validation + Audit (initial)** —
+       a. ran the closure-rule suite (9 SHACL shapes + 1 runtime
+          re-verification) against `rtm_graph` — all pass;
+       b. ran the audit module — traceability is structurally intact
+          (forward / backward / bidirectional all PASS); the coverage
+          matrix shows REQ-001 = `covered+failed` (the expected v1
+          state — engineering finding, *not* a trace gap).
+    7. **Traceability Graph** — rendered the v1 RTM. Three green
+       attestation nodes (REQ-002 / 3 / 4 = `earl:passed`), one red
+       (REQ-001 = `earl:failed`). Design elements in purple to keep
+       green / red reserved for the engineering verdict.
+    8. **Design Iteration** —
+       a. applied a SPARQL UPDATE to retune both gains (Kp: 1 → 4,
+          Kd: 10 → 30) directly on the structural model;
+       b. model hash invalidated — re-ran symbolic + numerical
+          analysis, regenerated every proof and simulation hash from
+          scratch (no stale evidence carries over);
+       c. re-attested all four requirements as `earl:passed` against
+          the v2 model.
+    9. **Remote Compute & Distribution** —
+       a. attached `ExecutionMetadata` (image digest, container ID,
+          hostname, Python version) to v2 analysis activities,
+          emulating analysis run on a remote `adcs-compute:latest`
+          container;
+       b. validated live persistence to Flexo MMS on the shared
+          `try-layer1.starforge.app` sandbox — each named graph lands
+          as its own branch under `adcs-demo/lifecycle`.
+    10. **Fresh Audit (after remote compute)** — re-ran audit + closure
+        rules against the v2 Dataset. Coverage matrix is now all
+        `covered+passed`. A SPARQL query against the union view pulls
+        per-activity *where & on what image was this produced* — the
+        audit chain now extends all the way to the executor.
 
     ### What makes this different
 
-    - **Evidence is not verification.** Only human attestation closes the loop — and attestation can be declined.
-    - **Failures are first-class.** The REQ-001 gap in the v1 traceability graph was the finding that drove the design change.
-    - **Reproducibility is regression testing.** The same pipeline that found the deficiency confirmed the fix didn't break anything else.
-    - **Model changes invalidate evidence.** Kd 10 → 30 changed the model hash, forcing complete re-derivation. No stale proofs survive.
-    - **Everything is in git.** Both model versions, both evidence sets, both attestation records — all text, all versioned, all auditable.
-    - **Every link is dereferenceable.** Ask "how do you know?" about any claim at any version and get a machine-readable, human-auditable answer.
+    - **Evidence is not verification.** Only human attestation closes
+      the loop — and attestation outcomes can be `earl:failed`,
+      `earl:cantTell`, etc. The graph records the engineering verdict,
+      not a binary pass/fail.
+    - **Failures are first-class.** REQ-001 at v1 is `covered+failed`,
+      not omitted. The audit trail is complete *because* the failure
+      is recorded.
+    - **Trace ≠ verdict.** Forward/backward traceability is a
+      structural property of the graph. Coverage status is an
+      engineering verdict per requirement. Act 6 calls these out as
+      two orthogonal questions; the demo design relies on the
+      distinction.
+    - **Reproducibility is regression testing.** The pipeline that
+      found the deficiency at v1 confirmed the fix didn't break
+      anything else at v2.
+    - **Model changes invalidate evidence.** Gain retune → model hash
+      changes → every dependent hash changes. No stale proofs survive
+      a structural-model edit.
+    - **Where matters as much as what.** Provenance captures not just
+      *what was computed* but *where and on what toolchain* (image
+      digest + container ID + hostname), so a regulator can replay
+      the analysis against the same pinned environment.
+    - **Everything is in git, and everything composes.** Both model
+      versions, both evidence sets, both attestation records — all
+      text, all versioned. The same Dataset persists to disk
+      (`--backend=local`), to Flexo MMS (`--backend=flexo`), or to
+      Fuseki (`--backend=fuseki`) without changing a SPARQL query.
 
     ### Architecture
 
     | Layer | Technology | Purpose |
     |-------|-----------|---------|
-    | Structural Model | SysMLv2 RDF/Turtle | Requirements, design elements, satisfy links |
+    | Structural Model | SysMLv2 RDF/Turtle (aliased to openCAESAR) | Requirements, design elements, satisfy links |
     | Model Changes | SPARQL UPDATE | Modify parameters, trigger hash invalidation |
-    | Evidence Layer | PROV-O + custom RTM ontology | Hash-bound evidence, attestation |
+    | Evidence Layer | PROV-O + EARL + OntoGSN + thin `rtm:` glue | Hash-bound evidence + GSN-structured attestation |
+    | Process Model | P-PLAN | Declarative pipeline; one `p-plan:Step` per stage |
+    | Closure Rules | SHACL + runtime re-verification | 10 well-formedness invariants enforced at Stage 6.5 |
+    | Audit | Custom `traceability.audit` | Forward / backward / bidirectional with independence |
+    | Storage | rdflib `Dataset` (named-graph quadstore) | Eight named graphs; Flexo/Fuseki-ready layout |
     | Symbolic Analysis | SymPy ProofScripts | Formal proofs with re-verifiable lemma chains |
     | Numerical Simulation | scipy solve_ivp | Time-domain ODE integration |
+    | Compute Provenance | Local + Docker backends | `ExecutionMetadata` → PROV triples per activity |
     | Version Control | Git | Source of truth for all artifacts |
     """)
     return
