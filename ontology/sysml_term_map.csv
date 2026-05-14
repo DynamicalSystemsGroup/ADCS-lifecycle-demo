@@ -1,0 +1,10 @@
+local_term,opencaesar_iri,kind
+RequirementDefinition,RequirementDefinition,Class
+RequirementUsage,RequirementUsage,Class
+SatisfyRequirementUsage,SatisfyRequirementUsage,Class
+PartDefinition,PartDefinition,Class
+PartUsage,PartUsage,Class
+AttributeUsage,AttributeUsage,Class
+declaredName,declaredName,Property
+text,text,Property
+ownedRelationship,ownedRelationship,Property

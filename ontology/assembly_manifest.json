@@ -1,0 +1,106 @@
+{
+  "artifact": {
+    "equivalence_axioms": 9,
+    "path": "ontology/rtm.ttl",
+    "sha256": "a01228faec8a048591bef4f61efbfa00d37133a35f72191f7b0ee638c608a0f3",
+    "subclass_axioms": 13,
+    "subproperty_axioms": 7,
+    "total_triples": 147
+  },
+  "build_time": "2026-05-14T00:33:55Z",
+  "edit_source": {
+    "path": "ontology/rtm-edit.ttl",
+    "sha256": "2f0fc313c930871b4f9265e70cd298bc459e0383dc25b97bbcbc7eab2fac9dcc"
+  },
+  "imports": {
+    "EARL": {
+      "filename": "earl.ttl",
+      "iri": "http://www.w3.org/ns/earl#",
+      "missing_terms": [],
+      "namespace": "http://www.w3.org/ns/earl#",
+      "referenced_count": 5,
+      "referenced_terms": [
+        "Assertion",
+        "Assertor",
+        "mode",
+        "outcome",
+        "test"
+      ],
+      "sha256": "ee4b4aa86cc9cbbffd3358b94ada7bddf50cceb283a883a99f975c8bc5d2dec3",
+      "total_triples": 162
+    },
+    "OSLC QM": {
+      "filename": "oslc-qm.ttl",
+      "iri": "http://open-services.net/ns/qm#",
+      "missing_terms": [],
+      "namespace": "http://open-services.net/ns/qm#",
+      "referenced_count": 1,
+      "referenced_terms": [
+        "validatesRequirement"
+      ],
+      "sha256": "7c450d3b34c50851303603503bf7fcb54cc94543d48cf705a9dcc7b3d7bb0565",
+      "total_triples": 90
+    },
+    "OSLC RM": {
+      "filename": "oslc-rm.ttl",
+      "iri": "http://open-services.net/ns/rm#",
+      "missing_terms": [],
+      "namespace": "http://open-services.net/ns/rm#",
+      "referenced_count": 1,
+      "referenced_terms": [
+        "Requirement"
+      ],
+      "sha256": "7562658012a71288bfc3e04eed3c5c65e4865787eea1e0923305fa0b84078cc4",
+      "total_triples": 74
+    },
+    "OntoGSN": {
+      "filename": "ontogsn.ttl",
+      "iri": "https://w3id.org/OntoGSN/ontology",
+      "missing_terms": [],
+      "namespace": "https://w3id.org/OntoGSN/ontology#",
+      "referenced_count": 3,
+      "referenced_terms": [
+        "Solution",
+        "Strategy",
+        "supportedBy"
+      ],
+      "sha256": "b64fbe64b67be2a03be9bac1e29758def8d92f0c05f4869371560fa4aae7b1ef",
+      "total_triples": 3784
+    },
+    "P-PLAN": {
+      "filename": "p-plan.ttl",
+      "iri": "http://purl.org/net/p-plan",
+      "missing_terms": [],
+      "namespace": "http://purl.org/net/p-plan#",
+      "referenced_count": 0,
+      "referenced_terms": [],
+      "sha256": "8ff124acc2de78c1f41a0ea1ba4ec957e163ab769f70a46ac26fdb5efa4cb8ab",
+      "total_triples": 154
+    },
+    "PROV-O": {
+      "filename": "prov-o.ttl",
+      "iri": "http://www.w3.org/ns/prov-o",
+      "missing_terms": [],
+      "namespace": "http://www.w3.org/ns/prov#",
+      "referenced_count": 7,
+      "referenced_terms": [
+        "Activity",
+        "Agent",
+        "Entity",
+        "Plan",
+        "SoftwareAgent",
+        "hadPlan",
+        "used"
+      ],
+      "sha256": "faa4beee01504650382be111d2b76725c51435a5a100cede48434e6e23411f7c",
+      "total_triples": 1146
+    }
+  },
+  "notes": "Python-based build. ROBOT-based MIREOT extracts and full reasoning are the optional `make ontology-robot` path (future work).",
+  "robot_used": false,
+  "sysml_term_map": {
+    "path": "ontology/sysml_term_map.csv",
+    "row_count": 9,
+    "sha256": "c2f2a363218df48117f937294002577995e1c17679c067d40734be1bd2fb2747"
+  }
+}

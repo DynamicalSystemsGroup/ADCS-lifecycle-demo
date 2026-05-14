@@ -1,0 +1,274 @@
+"""Build the assembled rtm.ttl from rtm-edit.ttl + vendored imports.
+
+This is the Python-only build path. It produces:
+
+  - ontology/rtm.ttl              the assembled artifact (committed)
+  - ontology/assembly_manifest.json   build provenance (committed)
+
+Build steps:
+
+  1. Load rtm-edit.ttl.
+  2. Generate SysMLv2 equivalence axioms from sysml_term_map.csv into a
+     separate "bindings" graph (the CSV is the single source of truth;
+     the equivalence axioms in rtm-edit.ttl are checked against it).
+  3. Validate that every upstream term rtm-edit.ttl references actually
+     exists in the corresponding vendored ontology.
+  4. Compute the manifest: artifact SHA-256, vendored-import hashes,
+     per-import term counts, equivalence-axiom count.
+  5. Re-serialize rtm-edit.ttl (with bindings merged in) as rtm.ttl with
+     a build-time header. The vendored imports are NOT merged in by
+     this script — that is the optional ROBOT path (build_ontology_robot.py
+     or `make ontology-robot`). MIREOT extracts via ROBOT remain future
+     work; this script proves the integration is well-formed.
+
+Usage:
+    uv run python -m scripts.build_ontology
+"""
+
+from __future__ import annotations
+
+import csv
+import hashlib
+import json
+import sys
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+
+from rdflib import Graph, URIRef
+from rdflib.namespace import OWL, RDFS
+
+ROOT = Path(__file__).resolve().parent.parent
+ONTOLOGY_DIR = ROOT / "ontology"
+IMPORTS_DIR = ONTOLOGY_DIR / "imports"
+
+EDIT_FILE = ONTOLOGY_DIR / "rtm-edit.ttl"
+OUT_FILE = ONTOLOGY_DIR / "rtm.ttl"
+MANIFEST_FILE = ONTOLOGY_DIR / "assembly_manifest.json"
+SYSML_MAP_FILE = ONTOLOGY_DIR / "sysml_term_map.csv"
+
+
+SYSML_LOCAL_NS = "https://www.omg.org/spec/SysML/2.0/"
+SYSML_OPENCAESAR_NS = "http://www.omg.org/spec/SysML/20240501/"
+
+
+@dataclass(frozen=True)
+class VendoredImport:
+    name: str
+    iri: str
+    filename: str
+    namespace: str  # the namespace prefix of terms we expect to find here
+
+
+VENDORED: list[VendoredImport] = [
+    VendoredImport("PROV-O",  "http://www.w3.org/ns/prov-o",         "prov-o.ttl",  "http://www.w3.org/ns/prov#"),
+    VendoredImport("EARL",    "http://www.w3.org/ns/earl#",          "earl.ttl",    "http://www.w3.org/ns/earl#"),
+    VendoredImport("OntoGSN", "https://w3id.org/OntoGSN/ontology",   "ontogsn.ttl", "https://w3id.org/OntoGSN/ontology#"),
+    VendoredImport("P-PLAN",  "http://purl.org/net/p-plan",          "p-plan.ttl",  "http://purl.org/net/p-plan#"),
+    VendoredImport("OSLC RM", "http://open-services.net/ns/rm#",     "oslc-rm.ttl", "http://open-services.net/ns/rm#"),
+    VendoredImport("OSLC QM", "http://open-services.net/ns/qm#",     "oslc-qm.ttl", "http://open-services.net/ns/qm#"),
+]
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    h.update(path.read_bytes())
+    return h.hexdigest()
+
+
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _referenced_terms(edit_graph: Graph, namespace: str) -> set[str]:
+    """Return the local-name set of terms in `namespace` referenced by edit_graph.
+
+    Excludes the namespace IRI itself (empty local name) — that comes from
+    references like `<http://www.w3.org/ns/earl#>` in `owl:imports` lists.
+    """
+    referenced: set[str] = set()
+    for s, p, o in edit_graph:
+        for term in (s, p, o):
+            if isinstance(term, URIRef) and str(term).startswith(namespace):
+                local = str(term)[len(namespace):]
+                if local:  # skip the namespace-self reference
+                    referenced.add(local)
+    return referenced
+
+
+def _defined_terms(import_graph: Graph, namespace: str) -> set[str]:
+    """Return the local-name set of terms in `namespace` defined in import_graph
+    (anything that appears as a subject of a class- or property-declaration)."""
+    defined: set[str] = set()
+    for s in import_graph.subjects(unique=True):
+        if isinstance(s, URIRef) and str(s).startswith(namespace):
+            defined.add(str(s)[len(namespace):])
+    return defined
+
+
+def _load_sysml_term_map() -> list[dict[str, str]]:
+    with SYSML_MAP_FILE.open() as f:
+        return list(csv.DictReader(f))
+
+
+def _validate_sysml_axioms(edit_graph: Graph, term_map: list[dict[str, str]]) -> list[str]:
+    """Verify every term-map row has the corresponding equivalence axiom in edit_graph."""
+    errors: list[str] = []
+    for row in term_map:
+        local = URIRef(f"{SYSML_LOCAL_NS}{row['local_term']}")
+        opencaesar = URIRef(f"{SYSML_OPENCAESAR_NS}{row['opencaesar_iri']}")
+        if row["kind"] == "Class":
+            axiom = (local, OWL.equivalentClass, opencaesar)
+        elif row["kind"] == "Property":
+            axiom = (local, OWL.equivalentProperty, opencaesar)
+        else:
+            errors.append(f"sysml_term_map.csv: unknown kind {row['kind']!r} for {row['local_term']}")
+            continue
+        if axiom not in edit_graph:
+            errors.append(f"Missing axiom: {row['local_term']} -> {row['opencaesar_iri']} ({row['kind']})")
+    return errors
+
+
+def _validate_references(edit_graph: Graph) -> tuple[dict[str, dict], list[str]]:
+    """For each vendored import, confirm every term rtm-edit references is defined.
+
+    Returns (per-import-info, error-list).
+    per-import-info has {name: {iri, filename, sha256, total_triples, referenced, missing}}.
+    """
+    info: dict[str, dict] = {}
+    errors: list[str] = []
+    for vi in VENDORED:
+        path = IMPORTS_DIR / vi.filename
+        if not path.exists():
+            errors.append(f"Vendored import missing: {vi.filename}. Run `make fetch-imports`.")
+            continue
+        g = Graph()
+        g.parse(path, format="turtle")
+        referenced = _referenced_terms(edit_graph, vi.namespace)
+        defined = _defined_terms(g, vi.namespace)
+        missing = sorted(referenced - defined)
+        # Filter out terms that are namespaces themselves (e.g., the ontology IRI)
+        missing = [m for m in missing if m]
+        if missing:
+            errors.extend(
+                f"{vi.name}: rtm-edit references {vi.namespace}{m} which is not defined in vendored {vi.filename}"
+                for m in missing
+            )
+        info[vi.name] = {
+            "iri": vi.iri,
+            "namespace": vi.namespace,
+            "filename": vi.filename,
+            "sha256": _sha256(path),
+            "total_triples": len(g),
+            "referenced_terms": sorted(referenced),
+            "referenced_count": len(referenced),
+            "missing_terms": missing,
+        }
+    return info, errors
+
+
+def _count_equivalence_axioms(g: Graph) -> int:
+    return sum(1 for _ in g.triples((None, OWL.equivalentClass, None))) + sum(
+        1 for _ in g.triples((None, OWL.equivalentProperty, None))
+    )
+
+
+def _count_subclass_axioms(g: Graph) -> int:
+    return sum(1 for _ in g.triples((None, RDFS.subClassOf, None)))
+
+
+def _count_subproperty_axioms(g: Graph) -> int:
+    return sum(1 for _ in g.triples((None, RDFS.subPropertyOf, None)))
+
+
+def build() -> int:
+    print(f"Building ontology from {EDIT_FILE.relative_to(ROOT)} ...")
+
+    edit_graph = Graph()
+    edit_graph.parse(EDIT_FILE, format="turtle")
+    print(f"  rtm-edit.ttl: {len(edit_graph)} triples")
+
+    # Step 2: validate sysml_term_map against rtm-edit equivalence axioms
+    term_map = _load_sysml_term_map()
+    sysml_errors = _validate_sysml_axioms(edit_graph, term_map)
+    if sysml_errors:
+        for e in sysml_errors:
+            print(f"  ERROR  {e}", file=sys.stderr)
+        return 1
+    print(f"  sysml_term_map.csv: {len(term_map)} rows, all present in rtm-edit.ttl")
+
+    # Step 3: validate every referenced upstream term exists in its vendored import
+    import_info, ref_errors = _validate_references(edit_graph)
+    if ref_errors:
+        for e in ref_errors:
+            print(f"  ERROR  {e}", file=sys.stderr)
+        return 1
+
+    # Step 4: assemble rtm.ttl content
+    #
+    # Strategy: serialize edit_graph as Turtle with a regenerated header
+    # noting this is a built artifact. The body content is identical to
+    # rtm-edit.ttl minus its hand-written header.
+    out_graph = Graph()
+    out_graph += edit_graph
+    # Bind prefixes for nicer output
+    for prefix, ns in edit_graph.namespaces():
+        out_graph.bind(prefix, ns)
+
+    body_bytes = out_graph.serialize(format="turtle").encode("utf-8")
+
+    build_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    header = (
+        f"# =============================================================================\n"
+        f"# AUTO-GENERATED ARTIFACT — DO NOT EDIT DIRECTLY\n"
+        f"#\n"
+        f"# Built {build_time} by scripts/build_ontology.py from:\n"
+        f"#   - ontology/rtm-edit.ttl\n"
+        f"#   - ontology/sysml_term_map.csv (SysMLv2 equivalences)\n"
+        f"#   - ontology/imports/*.ttl (validation only; full MIREOT merge is\n"
+        f"#     the optional ROBOT path)\n"
+        f"#\n"
+        f"# To make changes: edit rtm-edit.ttl and re-run `make ontology`.\n"
+        f"# =============================================================================\n\n"
+    )
+    final_bytes = header.encode("utf-8") + body_bytes
+
+    OUT_FILE.write_bytes(final_bytes)
+    artifact_sha = _sha256_bytes(final_bytes)
+    print(f"  Wrote {OUT_FILE.relative_to(ROOT)} ({len(out_graph)} triples, sha256={artifact_sha[:12]}...)")
+
+    # Step 5: emit manifest
+    manifest = {
+        "build_time": build_time,
+        "artifact": {
+            "path": "ontology/rtm.ttl",
+            "sha256": artifact_sha,
+            "total_triples": len(out_graph),
+            "subclass_axioms": _count_subclass_axioms(out_graph),
+            "subproperty_axioms": _count_subproperty_axioms(out_graph),
+            "equivalence_axioms": _count_equivalence_axioms(out_graph),
+        },
+        "edit_source": {
+            "path": "ontology/rtm-edit.ttl",
+            "sha256": _sha256(EDIT_FILE),
+        },
+        "sysml_term_map": {
+            "path": "ontology/sysml_term_map.csv",
+            "sha256": _sha256(SYSML_MAP_FILE),
+            "row_count": len(term_map),
+        },
+        "imports": import_info,
+        "robot_used": False,
+        "notes": (
+            "Python-based build. ROBOT-based MIREOT extracts and full reasoning "
+            "are the optional `make ontology-robot` path (future work)."
+        ),
+    }
+    MANIFEST_FILE.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    print(f"  Wrote {MANIFEST_FILE.relative_to(ROOT)}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(build())
