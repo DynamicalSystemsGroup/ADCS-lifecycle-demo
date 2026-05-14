@@ -146,7 +146,7 @@ def __(mo):
     ```
 
     Stage 7 persists the Dataset to disk (`output/rtm.{ttl,trig}`) or to a
-    real triplestore (Flexo MMS / Apache Jena Fuseki) via pluggable
+    real quadstore (Flexo MMS / Apache Jena Fuseki) via pluggable
     backends. Either way, every named graph round-trips cleanly.
     """)
     return
@@ -1312,7 +1312,7 @@ def __(mo):
        container's identity (image digest, container ID, hostname) is
        captured as PROV-O triples on the analysis activity.
     2. **Persistence backends** — `LocalBackend` (filesystem) or
-       `FlexoBackend` / `FuskeiBackend` (a real triplestore). Each named
+       `FlexoBackend` / `FuskeiBackend` (a real quadstore). Each named
        graph in our `rdflib.Dataset` maps to a Flexo branch.
 
     For this notebook we annotate v2's analysis activities *as if* they
@@ -1371,7 +1371,7 @@ def __(v2_rtm, mo):
         "digest and get an identical environment — not 'a Python with "
         "scipy somewhere' but *that* Python with *that* scipy.\n\n"
         "**Distribution** is the parallel story for persistence. The same "
-        "v2_rtm Dataset can be pushed to a real triplestore:\n\n"
+        "v2_rtm Dataset can be pushed to a real quadstore:\n\n"
         "```bash\n"
         "export FLEXO_TOKEN=...     # from a collaborator on the sandbox\n"
         "make flexo-init             # one-time: provision org / repo / master\n"
