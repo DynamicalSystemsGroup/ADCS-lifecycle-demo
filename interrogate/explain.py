@@ -114,13 +114,21 @@ def explain_requirement(graph: Graph, req_name: str) -> str:
 
     # Attestation
     q = f"""
-    SELECT ?engineer ?adequacy ?sufficiency ?timestamp ?gitCommit WHERE {{
+    PREFIX gsn:  <https://w3id.org/OntoGSN/ontology#>
+    PREFIX earl: <http://www.w3.org/ns/earl#>
+    SELECT ?engineer ?adequacy ?sufficiency ?outcome ?mode ?timestamp ?gitCommit WHERE {{
         ?att a rtm:Attestation ;
              rtm:attests ?req ;
-             rtm:modelAdequacy ?adequacy ;
-             rtm:evidenceSufficiency ?sufficiency ;
+             rtm:hasOutcome ?outcome ;
              prov:wasAssociatedWith ?agent ;
              prov:generatedAtTime ?timestamp .
+        OPTIONAL {{ ?att rtm:attestationMode ?mode }}
+        ?att gsn:inContextOf ?adequacyNode .
+        ?adequacyNode a gsn:Assumption ;
+                      gsn:statement ?adequacy .
+        ?att gsn:inContextOf ?sufficiencyNode .
+        ?sufficiencyNode a gsn:Justification ;
+                         gsn:statement ?sufficiency .
         ?agent rdfs:label ?engineer .
         ?req sysml:declaredName "{req_name}" .
         OPTIONAL {{ ?att rtm:gitCommit ?gitCommit }}
@@ -129,7 +137,11 @@ def explain_requirement(graph: Graph, req_name: str) -> str:
     attestations = query_to_dicts(graph, q)
     if attestations:
         att = attestations[0]
+        outcome_short = (att["outcome"] or "").rsplit("#", 1)[-1]
+        mode_short = (att.get("mode") or "").rsplit("#", 1)[-1]
         lines.append(f"└── Attestation:")
+        lines.append(f"    Outcome: earl:{outcome_short}"
+                     + (f" (mode: earl:{mode_short})" if mode_short else ""))
         lines.append(f"    Attested by: {att['engineer']}")
         lines.append(f"    Timestamp: {att['timestamp']}")
         if att.get("gitCommit"):

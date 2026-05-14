@@ -8,9 +8,12 @@ from __future__ import annotations
 
 from rdflib import Graph
 
-from ontology.prefixes import ADCS, PROV, RTM, SYSML
+from ontology.prefixes import ADCS, EARL, GSN, PROV, RTM, SYSML
 
-_INIT_NS = {"sysml": SYSML, "rtm": RTM, "prov": PROV, "adcs": ADCS}
+_INIT_NS = {
+    "sysml": SYSML, "rtm": RTM, "prov": PROV, "adcs": ADCS,
+    "earl": EARL, "gsn": GSN,
+}
 
 # ---------------------------------------------------------------------------
 # Requirement queries
@@ -81,13 +84,19 @@ ORDER BY ?ev
 # ---------------------------------------------------------------------------
 
 ALL_ATTESTATIONS = """
-SELECT ?att ?reqName ?engineer ?adequacy ?sufficiency ?timestamp WHERE {
+SELECT ?att ?reqName ?engineer ?adequacy ?sufficiency ?outcome ?mode ?timestamp WHERE {
     ?att a rtm:Attestation ;
          rtm:attests ?req ;
-         rtm:modelAdequacy ?adequacy ;
-         rtm:evidenceSufficiency ?sufficiency ;
+         rtm:hasOutcome ?outcome ;
          prov:wasAssociatedWith ?agent ;
          prov:generatedAtTime ?timestamp .
+    OPTIONAL { ?att rtm:attestationMode ?mode }
+    ?att gsn:inContextOf ?adequacyNode .
+    ?adequacyNode a gsn:Assumption ;
+                  gsn:statement ?adequacy .
+    ?att gsn:inContextOf ?sufficiencyNode .
+    ?sufficiencyNode a gsn:Justification ;
+                     gsn:statement ?sufficiency .
     ?req sysml:declaredName ?reqName .
     ?agent rdfs:label ?engineer .
 }
@@ -105,6 +114,26 @@ SELECT ?reqName (COUNT(?att) AS ?attestCount) WHERE {
     }
 }
 GROUP BY ?reqName
+ORDER BY ?reqName
+"""
+
+# Per-requirement outcome with the EARL outcome value short name.
+# Returns one row per requirement; ?outcome is "passed" / "failed" /
+# "cantTell" / "inapplicable" / "untested" / "" (no attestation).
+# Distinguishes "ATTESTED+failed" from "no attestation" — neither was
+# possible before the GSN/EARL refactor (Phase F).
+REQUIREMENT_OUTCOMES = """
+SELECT ?reqName ?outcomeShort WHERE {
+    ?req a sysml:RequirementDefinition ;
+         sysml:declaredName ?reqName .
+    FILTER(STRSTARTS(?reqName, "REQ-"))
+    OPTIONAL {
+        ?att a rtm:Attestation ;
+             rtm:attests ?req ;
+             rtm:hasOutcome ?outcome .
+        BIND(REPLACE(STR(?outcome), "^.*[#/]", "") AS ?outcomeShort)
+    }
+}
 ORDER BY ?reqName
 """
 

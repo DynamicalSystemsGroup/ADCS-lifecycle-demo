@@ -193,10 +193,17 @@ class TestForwardBackwardTrace:
 
 class TestRTMSummary:
     def test_print_summary(self):
+        """A graph with evidence but no attestations should surface as
+        "NO ATTESTATION" — the trace is incomplete, distinct from a
+        requirement that's attested with earl:failed."""
         rtm = _build_full_rtm_with_evidence()
         summary = print_rtm_summary(rtm)
         assert "REQ-001" in summary
-        assert "UNATTESTED" in summary
+        assert "NO ATTESTATION" in summary, (
+            "Pre-attestation requirements should be reported as 'NO ATTESTATION', "
+            "not 'UNATTESTED' — the new framing distinguishes trace gaps from "
+            "engineering findings (earl:failed)."
+        )
 
     def test_summary_reflects_attestation(self):
         rtm = _build_full_rtm_with_evidence()

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  OASIS XML catalog mapping upstream ontology IRIs to their vendored
+  local copies under ontology/imports/. Read by ROBOT, Protégé, and
+  most OWL tooling. Reproducible builds: imports resolve to known files
+  even if upstream URIs change.
+-->
+<catalog prefer="public" xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+    <uri name="http://www.w3.org/ns/prov-o"               uri="imports/prov-o.ttl"/>
+    <uri name="http://www.w3.org/ns/earl#"                uri="imports/earl.ttl"/>
+    <uri name="https://w3id.org/OntoGSN/ontology"         uri="imports/ontogsn.ttl"/>
+    <uri name="http://purl.org/net/p-plan"                uri="imports/p-plan.ttl"/>
+    <uri name="http://open-services.net/ns/rm#"           uri="imports/oslc-rm.ttl"/>
+    <uri name="http://open-services.net/ns/qm#"           uri="imports/oslc-qm.ttl"/>
+</catalog>

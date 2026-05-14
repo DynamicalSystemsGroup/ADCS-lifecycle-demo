@@ -1,0 +1,2935 @@
+@prefix cc: <http://creativecommons.org/ns#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix ontology: <https://w3id.org/OntoGSN/ontology#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix swrl: <http://www.w3.org/2003/11/swrl#> .
+@prefix swrla: <http://swrl.stanford.edu/ontologies/3.3/swrla.owl#> .
+@prefix swrlb: <http://www.w3.org/2003/11/swrlb#> .
+@prefix terms: <http://purl.org/dc/terms/> .
+@prefix vann: <http://purl.org/vocab/vann/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+cc:license a owl:AnnotationProperty .
+
+dc:contributor a owl:AnnotationProperty .
+
+dc:created a owl:AnnotationProperty .
+
+dc:creator a owl:AnnotationProperty .
+
+dc:description a owl:AnnotationProperty .
+
+dc:identifier a owl:AnnotationProperty .
+
+dc:issued a owl:AnnotationProperty .
+
+dc:modified a owl:AnnotationProperty .
+
+dc:publisher a owl:AnnotationProperty .
+
+dc:source a owl:AnnotationProperty .
+
+dc:title a owl:AnnotationProperty .
+
+terms:abstract a owl:AnnotationProperty .
+
+terms:bibliographicCitation a owl:AnnotationProperty .
+
+terms:created a owl:AnnotationProperty .
+
+vann:preferredNamespacePrefix a owl:AnnotationProperty .
+
+schema1:citation a owl:AnnotationProperty .
+
+schema1:disclaimer a owl:AnnotationProperty .
+
+schema1:license a owl:AnnotationProperty .
+
+schema1:url a owl:AnnotationProperty .
+
+schema1:version a owl:AnnotationProperty .
+
+swrla:isRuleEnabled a owl:AnnotationProperty .
+
+xsd:date a rdfs:Datatype .
+
+skos:altLabel a owl:AnnotationProperty .
+
+skos:definition a owl:AnnotationProperty .
+
+skos:note a owl:AnnotationProperty .
+
+<https://w3id.org/OntoGSN/ontology> a owl:Ontology ;
+    cc:license "https://creativecommons.org/licenses/by/4.0/" ;
+    dc:contributor "Barbara Gallina, Dian Balta, Ingmar Kessler"@en ;
+    dc:creator "Tomas Bueno Momčilović"@en ;
+    dc:description "OntoGSN is an ontology for managing assurance cases in the Goal Structuring Notation (GSN). The goal of the ontology is to help users in linking the elements of their cases - claims and evidence - with the internationalized resource identifiers (IRIs) of represented concepts, events and data, and in evaluating the validity of their argument."@en ;
+    dc:identifier "SCSC-141C" ;
+    dc:issued "2025-02-24"^^xsd:date ;
+    dc:modified "2025-06-19T00:00:00Z" ;
+    dc:publisher "https://www.fortiss.org/"@en ;
+    dc:source "The Assurance Case Working Group (ACWG). (2021 May). Goal Structuring Notation Community Standard Version 3. URL: http://scsc.uk/SCSC-141C"@en ;
+    dc:title "OntoGSN"@en ;
+    terms:bibliographicCitation "Bueno Momcilovic, T., Gallina, B., Kessler, I., Hendricks, J., & Balta, D. (2025). OntoGSN: An Ontology-Based Framework for Semantic Management and Extension of Assurance Cases. Retrieved from https://fortiss.github.io/OntoGSN/" ;
+    terms:created "20th February 2025"@en ;
+    vann:preferredNamespacePrefix "gsn" ;
+    schema1:disclaimer "[Disclaimer from the GSN Community Standard v3.0]: While the authors and the publishers have used reasonable endeavours to ensure that the information and guidance given in this work is correct, all parties must rely on their own skill and judgement when making use of this work and obtain professional or specialist advice before taking, or refraining from, any action on the basis of the content of this work. Neither the authors nor the publishers make any representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to such information and guidance for any purpose, and they will not be liable for any loss or damage including without limitation, indirect or consequential loss or damage, or any loss or damage whatsoever (including as a result of negligence) arising out of, or in connection with, the use of this work. The views and opinions expressed in this publication are those of the authors and do not necessarily reflect those of their employers, the SCSC1 or other organisations."@en ;
+    schema1:url "https://w3id.org/OntoGSN/"^^xsd:anyURI ;
+    schema1:version 3.0 ;
+    owl:versionInfo "1.2.1" ;
+    skos:definition "GSN is a graphical argument notation which can be used to document explicitly the elements and structure of an argument and the argument’s relationship to evidence."@en .
+
+ontology:Catalogue a owl:Class ;
+    rdfs:label "Catalogue"@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom ontology:Pattern ;
+            owl:onProperty ontology:contains ] ;
+    skos:definition "A pattern catalogue may be created to collate a series of patterns; where such a catalogue is created the structure and format of the definition should be consistent and each pattern’s definition should have a unique {pattern identifier}."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:applicability a owl:AnnotationProperty ;
+    rdfs:label "applicability"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "The applicability section should state under what circumstances the pattern can be applied, making clear the assumptions and principles underlying the pattern to avoid inappropriate application in a mismatched context. This section should record what contextual information is required in order to apply the pattern."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:attachedTo a owl:ObjectProperty ;
+    rdfs:label "attached to"@en ;
+    rdfs:domain ontology:InstantiationDataReference ;
+    rdfs:range ontology:Template ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en ;
+    ontology:renderedAs "dotted line" .
+
+ontology:choice a owl:DatatypeProperty ;
+    rdfs:label "choice"@en ;
+    rdfs:domain ontology:Relationship ;
+    rdfs:range xsd:boolean ;
+    skos:definition "A GSN choice can be used to denote possible alternatives in satisfying a relationship."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en ;
+    ontology:renderedAs "solid diamond" .
+
+ontology:collaboration a owl:AnnotationProperty ;
+    rdfs:label "collaboration"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "The collaboration section should describe how elements of the pattern work together to achieve the desired effect, particularly where there are links that are not readily apparent from the argument structure."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:consequences a owl:AnnotationProperty ;
+    rdfs:label "consequences"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "The consequences section should make clear what work remains after the pattern has been applied. This should highlight where further support to the argument is required, and assumptions that need to be discharged."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:coreOrExtension a owl:AnnotationProperty ;
+    rdfs:label "core or extension"@en ;
+    skos:definition "Indicator of the sourcing section in the GSN Community Standard v3."@en .
+
+ontology:examples a owl:AnnotationProperty ;
+    rdfs:label "examples"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "It may be useful to provide example illustrations of the application of the pattern, particularly for more abstract patterns. Illustrations should include a typical case and can be supplemented with atypical cases where more than one example is provided."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:implementation a owl:AnnotationProperty ;
+    rdfs:label "implementation"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "The implementation section should communicate how the application of the pattern is carried out e.g. the order in which elements should be developed; communicate hints or techniques that may ease successful application; highlight common or recognised pitfalls with the application of the pattern; and record potential misinterpretation of the terms or concepts in the pattern."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:intent a owl:AnnotationProperty ;
+    rdfs:label "intent"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "The intent statement should state clearly what the pattern aims to achieve."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:knownUses a owl:AnnotationProperty ;
+    rdfs:label "known uses"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "It may be useful to provide references to known applications of the pattern. These can serve as additional examples."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:maxCardinality a owl:DatatypeProperty ;
+    rdfs:label "maximum cardinality"@en ;
+    rdfs:domain ontology:Relationship ;
+    rdfs:range xsd:nonNegativeInteger ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en ;
+    ontology:renderedAs "text" .
+
+ontology:minCardinality a owl:DatatypeProperty ;
+    rdfs:label "minimum cardinality"@en ;
+    rdfs:domain ontology:Relationship ;
+    rdfs:range xsd:nonNegativeInteger ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en ;
+    ontology:renderedAs "text" .
+
+ontology:motivation a owl:AnnotationProperty ;
+    rdfs:label "motivation"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "The motivation statement can be used to state why the pattern was created. It could be expressed in terms of previous experiences e.g. as the abstraction of a successfully presented argument, or challenges addressed e.g. argument topics that are often incompletely or poorly addressed."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:multiple a owl:DatatypeProperty ;
+    rdfs:label "multiple"@en ;
+    rdfs:domain ontology:Relationship ;
+    rdfs:range xsd:boolean ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en ;
+    ontology:renderedAs "solid ball" .
+
+ontology:offDiagram a owl:DatatypeProperty ;
+    rdfs:label "off-diagram"@en ;
+    rdfs:domain ontology:GSNElement ;
+    rdfs:range xsd:boolean ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:optional a owl:DatatypeProperty ;
+    rdfs:label "optional"@en ;
+    rdfs:domain ontology:Relationship ;
+    rdfs:range xsd:boolean ;
+    skos:definition "Optional instantiation means that the relationship and the argument below may or may not be instantiated."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en ;
+    ontology:renderedAs "hollow ball"@en .
+
+ontology:participants a owl:AnnotationProperty ;
+    rdfs:label "participants"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "The participants section augments the structure by providing a description of each element. This can provide more complete descriptions, clarify the role of the element in the overall argument and emphasise the aspects that require development or instantiation."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:refersTo a owl:ObjectProperty ;
+    rdfs:label "refers to"@en ;
+    rdfs:domain ontology:ArtefactReference ;
+    rdfs:range ontology:Artefact ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:relatedTo a owl:ObjectProperty ;
+    rdfs:label "related to"@en ;
+    rdfs:domain ontology:Pattern ;
+    rdfs:range ontology:Pattern ;
+    skos:definition "This section can be used to reference patterns that are related e.g. addressing the same intent in a different context."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:renderedAs a owl:AnnotationProperty ;
+    rdfs:label "rendered as"@en ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:structure a owl:AnnotationProperty ;
+    rdfs:label "structure"@en ;
+    rdfs:domain ontology:Pattern ;
+    skos:definition "The structure uses the structural and element abstraction notations to present the pattern, clearly indicating where the argument needs to be further developed or populated with details to instantiate the pattern for a specific case."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:structured a owl:DatatypeProperty ;
+    rdfs:label "structured"@en ;
+    rdfs:domain ontology:Argument ;
+    rdfs:range xsd:boolean ;
+    skos:definition "A particular kind of argument where the relationships between the asserted claims, and from the evidence to the claims, are explicitly represented."@en ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:uninstantiated a owl:DatatypeProperty ;
+    rdfs:label "uninstantiated"@en ;
+    rdfs:domain ontology:GSNElement ;
+    rdfs:range xsd:boolean ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en ;
+    ontology:renderedAs "hollow triangle" .
+
+ontology:viewType a owl:DatatypeProperty ;
+    rdfs:label "view type"@en ;
+    rdfs:domain ontology:View ;
+    rdfs:range [ a rdfs:Datatype ;
+            owl:oneOf [ a rdf:List ;
+                    rdf:first "architecture" ;
+                    rdf:rest [ a rdf:List ;
+                            rdf:first "argument" ;
+                            rdf:rest () ] ] ] ;
+    ontology:coreOrExtension "Modular Extension"@en .
+
+schema1:description a owl:AnnotationProperty,
+        owl:DatatypeProperty .
+
+rdf:Statement a owl:Class .
+
+ontology:InstantiationDataReference a owl:Class ;
+    rdfs:label "Instantiation Data Reference"@en ;
+    skos:definition "This symbol indicates that the GSN argument below the attached element is to be instantiated as a template argument. It provides a reference to the information used to instantiate the template argument." ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en ;
+    ontology:renderedAs "hollow triangle" .
+
+ontology:View a owl:Class ;
+    rdfs:label "View"@en ;
+    skos:definition "The argument view depicts the argument inside an individual module."@en ;
+    ontology:coreOrExtension "Modular Extension"@en .
+
+ontology:X a swrl:Variable .
+
+ontology:argumentType a owl:DatatypeProperty ;
+    rdfs:label "argument type"@en ;
+    rdfs:domain ontology:Argument ;
+    rdfs:range [ a rdfs:Datatype ;
+            owl:oneOf [ a rdf:List ;
+                    rdf:first "confidence" ;
+                    rdf:rest [ a rdf:List ;
+                            rdf:first "dialectic" ;
+                            rdf:rest [ a rdf:List ;
+                                    rdf:first "risk" ;
+                                    rdf:rest () ] ] ] ] ;
+    ontology:coreOrExtension "Confidence Argument Extension"@en .
+
+ontology:consistentWith a owl:ObjectProperty,
+        owl:SymmetricProperty ;
+    rdfs:label "consistent with"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Assumption ontology:Context ) ] ;
+    rdfs:range [ a owl:Class ;
+            owl:unionOf ( ontology:Assumption ontology:Context ) ] ;
+    skos:definition "By making the relationship to the away goal the author is asserting not only the inference of support for the parent goal, but also that the context in which the away goal is declared is consistent with the context and assumptions in scope for the parent goal." ;
+    ontology:coreOrExtension "Modular Extension"@en .
+
+ontology:final a owl:DatatypeProperty ;
+    rdfs:label "final"@en ;
+    rdfs:domain ontology:Argument ;
+    rdfs:range xsd:boolean ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:instantiationOf a owl:ObjectProperty ;
+    rdfs:label "instantiation of"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Argument ontology:GSNElement ) ] ;
+    rdfs:range ontology:Pattern ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:substitutedBy a owl:ObjectProperty ;
+    rdfs:label "substituted by"@en ;
+    rdfs:domain ontology:Justification ;
+    rdfs:range [ a owl:Class ;
+            owl:intersectionOf ( ontology:Goal [ a owl:Restriction ;
+                        owl:hasValue true ;
+                        owl:onProperty ontology:away ] ) ] ;
+    skos:definition "There may be occasions when a goal or strategy requires fuller justification than can be provided within the confines of a GSN justification element. In such cases, an away goal can be substituted for the justification."@en ;
+    ontology:coreOrExtension "Modular Extension"@en .
+
+ontology:AssuranceCase a owl:Class ;
+    rdfs:label "Assurance Case"@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( ontology:Argument ontology:Artefact ) ] ;
+            owl:onProperty ontology:contains ],
+        [ a owl:Restriction ;
+            owl:onProperty ontology:contains ;
+            owl:someValuesFrom ontology:Argument ],
+        [ a owl:Restriction ;
+            owl:onProperty ontology:contains ;
+            owl:someValuesFrom ontology:Artefact ] ;
+    skos:definition "A reasoned and compelling argument, supported by a body of evidence, that a system, service or organisation will operate as intended for a defined application in a defined environment."@en,
+        "Arguments and evidence intended to demonstrate that a system meets its assurance requirements."@en ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:C1 a swrl:Variable .
+
+ontology:Defeater a owl:Class ;
+    rdfs:label "Defeater"@en ;
+    owl:equivalentClass [ a owl:Class ;
+            owl:unionOf ( ontology:Goal ontology:Solution ) ] ;
+    skos:altLabel "Dialectic Element"@en ;
+    skos:definition "The source of challenge being applied; can be directed at any part of an argument. A defeater (goal or solution) can challenge any element in a goal structure, e.g. goal, solution, strategy, context, assumption, justification." ;
+    skos:note "Membership of this class is only meant to be inferred, not asserted! Please do not add individuals to this class manually (i.e., assertions)."@en,
+        "The goal and solution statements should be clearly expressed such that the crux of the challenge is unequivocally communicated. Thus, the link between the part of the argument that is being challenged (target) and the dialectic element (source) is self-evident."@en ;
+    ontology:coreOrExtension "Dialectic Extension"@en .
+
+ontology:ID a swrl:Variable .
+
+ontology:inDoubt a owl:DatatypeProperty ;
+    rdfs:label "in doubt"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:AssuranceCase ontology:GSNElement ontology:Relationship ) ] ;
+    rdfs:range xsd:boolean ;
+    skos:definition "The dialectic challenge within this structure asserts that if the claim presented in Goal CG1 is true then this is sufficient to establish that the claim in Goal G1 in the original structure is in doubt."@en ;
+    ontology:coreOrExtension "Dialectic Extension"@en .
+
+ontology:published a owl:DatatypeProperty ;
+    rdfs:label "published"@en ;
+    rdfs:domain ontology:Argument ;
+    rdfs:range xsd:boolean ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:top a owl:DatatypeProperty ;
+    rdfs:label "top (goal)"@en ;
+    rdfs:domain ontology:Goal ;
+    rdfs:range xsd:boolean ;
+    skos:definition "A GSN Goal that presents the pinnacle claim in an argument. It is ‘top’ in terms of the argument hierarchy, rather than necessarily its physical layout. There may be more than one top goal in a GSN structure."@en,
+        "The top goal presents the overall claim asserted by the author and it is up to the reader to determine their belief that it is adequately supported."@en ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+<urn:swrl:var#B> a swrl:Variable .
+
+rdf:predicate a owl:ObjectProperty .
+
+ontology:C2 a swrl:Variable .
+
+ontology:D a swrl:Variable .
+
+ontology:P a swrl:Variable .
+
+ontology:Template a owl:Class ;
+    rdfs:label "Template"@en ;
+    rdfs:subClassOf ontology:Pattern ;
+    skos:definition "A template argument is a special case of a pattern argument. It uses the core GSN and argument pattern extension to construct an argument structure which requires no further development."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:defeated a owl:DatatypeProperty ;
+    rdfs:label "defeated"@en ;
+    schema1:description "Defeated Relationship indicates that the relationship is defeated. The Defeated decorator can be applied to any of the GSN relationships."@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:GSNElement ontology:Relationship ) ] ;
+    rdfs:range xsd:boolean ;
+    skos:definition "This decorator symbol indicates that the element is defeated. The Defeated decorator can be applied to any of the GSN elements."@en ;
+    ontology:coreOrExtension "Dialectic Extension"@en ;
+    ontology:renderedAs "cross (‘X’) superimposed on a GSN element or relationship" .
+
+ontology:public a owl:DatatypeProperty ;
+    rdfs:label "public"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Assumption ontology:Context ontology:Goal ontology:Justification ontology:Solution ) ] ;
+    rdfs:range xsd:boolean ;
+    skos:definition "This indicates that the element is publicly visible in one or more interfaces of the module and can be referenced as an away element."@en ;
+    ontology:coreOrExtension "Modular Extension"@en ;
+    ontology:renderedAs "miniature module symbol superimposed on an element at the top right" .
+
+ontology:toBeSupportedByContract a owl:DatatypeProperty ;
+    rdfs:label "to be supported by contract"@en ;
+    rdfs:domain ontology:Goal ;
+    rdfs:range xsd:boolean ;
+    owl:propertyDisjointWith ontology:undeveloped ;
+    ontology:coreOrExtension "Modular Extension"@en ;
+    ontology:renderedAs "attached centrally immediately below the goal to which it relates" .
+
+<urn:swrl:var#A> a swrl:Variable .
+
+<urn:swrl:var#C> a swrl:Variable .
+
+ontology:Artefact a owl:Class ;
+    rdfs:label "Artefact"@en ;
+    skos:altLabel "Evidence"@en ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:E2 a swrl:Variable .
+
+ontology:R3 a swrl:Variable .
+
+ontology:relationshipType a owl:DatatypeProperty ;
+    rdfs:label "relationship type"@en ;
+    rdfs:domain ontology:Relationship ;
+    rdfs:range [ a rdfs:Datatype ;
+            owl:oneOf [ a rdf:List ;
+                    rdf:first "contextual" ;
+                    rdf:rest [ a rdf:List ;
+                            rdf:first "evidential" ;
+                            rdf:rest [ a rdf:List ;
+                                    rdf:first "inferential" ;
+                                    rdf:rest () ] ] ] ] ;
+    skos:definition "An evidential relationship is a declared relationship between a claim and an evidence item by which the claim is substantiated. An inferential relationship is a declared inference between claims in the argument. A contextual relationship draws attention to explanatory contextual information."@en,
+        "SupportedBy relationships – represented by lines with solid arrowheads – indicate inferential or evidential relationships between elements. InContextOf relationships – represented as lines with hollow arrowheads – declare contextual relationships."@en ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:G3 a swrl:Variable .
+
+ontology:J a swrl:Variable .
+
+ontology:contract a owl:DatatypeProperty ;
+    rdfs:label "contract"@en ;
+    rdfs:domain ontology:Module ;
+    rdfs:range xsd:boolean ;
+    owl:propertyDisjointWith ontology:undeveloped ;
+    skos:definition "A contract module is a special type of module that controls the relationship between argument module interfaces using arguments to define how a goal in one module is supported by one or more goals in one or more other modules."@en ;
+    skos:note "A contract may be described in textual form (e.g. as a table) or for more complex relationships may be described within a contract module using GSN."@en,
+        "Contract modules can be used in the support relationship between modules to aid decoupling. The de-coupling by use of a contract permits argument module construction in cases where the eventual source of support for an argument is unknown at the time of authoring or can be changed for example through re-use or planned product improvement or reconfiguration."@en ;
+    ontology:coreOrExtension "Modular Extension"@en ;
+    ontology:renderedAs "a rectangle with two smaller rectangles (of equal size to each other) adjoining at the top left and bottom right" .
+
+ontology:undeveloped a owl:DatatypeProperty ;
+    rdfs:label "undeveloped"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Goal ontology:Strategy ) ] ;
+    rdfs:range xsd:boolean ;
+    skos:definition "Undeveloped element decorator, rendered as a hollow diamond applied to the bottom centre of an element, indicates that a line of argument has not been developed."@en ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en ;
+    ontology:renderedAs "hollow diamond" .
+
+ontology:E1 a swrl:Variable .
+
+ontology:M3 a swrl:Variable .
+
+ontology:assuranceClaimPoint a owl:DatatypeProperty ;
+    rdfs:label "assurance claim point"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:ArtefactReference ontology:RelationshipWithConfidence ) ] ;
+    rdfs:range xsd:boolean ;
+    skos:definition "An Assurance Claim Point (ACP) can be used in GSN to indicate that a confidence argument is associated with an assertion in a risk argument."@en ;
+    ontology:coreOrExtension "Confidence Argument Extension"@en ;
+    ontology:renderedAs "solid square" .
+
+ontology:away a owl:DatatypeProperty ;
+    rdfs:label "away"@en ;
+    schema1:description "An away assumption repeats an assumption presented in another argument module and is typically used only in Contract Modules. An away context repeats a reference to context presented in another argument module. An away goal reference repeats a claim presented in another argument module. An away justification repeats a justification presented in another argument module and is typically used only in Contract Modules. An away solution repeats a reference to evidence items presented in another argument module."@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Assumption ontology:Context ontology:Goal ontology:Justification ontology:Solution ) ] ;
+    rdfs:range xsd:boolean ;
+    skos:definition "An away element reference repeats a claim or evidence presented in another argument module."@en ;
+    ontology:coreOrExtension "Modular Extension"@en ;
+    ontology:renderedAs "bisecting line in the lower half" .
+
+ontology:ArtefactReference a owl:Class ;
+    rdfs:label "Artefact Reference"@en ;
+    rdfs:subClassOf ontology:GSNElement ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:statement a owl:DatatypeProperty ;
+    rdfs:label "statement"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Argument ontology:GSNElement ) ] ;
+    rdfs:range xsd:string ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:Justification a owl:Class ;
+    rdfs:label "Justification"@en ;
+    rdfs:subClassOf _:nd4131e5599864a92ba87da6b0d87d2dab131,
+        ontology:GSNElement ;
+    skos:definition "A justification, rendered as an oval with the letter 'J' at the top- or bottom-right, presents a statement of rationale."@en ;
+    ontology:coreOrExtension "Core GSN"@en ;
+    ontology:renderedAs "oval"@en .
+
+ontology:N a swrl:Variable .
+
+ontology:S1 a swrl:Variable .
+
+ontology:challenges a owl:ObjectProperty ;
+    rdfs:label "challenges"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Goal ontology:Solution ) ] ;
+    rdfs:range ontology:GSNElement ;
+    skos:definition "Allows a Challenge to any GSN entity to be documented. A goal, (core element) can be used in a dialectic context to assert a challenge to part of the argument. A solution, (core element) can be used to present a reference to an evidence item that asserts a challenge to part of the argument."@en ;
+    skos:note "A challenge must be levied against the appropriate aspect of the goal structure."@en ;
+    ontology:coreOrExtension "Dialectic Extension"@en ;
+    ontology:renderedAs "dashed line with an open arrowhead" .
+
+schema1:identifier a owl:DatatypeProperty .
+
+ontology:S2 a swrl:Variable .
+
+ontology:associatedWith a owl:ObjectProperty ;
+    rdfs:label "associated with"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:ArtefactReference ontology:RelationshipWithConfidence ) ] ;
+    rdfs:range ontology:Argument ;
+    ontology:coreOrExtension "Confidence Argument Extension"@en .
+
+ontology:Assumption a owl:Class ;
+    rdfs:label "Assumption"@en ;
+    rdfs:subClassOf _:nd4131e5599864a92ba87da6b0d87d2dab96,
+        ontology:GSNElement ;
+    skos:definition "An assumption, rendered as an oval with the letter 'A' at the top- or bottom-right, presents an intentionally unsubstantiated statement."@en ;
+    ontology:coreOrExtension "Core GSN"@en ;
+    ontology:renderedAs "oval"@en .
+
+ontology:Context a owl:Class ;
+    rdfs:label "Context"@en ;
+    rdfs:subClassOf _:nd4131e5599864a92ba87da6b0d87d2dab105,
+        ontology:ArtefactReference ;
+    skos:definition "A context, rendered as shown left, presents a contextual artefact. This can be a reference to contextual information, or a statement."@en ;
+    ontology:coreOrExtension "Core GSN"@en ;
+    ontology:renderedAs "rounded rectangle"@en .
+
+ontology:RelationshipWithConfidence a owl:Class ;
+    rdfs:label "Relationship with Confidence"@en ;
+    rdfs:subClassOf [ a owl:Class ;
+            owl:intersectionOf ( [ a owl:Restriction ;
+                        owl:onProperty ontology:associatedWith ;
+                        owl:someValuesFrom ontology:Argument ] [ a owl:Restriction ;
+                        owl:onProperty ontology:assuranceClaimPoint ;
+                        owl:someValuesFrom xsd:boolean ] ) ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( ontology:Context ontology:Solution ontology:Strategy ) ] ;
+            owl:onProperty rdf:object ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:intersectionOf ( ontology:Argument [ a owl:Restriction ;
+                                owl:hasValue "confidence" ;
+                                owl:onProperty ontology:argumentType ] ) ] ;
+            owl:onProperty ontology:associatedWith ],
+        [ a owl:Restriction ;
+            owl:onProperty schema1:identifier ;
+            owl:someValuesFrom xsd:string ],
+        [ a owl:Restriction ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty schema1:identifier ;
+            owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ],
+        ontology:Relationship ;
+    skos:note "The corresponding argument could be located in a paragraph of accompanying text, a goal in the local argument, or a goal in a separate module."@en ;
+    ontology:coreOrExtension "Confidence Argument Extension"@en .
+
+ontology:Strategy a owl:Class ;
+    rdfs:label "Strategy"@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( ontology:Assumption ontology:Context ontology:Justification ontology:Module ) ] ;
+            owl:onProperty ontology:inContextOf ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom ontology:Goal ;
+            owl:onProperty ontology:supportedBy ],
+        _:nd4131e5599864a92ba87da6b0d87d2dab177,
+        ontology:GSNElement ;
+    skos:definition "A strategy, rendered as a parallelogram, describes the inference that exists between a goal and its supporting goal(s)."@en ;
+    ontology:coreOrExtension "Core GSN"@en ;
+    ontology:renderedAs "parallelogram"@en .
+
+ontology:E a swrl:Variable .
+
+ontology:Relationship a owl:Class ;
+    rdfs:label "Relationship"@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom ontology:GSNElement ;
+            owl:onProperty rdf:object ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( ontology:Defeater ontology:Goal ontology:Strategy ) ] ;
+            owl:onProperty rdf:subject ],
+        rdf:Statement ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:Argument a owl:Class ;
+    rdfs:label "Argument"@en ;
+    rdfs:subClassOf _:nd4131e5599864a92ba87da6b0d87d2dab83,
+        [ a owl:Restriction ;
+            owl:allValuesFrom ontology:GSNElement ;
+            owl:onProperty ontology:contains ],
+        [ a owl:Restriction ;
+            owl:onProperty schema1:identifier ;
+            owl:someValuesFrom xsd:string ],
+        [ a owl:Restriction ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty schema1:identifier ;
+            owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ] ;
+    skos:definition "A body of information presented with the intention to establish one or more claims through the presentation of related supporting claims, evidence and contextual information."@en,
+        "A connected series of claims intended to establish an overall claim."@en ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:Pattern a owl:Class ;
+    rdfs:label "Pattern"@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty schema1:description ;
+            owl:someValuesFrom rdfs:Literal ] ;
+    ontology:coreOrExtension "Argument Pattern Extension"@en .
+
+ontology:Solution a owl:Class ;
+    rdfs:label "Solution"@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( ontology:GSNElement ontology:Relationship ) ] ;
+            owl:onProperty ontology:challenges ],
+        _:nd4131e5599864a92ba87da6b0d87d2dab168,
+        ontology:ArtefactReference ;
+    skos:definition "A solution, rendered as a circle, presents a reference to an evidence item."@en ;
+    ontology:coreOrExtension "Core GSN"@en ;
+    ontology:renderedAs "circle"@en .
+
+ontology:M a swrl:Variable .
+
+ontology:true a owl:DatatypeProperty ;
+    rdfs:label "true"@en ;
+    rdfs:domain ontology:GSNElement ;
+    rdfs:range xsd:boolean ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:G2 a swrl:Variable .
+
+ontology:C a swrl:Variable .
+
+ontology:G1 a swrl:Variable .
+
+ontology:GSNElement a owl:Class ;
+    rdfs:label "GSN Element"@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty schema1:identifier ;
+            owl:someValuesFrom xsd:string ],
+        [ a owl:Restriction ;
+            owl:onDataRange xsd:string ;
+            owl:onProperty schema1:identifier ;
+            owl:qualifiedCardinality "1"^^xsd:nonNegativeInteger ] ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:inContextOf a owl:AsymmetricProperty,
+        owl:IrreflexiveProperty,
+        owl:ObjectProperty ;
+    rdfs:label "in context of"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Goal ontology:Strategy ) ] ;
+    rdfs:range [ a owl:Class ;
+            owl:unionOf ( ontology:Assumption ontology:Context ontology:Justification ontology:Module ) ] ;
+    skos:definition "InContextOf, rendered as a line with a hollow arrowhead, declares a contextual relationship."@en ;
+    ontology:coreOrExtension "Core GSN"@en ;
+    ontology:renderedAs "line with a hollow arrowhead" .
+
+ontology:R1 a swrl:Variable .
+
+ontology:S a swrl:Variable .
+
+ontology:G a swrl:Variable .
+
+rdf:object a owl:ObjectProperty .
+
+rdf:subject a owl:ObjectProperty .
+
+ontology:R2 a swrl:Variable .
+
+ontology:M1 a swrl:Variable .
+
+ontology:M2 a swrl:Variable .
+
+ontology:valid a owl:DatatypeProperty ;
+    rdfs:label "valid"@en ;
+    rdfs:domain ontology:GSNElement ;
+    rdfs:range xsd:boolean ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:contains a owl:ObjectProperty ;
+    rdfs:label "contains"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Argument ontology:AssuranceCase ontology:Module ) ] ;
+    rdfs:range [ a owl:Class ;
+            owl:unionOf ( ontology:Argument ontology:Artefact ontology:Module ) ] ;
+    ontology:coreOrExtension "Core GSN"@en .
+
+ontology:Module a owl:Class ;
+    rdfs:label "Module"@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( ontology:Argument ontology:Module ) ] ;
+            owl:onProperty ontology:contains ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom ontology:Module ;
+            owl:onProperty ontology:inContextOf ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom ontology:Module ;
+            owl:onProperty ontology:supportedBy ],
+        [ a owl:Restriction ;
+            owl:minQualifiedCardinality "1"^^xsd:nonNegativeInteger ;
+            owl:onClass ontology:Argument ;
+            owl:onProperty ontology:contains ],
+        ontology:GSNElement ;
+    skos:definition "Goal structures can be partitioned into separate, but interrelated, modules. This can allow the division of an overall goal structure into separate goal structures focusing on particular aspects of the overall argument. A module may contain one or more arguments and may contain other modules."@en ;
+    ontology:coreOrExtension "Modular Extension"@en ;
+    ontology:renderedAs "a rectangle with a second smaller rectangle adjoining at the top left" .
+
+ontology:Goal a owl:Class ;
+    rdfs:label "Goal"@en ;
+    rdfs:subClassOf [ a owl:Restriction ;
+            owl:onProperty ontology:inContextOf ;
+            owl:someValuesFrom ontology:Context ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( ontology:GSNElement ontology:Relationship ) ] ;
+            owl:onProperty ontology:challenges ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( ontology:Assumption ontology:Context ontology:Justification ontology:Module ) ] ;
+            owl:onProperty ontology:inContextOf ],
+        [ a owl:Restriction ;
+            owl:allValuesFrom [ a owl:Class ;
+                    owl:unionOf ( ontology:Goal ontology:Module ontology:Solution ontology:Strategy ) ] ;
+            owl:onProperty ontology:supportedBy ],
+        _:nd4131e5599864a92ba87da6b0d87d2dab129,
+        ontology:GSNElement ;
+    skos:altLabel "Claim"@en ;
+    skos:definition "(Claim is) A proposition being asserted by the author that is a true or false statement."@en,
+        "A goal, rendered as a rectangle, presents a claim forming part of the argument."@en ;
+    ontology:coreOrExtension "Core GSN"@en ;
+    ontology:renderedAs "rectangle"@en .
+
+ontology:supportedBy a owl:AsymmetricProperty,
+        owl:IrreflexiveProperty,
+        owl:ObjectProperty ;
+    rdfs:label "supported by"@en ;
+    rdfs:domain [ a owl:Class ;
+            owl:unionOf ( ontology:Goal ontology:Strategy ) ] ;
+    rdfs:range [ a owl:Class ;
+            owl:unionOf ( ontology:Goal ontology:Module ontology:Solution ontology:Strategy ) ] ;
+    skos:definition "SupportedBy, rendered as a line with a solid arrowhead, allows support relationships between elements to be documented."@en ;
+    ontology:coreOrExtension "Core GSN"@en ;
+    ontology:renderedAs "line with a solid arrowhead" .
+
+ontology:R a swrl:Variable .
+
+ontology:B a swrl:Variable .
+
+ontology:A a swrl:Variable .
+
+[] a owl:Axiom ;
+    owl:annotatedProperty rdfs:subClassOf ;
+    owl:annotatedSource ontology:Context ;
+    owl:annotatedTarget _:nd4131e5599864a92ba87da6b0d87d2dab105 ;
+    skos:definition "Two kinds of GSN context statement exist. Where a context statement draws attention to explanatory contextual information (such as the definition of some term), this information shall be stated briefly using complete sentences of a noun-phrase + verb-phrase structure. Where a context statement is a reference to an artefact of some kind, which informs the reasoning step, the context statement shall be expressed as a noun phrase."@en .
+
+[] a owl:Axiom ;
+    owl:annotatedProperty rdfs:subClassOf ;
+    owl:annotatedSource ontology:Goal ;
+    owl:annotatedTarget _:nd4131e5599864a92ba87da6b0d87d2dab129 ;
+    skos:definition "GSN goals document the claims made in the argument (i.e. premises and conclusions). Each goal shall contain a single goal statement, expressed as a proposition in the form of a noun phrase + verb-phrase sentence."@en .
+
+[] a owl:Axiom ;
+    owl:annotatedProperty rdfs:subClassOf ;
+    owl:annotatedSource ontology:Justification ;
+    owl:annotatedTarget _:nd4131e5599864a92ba87da6b0d87d2dab131 ;
+    skos:definition "GSN justifications provide additional information necessary for the correct understanding of the argument. This information is stated as fully as necessary, using complete sentences in the form noun phrase + verb phrase."@en .
+
+[] a owl:Axiom ;
+    owl:annotatedProperty rdfs:subClassOf ;
+    owl:annotatedSource ontology:Solution ;
+    owl:annotatedTarget _:nd4131e5599864a92ba87da6b0d87d2dab168 ;
+    skos:definition "GSN solutions make no claim, but are simply references to evidence items that provide support for a particular claim. They shall therefore be stated as noun-phrases."@en .
+
+[] a owl:Axiom ;
+    owl:annotatedProperty rdfs:subClassOf ;
+    owl:annotatedSource ontology:Strategy ;
+    owl:annotatedTarget _:nd4131e5599864a92ba87da6b0d87d2dab177 ;
+    skos:definition "GSN strategy statements describe the reasoning that connects parent goals and their supporting goals, but the core claims and the structure connecting those claims remain unchanged. Strategy statements contain a brief description of the argument approach."@en .
+
+[] a owl:Class ;
+    owl:equivalentClass [ a owl:Restriction ;
+            owl:hasValue true ;
+            owl:onProperty ontology:top ] ;
+    owl:intersectionOf ( ontology:Goal [ a owl:Class ;
+                owl:complementOf [ a owl:Restriction ;
+                        owl:onProperty [ owl:inverseOf ontology:supportedBy ] ;
+                        owl:someValuesFrom ontology:Goal ] ] ) .
+
+[] a swrl:Imp ;
+    rdfs:label "S40" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:assuranceClaimPoint ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:classPredicate ontology:ArtefactReference ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:BuiltinAtom ;
+                                    swrl:arguments ( ontology:A ontology:R ) ;
+                                    swrl:builtin <http://swrl.stanford.edu/ontologies/built-ins/3.3/swrlx.owl#makeOWLThing> ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:classPredicate ontology:RelationshipWithConfidence ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:argument2 ontology:A ;
+                            swrl:propertyPredicate rdf:subject ] ;
+                    rdf:rest () ] ] ;
+    ontology:coreOrExtension "Confidence Argument Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S16" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:classPredicate ontology:Assumption ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:true ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:B ;
+                                    swrl:argument2 ontology:A ;
+                                    swrl:propertyPredicate ontology:inContextOf ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:true ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S1" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:classPredicate ontology:Assumption ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:valid ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:B ;
+                                    swrl:argument2 ontology:A ;
+                                    swrl:propertyPredicate ontology:inContextOf ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S17" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 <urn:swrl:var#B> ;
+                    swrl:argument2 <urn:swrl:var#C> ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 <urn:swrl:var#B> ;
+                            swrl:argument2 <urn:swrl:var#A> ;
+                            swrl:propertyPredicate ontology:inContextOf ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 <urn:swrl:var#A> ;
+                                    swrl:classPredicate ontology:Assumption ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 <urn:swrl:var#C> ;
+                                            swrl:classPredicate ontology:Goal ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 <urn:swrl:var#C> ;
+                    swrl:argument2 <urn:swrl:var#A> ;
+                    swrl:propertyPredicate ontology:inContextOf ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S32" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:G1 ;
+                    swrl:argument2 ontology:C1 ;
+                    swrl:propertyPredicate ontology:inContextOf ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:G2 ;
+                            swrl:argument2 ontology:C2 ;
+                            swrl:propertyPredicate ontology:inContextOf ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:G1 ;
+                                    swrl:classPredicate ontology:Goal ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:G2 ;
+                                            swrl:classPredicate ontology:Goal ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                    swrl:argument1 ontology:G2 ;
+                                                    swrl:argument2 true ;
+                                                    swrl:propertyPredicate ontology:away ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:G1 ;
+                                                            swrl:argument2 ontology:G2 ;
+                                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:ClassAtom ;
+                                                                    swrl:argument1 ontology:C2 ;
+                                                                    swrl:classPredicate ontology:Context ] ;
+                                                            rdf:rest () ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:C1 ;
+                    swrl:argument2 ontology:C2 ;
+                    swrl:propertyPredicate ontology:consistentWith ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S9" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:C ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:true ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:B ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:true ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:C ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                            swrl:argument1 ontology:A ;
+                                            swrl:argument2 true ;
+                                            swrl:propertyPredicate ontology:true ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:C ;
+                                                    swrl:argument2 ontology:A ;
+                                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:ClassAtom ;
+                                                            swrl:argument1 ontology:A ;
+                                                            swrl:classPredicate ontology:Goal ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:ClassAtom ;
+                                                                    swrl:argument1 ontology:B ;
+                                                                    swrl:classPredicate ontology:Goal ] ;
+                                                            rdf:rest () ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:C ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] .
+
+[] a swrl:Imp ;
+    rdfs:label "S6" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:X ;
+                    swrl:argument2 ontology:A ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 ontology:B ;
+                            swrl:propertyPredicate ontology:supportedBy ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:A ;
+                                    swrl:classPredicate ontology:Goal ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:top ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S8" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:true ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:B ;
+                            swrl:argument2 true ;
+                            swrl:propertyPredicate ontology:true ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:B ;
+                                    swrl:argument2 ontology:A ;
+                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:A ;
+                                            swrl:classPredicate ontology:Goal ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S5" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 ontology:B ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:argument2 ontology:A ;
+                            swrl:propertyPredicate rdf:subject ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate rdf:object ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:B ;
+                                            swrl:classPredicate ontology:Goal ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 "inferential" ;
+                    swrl:propertyPredicate ontology:relationshipType ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S45" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:G ;
+                    swrl:argument2 ontology:S2 ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:S1 ;
+                            swrl:classPredicate ontology:Goal ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R1 ;
+                                    swrl:argument2 ontology:S1 ;
+                                    swrl:propertyPredicate rdf:object ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:R1 ;
+                                            swrl:classPredicate ontology:RelationshipWithConfidence ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:BuiltinAtom ;
+                                                    swrl:arguments ( ontology:S2 ontology:R2 ) ;
+                                                    swrl:builtin <http://swrl.stanford.edu/ontologies/built-ins/3.3/swrlx.owl#makeOWLThing> ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:G ;
+                                                            swrl:argument2 ontology:S1 ;
+                                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:ClassAtom ;
+                                                                    swrl:argument1 ontology:S2 ;
+                                                                    swrl:classPredicate ontology:Goal ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:ClassAtom ;
+                                                                            swrl:argument1 ontology:G ;
+                                                                            swrl:classPredicate ontology:Goal ] ;
+                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                            rdf:first [ a swrl:BuiltinAtom ;
+                                                                                    swrl:arguments ( ontology:S1 ontology:S2 ) ;
+                                                                                    swrl:builtin swrlb:notEqual ] ;
+                                                                            rdf:rest [ a swrl:AtomList ;
+                                                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                            swrl:argument1 ontology:R1 ;
+                                                                                            swrl:argument2 ontology:A ;
+                                                                                            swrl:propertyPredicate ontology:associatedWith ] ;
+                                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                                    swrl:argument1 ontology:R1 ;
+                                                                                                    swrl:argument2 ontology:G ;
+                                                                                                    swrl:propertyPredicate rdf:subject ] ;
+                                                                                            rdf:rest () ] ] ] ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R2 ;
+                    swrl:argument2 ontology:S2 ;
+                    swrl:propertyPredicate rdf:object ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:R2 ;
+                            swrl:classPredicate ontology:RelationshipWithConfidence ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R2 ;
+                                    swrl:argument2 ontology:G ;
+                                    swrl:propertyPredicate rdf:subject ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:R2 ;
+                                            swrl:argument2 ontology:A ;
+                                            swrl:propertyPredicate ontology:associatedWith ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                    swrl:argument1 ontology:R2 ;
+                                                    swrl:argument2 true ;
+                                                    swrl:propertyPredicate ontology:assuranceClaimPoint ] ;
+                                            rdf:rest () ] ] ] ] ] ;
+    ontology:coreOrExtension "Confidence Argument Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S44" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:G ;
+                    swrl:argument2 ontology:S2 ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:S1 ;
+                            swrl:classPredicate ontology:Solution ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R1 ;
+                                    swrl:argument2 ontology:S1 ;
+                                    swrl:propertyPredicate rdf:object ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:R1 ;
+                                            swrl:classPredicate ontology:RelationshipWithConfidence ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:BuiltinAtom ;
+                                                    swrl:arguments ( ontology:S2 ontology:R2 ) ;
+                                                    swrl:builtin <http://swrl.stanford.edu/ontologies/built-ins/3.3/swrlx.owl#makeOWLThing> ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:G ;
+                                                            swrl:argument2 ontology:S1 ;
+                                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:ClassAtom ;
+                                                                    swrl:argument1 ontology:G ;
+                                                                    swrl:classPredicate ontology:Goal ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:BuiltinAtom ;
+                                                                            swrl:arguments ( ontology:S1 ontology:S2 ) ;
+                                                                            swrl:builtin swrlb:notEqual ] ;
+                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                    swrl:argument1 ontology:R1 ;
+                                                                                    swrl:argument2 ontology:A ;
+                                                                                    swrl:propertyPredicate ontology:associatedWith ] ;
+                                                                            rdf:rest [ a swrl:AtomList ;
+                                                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                            swrl:argument1 ontology:R1 ;
+                                                                                            swrl:argument2 ontology:G ;
+                                                                                            swrl:propertyPredicate rdf:subject ] ;
+                                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                                            rdf:first [ a swrl:ClassAtom ;
+                                                                                                    swrl:argument1 ontology:S2 ;
+                                                                                                    swrl:classPredicate ontology:Solution ] ;
+                                                                                            rdf:rest () ] ] ] ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R2 ;
+                    swrl:argument2 ontology:S2 ;
+                    swrl:propertyPredicate rdf:object ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:R2 ;
+                            swrl:classPredicate ontology:RelationshipWithConfidence ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R2 ;
+                                    swrl:argument2 ontology:G ;
+                                    swrl:propertyPredicate rdf:subject ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:R2 ;
+                                            swrl:argument2 ontology:A ;
+                                            swrl:propertyPredicate ontology:associatedWith ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                    swrl:argument1 ontology:R2 ;
+                                                    swrl:argument2 true ;
+                                                    swrl:propertyPredicate ontology:assuranceClaimPoint ] ;
+                                            rdf:rest () ] ] ] ] ] ;
+    ontology:coreOrExtension "Confidence Argument Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S49" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:G ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:undeveloped ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:G ;
+                            swrl:argument2 ontology:E ;
+                            swrl:propertyPredicate ontology:challenges ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:G ;
+                                    swrl:classPredicate ontology:Goal ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                            swrl:argument1 ontology:E ;
+                                            swrl:argument2 true ;
+                                            swrl:propertyPredicate ontology:inDoubt ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:E ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:defeated ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Dialectic Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S48" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:G ;
+                    swrl:argument2 ontology:E ;
+                    swrl:propertyPredicate ontology:challenges ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:G ;
+                            swrl:argument2 true ;
+                            swrl:propertyPredicate ontology:true ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:G ;
+                                    swrl:classPredicate ontology:Goal ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:E ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:inDoubt ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Dialectic Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S38" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:G ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:public ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:G ;
+                            swrl:argument2 ontology:C ;
+                            swrl:propertyPredicate ontology:inContextOf ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:G ;
+                                    swrl:classPredicate ontology:Goal ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:C ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:public ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S51" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:D ;
+                    swrl:argument2 ontology:R ;
+                    swrl:propertyPredicate ontology:challenges ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:argument2 ontology:G3 ;
+                            swrl:propertyPredicate rdf:subject ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:G1 ;
+                                    swrl:propertyPredicate rdf:object ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:G1 ;
+                                            swrl:classPredicate ontology:Goal ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:ClassAtom ;
+                                                    swrl:argument1 ontology:G3 ;
+                                                    swrl:classPredicate ontology:Goal ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:BuiltinAtom ;
+                                                            swrl:arguments ( ontology:G3 ontology:S ) ;
+                                                            swrl:builtin <http://swrl.stanford.edu/ontologies/built-ins/3.3/swrlx.owl#makeOWLThing> ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:ClassAtom ;
+                                                                    swrl:argument1 ontology:G2 ;
+                                                                    swrl:classPredicate ontology:Goal ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                            swrl:argument1 ontology:G3 ;
+                                                                            swrl:argument2 ontology:G1 ;
+                                                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                            rdf:first [ a swrl:BuiltinAtom ;
+                                                                                    swrl:arguments ( ontology:G1 ontology:G2 ) ;
+                                                                                    swrl:builtin swrlb:notEqual ] ;
+                                                                            rdf:rest () ] ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:S ;
+                    swrl:argument2 ontology:G2 ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:G3 ;
+                            swrl:argument2 ontology:S ;
+                            swrl:propertyPredicate ontology:supportedBy ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                    swrl:argument1 ontology:D ;
+                                    swrl:argument2 false ;
+                                    swrl:propertyPredicate ontology:valid ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:S ;
+                                            swrl:argument2 ontology:G1 ;
+                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:D ;
+                                                    swrl:argument2 ontology:S ;
+                                                    swrl:propertyPredicate ontology:challenges ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                            swrl:argument1 ontology:S ;
+                                                            swrl:argument2 false ;
+                                                            swrl:propertyPredicate ontology:valid ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                                    swrl:argument1 ontology:R ;
+                                                                    swrl:argument2 false ;
+                                                                    swrl:propertyPredicate ontology:valid ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:ClassAtom ;
+                                                                            swrl:argument1 ontology:S ;
+                                                                            swrl:classPredicate ontology:Strategy ] ;
+                                                                    rdf:rest () ] ] ] ] ] ] ] ] ;
+    ontology:coreOrExtension "Dialectic Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S43" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:G2 ;
+                    swrl:argument2 ontology:S ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:R1 ;
+                            swrl:classPredicate ontology:RelationshipWithConfidence ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R1 ;
+                                    swrl:argument2 ontology:S ;
+                                    swrl:propertyPredicate rdf:subject ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:S ;
+                                            swrl:argument2 ontology:G1 ;
+                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:BuiltinAtom ;
+                                                    swrl:arguments ( ontology:G2 ontology:R2 ) ;
+                                                    swrl:builtin <http://swrl.stanford.edu/ontologies/built-ins/3.3/swrlx.owl#makeOWLThing> ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:R1 ;
+                                                            swrl:argument2 ontology:G1 ;
+                                                            swrl:propertyPredicate rdf:object ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:ClassAtom ;
+                                                                    swrl:argument1 ontology:S ;
+                                                                    swrl:classPredicate ontology:Strategy ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:ClassAtom ;
+                                                                            swrl:argument1 ontology:G1 ;
+                                                                            swrl:classPredicate ontology:Goal ] ;
+                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                            rdf:first [ a swrl:ClassAtom ;
+                                                                                    swrl:argument1 ontology:G2 ;
+                                                                                    swrl:classPredicate ontology:Goal ] ;
+                                                                            rdf:rest [ a swrl:AtomList ;
+                                                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                            swrl:argument1 ontology:R1 ;
+                                                                                            swrl:argument2 ontology:A ;
+                                                                                            swrl:propertyPredicate ontology:associatedWith ] ;
+                                                                                    rdf:rest () ] ] ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:R2 ;
+                    swrl:classPredicate ontology:RelationshipWithConfidence ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:R2 ;
+                            swrl:argument2 ontology:A ;
+                            swrl:propertyPredicate ontology:associatedWith ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                    swrl:argument1 ontology:R2 ;
+                                    swrl:argument2 true ;
+                                    swrl:propertyPredicate ontology:assuranceClaimPoint ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:R2 ;
+                                            swrl:argument2 ontology:G2 ;
+                                            swrl:propertyPredicate rdf:subject ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:R2 ;
+                                                    swrl:argument2 ontology:S ;
+                                                    swrl:propertyPredicate rdf:object ] ;
+                                            rdf:rest () ] ] ] ] ] ;
+    ontology:coreOrExtension "Confidence Argument Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S42" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:G1 ;
+                    swrl:argument2 ontology:S ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:S ;
+                            swrl:argument2 ontology:G2 ;
+                            swrl:propertyPredicate ontology:supportedBy ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:R1 ;
+                                    swrl:classPredicate ontology:RelationshipWithConfidence ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:BuiltinAtom ;
+                                            swrl:arguments ( ontology:G2 ontology:R2 ) ;
+                                            swrl:builtin <http://swrl.stanford.edu/ontologies/built-ins/3.3/swrlx.owl#makeOWLThing> ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:ClassAtom ;
+                                                    swrl:argument1 ontology:S ;
+                                                    swrl:classPredicate ontology:Strategy ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:ClassAtom ;
+                                                            swrl:argument1 ontology:G1 ;
+                                                            swrl:classPredicate ontology:Goal ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:ClassAtom ;
+                                                                    swrl:argument1 ontology:G2 ;
+                                                                    swrl:classPredicate ontology:Goal ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                            swrl:argument1 ontology:R1 ;
+                                                                            swrl:argument2 ontology:S ;
+                                                                            swrl:propertyPredicate rdf:object ] ;
+                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                    swrl:argument1 ontology:R1 ;
+                                                                                    swrl:argument2 ontology:A ;
+                                                                                    swrl:propertyPredicate ontology:associatedWith ] ;
+                                                                            rdf:rest [ a swrl:AtomList ;
+                                                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                            swrl:argument1 ontology:R1 ;
+                                                                                            swrl:argument2 ontology:G1 ;
+                                                                                            swrl:propertyPredicate rdf:subject ] ;
+                                                                                    rdf:rest () ] ] ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R2 ;
+                    swrl:argument2 ontology:S ;
+                    swrl:propertyPredicate rdf:subject ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:R2 ;
+                            swrl:classPredicate ontology:RelationshipWithConfidence ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R2 ;
+                                    swrl:argument2 ontology:G2 ;
+                                    swrl:propertyPredicate rdf:object ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:R2 ;
+                                            swrl:argument2 ontology:A ;
+                                            swrl:propertyPredicate ontology:associatedWith ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                    swrl:argument1 ontology:R2 ;
+                                                    swrl:argument2 true ;
+                                                    swrl:propertyPredicate ontology:assuranceClaimPoint ] ;
+                                            rdf:rest () ] ] ] ] ] ;
+    ontology:coreOrExtension "Confidence Argument Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S29" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 ontology:G1 ;
+                    swrl:propertyPredicate rdf:subject ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:M1 ;
+                            swrl:classPredicate ontology:Module ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:G1 ;
+                                    swrl:classPredicate ontology:Goal ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:R ;
+                                            swrl:argument2 ontology:G2 ;
+                                            swrl:propertyPredicate rdf:object ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:ClassAtom ;
+                                                    swrl:argument1 ontology:M2 ;
+                                                    swrl:classPredicate ontology:Module ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:G1 ;
+                                                            swrl:argument2 ontology:G2 ;
+                                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                                    swrl:argument1 ontology:G1 ;
+                                                                    swrl:argument2 true ;
+                                                                    swrl:propertyPredicate ontology:away ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                            swrl:argument1 ontology:M1 ;
+                                                                            swrl:argument2 ontology:G1 ;
+                                                                            swrl:propertyPredicate ontology:contains ] ;
+                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                    swrl:argument1 ontology:M2 ;
+                                                                                    swrl:argument2 ontology:G2 ;
+                                                                                    swrl:propertyPredicate ontology:contains ] ;
+                                                                            rdf:rest () ] ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S33" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:M2 ;
+                    swrl:argument2 ontology:G ;
+                    swrl:propertyPredicate ontology:contains ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:M1 ;
+                            swrl:classPredicate ontology:Module ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:M2 ;
+                                    swrl:classPredicate ontology:Module ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:J ;
+                                            swrl:argument2 ontology:G ;
+                                            swrl:propertyPredicate ontology:substitutedBy ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:M1 ;
+                                                    swrl:argument2 ontology:J ;
+                                                    swrl:propertyPredicate ontology:contains ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:ClassAtom ;
+                                                            swrl:argument1 ontology:J ;
+                                                            swrl:classPredicate ontology:Justification ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                    swrl:argument1 ontology:E ;
+                                                                    swrl:argument2 ontology:J ;
+                                                                    swrl:propertyPredicate ontology:inContextOf ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:BuiltinAtom ;
+                                                                            swrl:arguments ( ontology:M1 ontology:M2 ) ;
+                                                                            swrl:builtin swrlb:notEqual ] ;
+                                                                    rdf:rest () ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:J ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S24" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:M ;
+                    swrl:argument2 ontology:A ;
+                    swrl:propertyPredicate ontology:contains ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:N ;
+                            swrl:argument2 ontology:B ;
+                            swrl:propertyPredicate ontology:contains ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:N ;
+                                    swrl:classPredicate ontology:Module ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:A ;
+                                            swrl:argument2 ontology:B ;
+                                            swrl:propertyPredicate ontology:inContextOf ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:ClassAtom ;
+                                                    swrl:argument1 ontology:M ;
+                                                    swrl:classPredicate ontology:Module ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:BuiltinAtom ;
+                                                            swrl:arguments ( ontology:M ontology:N ) ;
+                                                            swrl:builtin swrlb:notEqual ] ;
+                                                    rdf:rest () ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:away ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S23" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:M ;
+                    swrl:argument2 ontology:A ;
+                    swrl:propertyPredicate ontology:contains ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:N ;
+                            swrl:argument2 ontology:B ;
+                            swrl:propertyPredicate ontology:contains ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:A ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:N ;
+                                            swrl:classPredicate ontology:Module ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:ClassAtom ;
+                                                    swrl:argument1 ontology:M ;
+                                                    swrl:classPredicate ontology:Module ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:BuiltinAtom ;
+                                                            swrl:arguments ( ontology:M ontology:N ) ;
+                                                            swrl:builtin swrlb:notEqual ] ;
+                                                    rdf:rest () ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:away ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S31" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:M ;
+                    swrl:argument2 ontology:B ;
+                    swrl:propertyPredicate ontology:contains ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:M ;
+                            swrl:argument2 ontology:A ;
+                            swrl:propertyPredicate ontology:contains ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                    swrl:argument1 ontology:A ;
+                                    swrl:argument2 true ;
+                                    swrl:propertyPredicate ontology:toBeSupportedByContract ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:A ;
+                                            swrl:argument2 ontology:B ;
+                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:R ;
+                                                    swrl:argument2 ontology:A ;
+                                                    swrl:propertyPredicate rdf:subject ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:ClassAtom ;
+                                                            swrl:argument1 ontology:M ;
+                                                            swrl:classPredicate ontology:Module ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                    swrl:argument1 ontology:R ;
+                                                                    swrl:argument2 ontology:B ;
+                                                                    swrl:propertyPredicate rdf:object ] ;
+                                                            rdf:rest () ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S25" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:M ;
+                    swrl:argument2 ontology:B ;
+                    swrl:propertyPredicate ontology:contains ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:M ;
+                            swrl:argument2 ontology:A ;
+                            swrl:propertyPredicate ontology:contains ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                    swrl:argument1 ontology:A ;
+                                    swrl:argument2 ontology:ID ;
+                                    swrl:propertyPredicate schema1:identifier ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:M ;
+                                            swrl:classPredicate ontology:Module ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:BuiltinAtom ;
+                                                    swrl:arguments ( ontology:A ontology:B ) ;
+                                                    swrl:builtin swrlb:notEqual ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                            swrl:argument1 ontology:B ;
+                                                            swrl:argument2 ontology:ID ;
+                                                            swrl:propertyPredicate schema1:identifier ] ;
+                                                    rdf:rest () ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:B ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:valid ] ;
+                    rdf:rest () ] ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S28" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:M ;
+                    swrl:argument2 ontology:A ;
+                    swrl:propertyPredicate ontology:contains ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 true ;
+                            swrl:propertyPredicate ontology:toBeSupportedByContract ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                    swrl:argument1 ontology:M ;
+                                    swrl:argument2 true ;
+                                    swrl:propertyPredicate ontology:contract ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:M ;
+                                            swrl:classPredicate ontology:Module ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S37" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:M3 ;
+                    swrl:classPredicate ontology:Module ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:M1 ;
+                            swrl:classPredicate ontology:Module ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:M2 ;
+                                    swrl:classPredicate ontology:Module ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:BuiltinAtom ;
+                                            swrl:arguments ( ontology:M3 ontology:M1 ) ;
+                                            swrl:builtin swrlb:notEqual ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:M1 ;
+                                                    swrl:argument2 ontology:M2 ;
+                                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:M2 ;
+                                                            swrl:argument2 ontology:M3 ;
+                                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:BuiltinAtom ;
+                                                                    swrl:arguments ( ontology:M1 ontology:M2 ) ;
+                                                                    swrl:builtin swrlb:notEqual ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:BuiltinAtom ;
+                                                                            swrl:arguments ( ontology:M2 ontology:M3 ) ;
+                                                                            swrl:builtin swrlb:notEqual ] ;
+                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                    swrl:argument1 ontology:M3 ;
+                                                                                    swrl:argument2 ontology:M1 ;
+                                                                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                                                                            rdf:rest () ] ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:M1 ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:M3 ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:valid ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                    swrl:argument1 ontology:M2 ;
+                                    swrl:argument2 false ;
+                                    swrl:propertyPredicate ontology:valid ] ;
+                            rdf:rest () ] ] ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S27" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 ontology:M1 ;
+                    swrl:propertyPredicate ontology:inContextOf ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:argument2 ontology:M1 ;
+                            swrl:propertyPredicate rdf:object ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:M1 ;
+                                    swrl:classPredicate ontology:Module ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:M2 ;
+                                            swrl:classPredicate ontology:Module ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:M2 ;
+                                                    swrl:argument2 ontology:A ;
+                                                    swrl:propertyPredicate ontology:contains ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:R ;
+                                                            swrl:argument2 ontology:A ;
+                                                            swrl:propertyPredicate rdf:subject ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                                    swrl:argument1 ontology:M2 ;
+                                                                    swrl:argument2 true ;
+                                                                    swrl:propertyPredicate ontology:contract ] ;
+                                                            rdf:rest () ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S26" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 ontology:M1 ;
+                    swrl:propertyPredicate rdf:object ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:M1 ;
+                            swrl:classPredicate ontology:Module ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:M2 ;
+                                    swrl:classPredicate ontology:Module ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:M2 ;
+                                            swrl:argument2 ontology:A ;
+                                            swrl:propertyPredicate ontology:contains ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:A ;
+                                                    swrl:argument2 ontology:M1 ;
+                                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:R ;
+                                                            swrl:argument2 ontology:A ;
+                                                            swrl:propertyPredicate rdf:subject ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                                    swrl:argument1 ontology:M2 ;
+                                                                    swrl:argument2 true ;
+                                                                    swrl:propertyPredicate ontology:contract ] ;
+                                                            rdf:rest () ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S30" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:away ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 true ;
+                            swrl:propertyPredicate ontology:toBeSupportedByContract ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:M1 ;
+                                    swrl:classPredicate ontology:Module ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:M2 ;
+                                            swrl:classPredicate ontology:Module ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:M1 ;
+                                                    swrl:argument2 ontology:A ;
+                                                    swrl:propertyPredicate ontology:contains ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:M2 ;
+                                                            swrl:argument2 ontology:B ;
+                                                            swrl:propertyPredicate ontology:contains ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                    swrl:argument1 ontology:A ;
+                                                                    swrl:argument2 ontology:B ;
+                                                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:BuiltinAtom ;
+                                                                            swrl:arguments ( ontology:M1 ontology:M2 ) ;
+                                                                            swrl:builtin swrlb:notEqual ] ;
+                                                                    rdf:rest () ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:M2 ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:contract ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S35" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:M1 ;
+                    swrl:classPredicate ontology:Module ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:M2 ;
+                            swrl:classPredicate ontology:Module ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:M1 ;
+                                    swrl:argument2 ontology:E1 ;
+                                    swrl:propertyPredicate ontology:contains ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:M2 ;
+                                            swrl:argument2 ontology:E2 ;
+                                            swrl:propertyPredicate ontology:contains ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:E1 ;
+                                                    swrl:argument2 ontology:E2 ;
+                                                    swrl:propertyPredicate ontology:inContextOf ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:BuiltinAtom ;
+                                                            swrl:arguments ( ontology:M1 ontology:M2 ) ;
+                                                            swrl:builtin swrlb:notEqual ] ;
+                                                    rdf:rest () ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:M1 ;
+                    swrl:argument2 ontology:M2 ;
+                    swrl:propertyPredicate ontology:inContextOf ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S34" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:M1 ;
+                    swrl:classPredicate ontology:Module ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:M2 ;
+                            swrl:classPredicate ontology:Module ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:E1 ;
+                                    swrl:argument2 ontology:E2 ;
+                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:M1 ;
+                                            swrl:argument2 ontology:E1 ;
+                                            swrl:propertyPredicate ontology:contains ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:M2 ;
+                                                    swrl:argument2 ontology:E2 ;
+                                                    swrl:propertyPredicate ontology:contains ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:BuiltinAtom ;
+                                                            swrl:arguments ( ontology:M1 ontology:M2 ) ;
+                                                            swrl:builtin swrlb:notEqual ] ;
+                                                    rdf:rest () ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:M1 ;
+                    swrl:argument2 ontology:M2 ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S36" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:E1 ;
+                    swrl:argument2 ontology:M2 ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:M1 ;
+                            swrl:classPredicate ontology:Module ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:M2 ;
+                                    swrl:classPredicate ontology:Module ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:M1 ;
+                                            swrl:argument2 ontology:E1 ;
+                                            swrl:propertyPredicate ontology:contains ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:BuiltinAtom ;
+                                                    swrl:arguments ( ontology:M1 ontology:M2 ) ;
+                                                    swrl:builtin swrlb:notEqual ] ;
+                                            rdf:rest () ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:M1 ;
+                    swrl:argument2 ontology:M2 ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S20" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:argument2 ontology:C ;
+                    swrl:propertyPredicate ontology:instantiationOf ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 true ;
+                            swrl:propertyPredicate ontology:final ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:C ;
+                                    swrl:classPredicate ontology:Pattern ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:A ;
+                                            swrl:argument2 ontology:B ;
+                                            swrl:propertyPredicate ontology:contains ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:A ;
+                                                    swrl:argument2 ontology:C ;
+                                                    swrl:propertyPredicate ontology:contains ] ;
+                                            rdf:rest () ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Argument Pattern Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S14" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:true ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:argument2 ontology:A ;
+                            swrl:propertyPredicate rdf:subject ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:A ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate ontology:inContextOf ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:ClassAtom ;
+                                            swrl:argument1 ontology:R ;
+                                            swrl:classPredicate ontology:Relationship ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:R ;
+                                                    swrl:argument2 ontology:B ;
+                                                    swrl:propertyPredicate rdf:object ] ;
+                                            rdf:rest () ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:true ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S13" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:classPredicate ontology:Solution ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:B ;
+                            swrl:classPredicate ontology:Solution ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                    swrl:argument1 ontology:B ;
+                                    swrl:argument2 false ;
+                                    swrl:propertyPredicate ontology:true ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:C ;
+                                            swrl:argument2 ontology:B ;
+                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                                    swrl:argument1 ontology:A ;
+                                                    swrl:argument2 true ;
+                                                    swrl:propertyPredicate ontology:true ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:C ;
+                                                            swrl:argument2 ontology:A ;
+                                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                                    rdf:rest () ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:C ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:true ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S11" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:classPredicate ontology:Solution ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:true ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:B ;
+                                    swrl:argument2 ontology:A ;
+                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:true ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S10" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:classPredicate ontology:Solution ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:B ;
+                            swrl:argument2 ontology:A ;
+                            swrl:propertyPredicate ontology:supportedBy ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                    swrl:argument1 ontology:A ;
+                                    swrl:argument2 true ;
+                                    swrl:propertyPredicate ontology:true ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:true ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S3" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:classPredicate ontology:Solution ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 ontology:B ;
+                            swrl:propertyPredicate ontology:supportedBy ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:A ;
+                                    swrl:propertyPredicate rdf:subject ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:R ;
+                                            swrl:argument2 ontology:B ;
+                                            swrl:propertyPredicate rdf:object ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 "evidential" ;
+                    swrl:propertyPredicate ontology:relationshipType ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S46" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:S ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:S ;
+                            swrl:argument2 ontology:E ;
+                            swrl:propertyPredicate ontology:challenges ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:ClassAtom ;
+                                    swrl:argument1 ontology:S ;
+                                    swrl:classPredicate ontology:Solution ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:E ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:defeated ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Dialectic Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S4" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:classPredicate ontology:Strategy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 ontology:B ;
+                            swrl:propertyPredicate ontology:supportedBy ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:A ;
+                                    swrl:propertyPredicate rdf:subject ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:R ;
+                                            swrl:argument2 ontology:B ;
+                                            swrl:propertyPredicate rdf:object ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 "inferential" ;
+                    swrl:propertyPredicate ontology:relationshipType ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S21" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:classPredicate ontology:Template ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:argument2 true ;
+                            swrl:propertyPredicate ontology:undeveloped ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:A ;
+                                    swrl:propertyPredicate rdf:subject ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                            swrl:argument1 ontology:A ;
+                                            swrl:argument2 true ;
+                                            swrl:propertyPredicate ontology:published ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:valid ] ;
+                    rdf:rest () ] ] ;
+    ontology:coreOrExtension "Argument Pattern Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S22" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:classPredicate ontology:Template ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:argument2 true ;
+                            swrl:propertyPredicate ontology:undeveloped ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate rdf:subject ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                            swrl:argument1 ontology:A ;
+                                            swrl:argument2 true ;
+                                            swrl:propertyPredicate ontology:published ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:A ;
+                                                    swrl:argument2 ontology:B ;
+                                                    swrl:propertyPredicate ontology:contains ] ;
+                                            rdf:rest () ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:valid ] ;
+                    rdf:rest () ] ] ;
+    ontology:coreOrExtension "Argument Pattern Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S2" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 ontology:A ;
+                    swrl:propertyPredicate rdf:subject ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 ontology:B ;
+                            swrl:propertyPredicate ontology:inContextOf ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate rdf:object ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 "contextual" ;
+                    swrl:propertyPredicate ontology:relationshipType ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S7" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R3 ;
+                    swrl:argument2 ontology:A ;
+                    swrl:propertyPredicate rdf:object ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                            swrl:argument1 ontology:R1 ;
+                            swrl:argument2 ontology:A ;
+                            swrl:propertyPredicate rdf:subject ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R2 ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate rdf:subject ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:R3 ;
+                                            swrl:argument2 ontology:C ;
+                                            swrl:propertyPredicate rdf:subject ] ;
+                                    rdf:rest [ a swrl:AtomList ;
+                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                    swrl:argument1 ontology:R3 ;
+                                                    swrl:argument2 ontology:P ;
+                                                    swrl:propertyPredicate rdf:predicate ] ;
+                                            rdf:rest [ a swrl:AtomList ;
+                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                            swrl:argument1 ontology:R2 ;
+                                                            swrl:argument2 ontology:P ;
+                                                            swrl:propertyPredicate rdf:predicate ] ;
+                                                    rdf:rest [ a swrl:AtomList ;
+                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                    swrl:argument1 ontology:R1 ;
+                                                                    swrl:argument2 ontology:B ;
+                                                                    swrl:propertyPredicate rdf:object ] ;
+                                                            rdf:rest [ a swrl:AtomList ;
+                                                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                            swrl:argument1 ontology:R2 ;
+                                                                            swrl:argument2 ontology:C ;
+                                                                            swrl:propertyPredicate rdf:object ] ;
+                                                                    rdf:rest [ a swrl:AtomList ;
+                                                                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                                                                    swrl:argument1 ontology:R1 ;
+                                                                                    swrl:argument2 ontology:P ;
+                                                                                    swrl:propertyPredicate rdf:predicate ] ;
+                                                                            rdf:rest () ] ] ] ] ] ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:R1 ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:R2 ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:valid ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                                    swrl:argument1 ontology:R3 ;
+                                    swrl:argument2 false ;
+                                    swrl:propertyPredicate ontology:valid ] ;
+                            rdf:rest () ] ] ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S52" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 ontology:B ;
+                    swrl:propertyPredicate ontology:challenges ] ;
+            rdf:rest () ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:ClassAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:classPredicate ontology:Defeater ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Dialectic Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S50" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 ontology:B ;
+                    swrl:propertyPredicate ontology:challenges ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:BuiltinAtom ;
+                            swrl:arguments ( ontology:B ontology:R ) ;
+                            swrl:builtin <http://swrl.stanford.edu/ontologies/built-ins/3.3/swrlx.owl#makeOWLThing> ] ;
+                    rdf:rest () ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 ontology:A ;
+                    swrl:propertyPredicate rdf:subject ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:classPredicate ontology:Relationship ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate rdf:object ] ;
+                            rdf:rest () ] ] ] ;
+    ontology:coreOrExtension "Dialectic Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S39" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:C ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:contract ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:E ;
+                            swrl:argument2 true ;
+                            swrl:propertyPredicate ontology:public ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:C ;
+                                    swrl:argument2 ontology:E ;
+                                    swrl:propertyPredicate ontology:contains ] ;
+                            rdf:rest () ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:E ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Modular Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S19" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 ontology:B ;
+                    swrl:propertyPredicate ontology:inContextOf ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:BuiltinAtom ;
+                            swrl:arguments ( ontology:B ontology:R ) ;
+                            swrl:builtin <http://swrl.stanford.edu/ontologies/built-ins/3.3/swrlx.owl#makeOWLThing> ] ;
+                    rdf:rest () ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 ontology:A ;
+                    swrl:propertyPredicate rdf:subject ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:classPredicate ontology:Relationship ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate rdf:object ] ;
+                            rdf:rest () ] ] ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a owl:Axiom ;
+    owl:annotatedProperty rdfs:subClassOf ;
+    owl:annotatedSource ontology:Argument ;
+    owl:annotatedTarget _:nd4131e5599864a92ba87da6b0d87d2dab83 ;
+    skos:definition "The corresponding argument could be located in a paragraph of accompanying text, a goal in the local argument, or a goal in a separate module."@en ;
+    ontology:coreOrExtension "Confidence Argument Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S18" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 ontology:B ;
+                    swrl:propertyPredicate ontology:supportedBy ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:BuiltinAtom ;
+                            swrl:arguments ( ontology:B ontology:R ) ;
+                            swrl:builtin <http://swrl.stanford.edu/ontologies/built-ins/3.3/swrlx.owl#makeOWLThing> ] ;
+                    rdf:rest () ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:IndividualPropertyAtom ;
+                    swrl:argument1 ontology:R ;
+                    swrl:argument2 ontology:A ;
+                    swrl:propertyPredicate rdf:subject ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:ClassAtom ;
+                            swrl:argument1 ontology:R ;
+                            swrl:classPredicate ontology:Relationship ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:R ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate rdf:object ] ;
+                            rdf:rest () ] ] ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a swrl:Imp ;
+    rdfs:label "S12" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:B ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:A ;
+                            swrl:argument2 true ;
+                            swrl:propertyPredicate ontology:valid ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:IndividualPropertyAtom ;
+                                    swrl:argument1 ontology:C ;
+                                    swrl:argument2 ontology:B ;
+                                    swrl:propertyPredicate ontology:supportedBy ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:IndividualPropertyAtom ;
+                                            swrl:argument1 ontology:C ;
+                                            swrl:argument2 ontology:A ;
+                                            swrl:propertyPredicate ontology:supportedBy ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:C ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Core GSN" .
+
+[] a owl:Axiom ;
+    owl:annotatedProperty rdfs:subClassOf ;
+    owl:annotatedSource ontology:Assumption ;
+    owl:annotatedTarget _:nd4131e5599864a92ba87da6b0d87d2dab96 ;
+    skos:definition "GSN assumptions provide additional information necessary for the correct understanding of the argument. This information is stated as fully as necessary, using complete sentences in the form noun phrase + verb phrase."@en .
+
+[] a swrl:Imp ;
+    rdfs:label "S41" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 ontology:N ;
+                    swrl:propertyPredicate schema1:identifier ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:B ;
+                            swrl:argument2 ontology:M ;
+                            swrl:propertyPredicate schema1:identifier ] ;
+                    rdf:rest [ a swrl:AtomList ;
+                            rdf:first [ a swrl:BuiltinAtom ;
+                                    swrl:arguments ( ontology:A ontology:B ) ;
+                                    swrl:builtin swrlb:notEqual ] ;
+                            rdf:rest [ a swrl:AtomList ;
+                                    rdf:first [ a swrl:BuiltinAtom ;
+                                            swrl:arguments ( ontology:N ontology:M ) ;
+                                            swrl:builtin swrlb:equal ] ;
+                                    rdf:rest () ] ] ] ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:A ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest [ a swrl:AtomList ;
+                    rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                            swrl:argument1 ontology:B ;
+                            swrl:argument2 false ;
+                            swrl:propertyPredicate ontology:valid ] ;
+                    rdf:rest () ] ] ;
+    ontology:coreOrExtension "Confidence Argument Extension" .
+
+[] a swrl:Imp ;
+    rdfs:label "S47" ;
+    swrla:isRuleEnabled true ;
+    rdfs:comment "" ;
+    swrl:body [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:E ;
+                    swrl:argument2 true ;
+                    swrl:propertyPredicate ontology:defeated ] ;
+            rdf:rest () ] ;
+    swrl:head [ a swrl:AtomList ;
+            rdf:first [ a swrl:DatavaluedPropertyAtom ;
+                    swrl:argument1 ontology:E ;
+                    swrl:argument2 false ;
+                    swrl:propertyPredicate ontology:valid ] ;
+            rdf:rest () ] ;
+    ontology:coreOrExtension "Dialectic Extension" .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab87 a owl:Class ;
+    owl:intersectionOf ( [ a owl:Restriction ;
+                owl:onProperty ontology:contains ;
+                owl:someValuesFrom ontology:ArtefactReference ] [ a owl:Restriction ;
+                owl:onProperty ontology:contains ;
+                owl:someValuesFrom ontology:Goal ] ) .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab92 a owl:Restriction ;
+    owl:onProperty ontology:statement ;
+    owl:someValuesFrom xsd:string .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab93 rdf:first _:nd4131e5599864a92ba87da6b0d87d2dab87 ;
+    rdf:rest ( _:nd4131e5599864a92ba87da6b0d87d2dab92 ) .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab105 a owl:Restriction ;
+    owl:onProperty ontology:statement ;
+    owl:someValuesFrom xsd:string .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab129 a owl:Restriction ;
+    owl:onProperty ontology:statement ;
+    owl:someValuesFrom xsd:string .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab131 a owl:Restriction ;
+    owl:onProperty ontology:statement ;
+    owl:someValuesFrom xsd:string .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab168 a owl:Restriction ;
+    owl:onProperty ontology:statement ;
+    owl:someValuesFrom xsd:string .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab177 a owl:Restriction ;
+    owl:onProperty ontology:statement ;
+    owl:someValuesFrom xsd:string .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab83 a owl:Class ;
+    owl:unionOf _:nd4131e5599864a92ba87da6b0d87d2dab93 .
+
+_:nd4131e5599864a92ba87da6b0d87d2dab96 a owl:Restriction ;
+    owl:onProperty ontology:statement ;
+    owl:someValuesFrom xsd:string .
+

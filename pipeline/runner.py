@@ -12,13 +12,12 @@ import argparse
 import sys
 from pathlib import Path
 
-from rdflib import Graph
+from rdflib import Dataset
 
 from analysis.build_proofs import build_all_proofs
 from analysis.load_params import load_params, load_structural_graph
-from analysis.numerical import run_disturbance_rejection, run_step_response
 from analysis.proof_scripts import ProofStatus, verify_proof
-from analysis.symbolic import run_symbolic_analysis
+from compute import get_compute_backend
 from evidence.binding import (
     bind_computation_engines,
     bind_proof_evidence,
@@ -30,17 +29,21 @@ from evidence.hashing import (
     hash_simulation,
     hash_structural_model,
 )
-from ontology.prefixes import bind_prefixes
+from pipeline.backends import get_backend
+from pipeline.dataset import graph_for, load_into, triples_by_graph
+from pipeline.stage0_assembly import run_stage_0
 from pipeline.stages import LifecycleStage, check_gate
 from traceability.attestation import request_attestation
+from traceability.plan_execution import emit_stage_activity
 from traceability.rtm import (
-    assemble_rtm,
+    STRUCTURAL_DIR,
     export_rtm,
-    load_base_graph,
     print_rtm_summary,
     validate_evidence_completeness,
     validate_structural_completeness,
 )
+from traceability.audit import audit as run_audit, emit_audit_graph, render_report
+from traceability.validation import validate as validate_closure_rules
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 
@@ -50,18 +53,34 @@ def run_pipeline(
     auto_attest: bool = False,
     skip_attestation: bool = False,
     engineer_name: str = "ADCS Engineer",
-) -> Graph:
-    """Execute the full ADCS lifecycle pipeline."""
+    rebuild_ontology: bool = False,
+    backend: str = "local",
+    compute: str = "local",
+) -> Dataset:
+    """Execute the full ADCS lifecycle pipeline.
+
+    Returns the populated Dataset with eight named graphs:
+        <rtm:ontology>, <rtm:plan>, <adcs:structural>, <adcs:context>,
+        <adcs:evidence>, <adcs:attestations>, <adcs:plan-execution>,
+        <adcs:audit>.
+    Default-union is enabled so consumers can query across the union
+    with plain SPARQL.
+    """
+    # ── Stage 0: ONTOLOGY_ASSEMBLED ──────────────────────────────
+    rtm_ds = run_stage_0(rebuild=rebuild_ontology)
+
     stage = LifecycleStage.STRUCTURAL_DEFINED
 
     # ── Stage 1: STRUCTURAL_DEFINED ──────────────────────────────
+    emit_stage_activity(rtm_ds, "LoadStructural")
     print("\n[Stage 1] Loading structural model...")
-    base_graph = load_base_graph()
+    for ttl in sorted(STRUCTURAL_DIR.glob("*.ttl")):
+        load_into(rtm_ds, "structural", ttl)
     struct_graph = load_structural_graph()
     model_hash = hash_structural_model(struct_graph)
     params = load_params(struct_graph)
 
-    issues = validate_structural_completeness(base_graph)
+    issues = validate_structural_completeness(rtm_ds)
     if issues:
         print(f"  STRUCTURAL ISSUES: {issues}")
         sys.exit(1)
@@ -69,10 +88,15 @@ def run_pipeline(
     print(f"  Parameters loaded: {len(params)}")
     print(f"  Structural validation: PASS")
 
+    # ── Compute backend (used by Stages 2 & 3) ───────────────────
+    compute_backend = get_compute_backend(compute)
+    print(f"\n  Compute: {compute_backend.describe()}")
+
     # ── Stage 2: SYMBOLICALLY_ANALYZED ───────────────────────────
     stage = LifecycleStage.SYMBOLICALLY_ANALYZED
+    emit_stage_activity(rtm_ds, "SymbolicAnalysis")
     print("\n[Stage 2] Running symbolic analysis...")
-    sym_result = run_symbolic_analysis(params)
+    sym_result, sym_meta = compute_backend.run_symbolic_analysis(params)
     print(f"  Inertia: Jxx={sym_result.inertia[0]:.1f}, "
           f"Jyy={sym_result.inertia[1]:.1f}, "
           f"Jzz={sym_result.inertia[2]:.1f} kg.m^2")
@@ -90,8 +114,9 @@ def run_pipeline(
 
     # ── Stage 3: NUMERICALLY_SIMULATED ───────────────────────────
     stage = LifecycleStage.NUMERICALLY_SIMULATED
+    emit_stage_activity(rtm_ds, "NumericalSimulation")
     print("\n[Stage 3] Running numerical simulations...")
-    step_result = run_step_response(params)
+    step_result, step_meta = compute_backend.run_step_response(params)
     step_summary = step_result.summary()
     print(f"  Step response: settling={step_summary['settling_time_s']:.1f}s, "
           f"final_error={step_summary['final_error_deg']:.4f} deg")
@@ -100,18 +125,25 @@ def run_pipeline(
     print(f"  Peak control torque: {step_summary['peak_control_torque']:.4f} N.m "
           f"(limit: {params['maxTorque']})")
 
-    dist_result = run_disturbance_rejection(params)
+    dist_result, dist_meta = compute_backend.run_disturbance_rejection(params)
     dist_summary = dist_result.summary()
+    if compute != "local":
+        print(f"  Execution captured: host={step_meta.hostname}, "
+              f"image={step_meta.image_label or 'n/a'}, "
+              f"container={step_meta.container_id or 'n/a'}")
     print(f"  Disturbance rejection: peak_error={dist_summary['peak_error_deg']:.6f} deg")
 
     # ── Stage 4: EVIDENCE_BOUND ──────────────────────────────────
     stage = LifecycleStage.EVIDENCE_BOUND
+    emit_stage_activity(rtm_ds, "BindEvidence")
     print("\n[Stage 4] Binding evidence to RDF graph...")
-    ev_graph = Graph()
-    bind_prefixes(ev_graph)
+    ev_graph = graph_for(rtm_ds, "evidence")
     bind_computation_engines(ev_graph)
 
-    # Proof evidence for all 4 requirements
+    # Proof evidence for all 4 requirements — analysis ran on the
+    # selected compute backend; ExecutionMetadata is forwarded to the
+    # binding so the SA-* activity carries prov:atLocation +
+    # prov:wasAssociatedWith for the executor agent.
     for req_id, script in proofs.items():
         p_hash = hash_proof(script, model_hash)
         c_hash = hash_evidence(model_hash, proof_hash=p_hash)
@@ -125,6 +157,7 @@ def run_pipeline(
             content_hash=c_hash,
             result_summary=f"Symbolic proof: {script.claim}",
             source_file="analysis/build_proofs.py",
+            execution_metadata=sym_meta,
         )
 
     # Simulation evidence
@@ -144,6 +177,7 @@ def run_pipeline(
             sim_hash=sim_hash,
             result_summary=desc,
             source_file="analysis/numerical.py",
+            execution_metadata=step_meta,
         )
 
     # Disturbance rejection evidence for REQ-004
@@ -157,14 +191,20 @@ def run_pipeline(
         sim_hash=dist_hash,
         result_summary=f"Disturbance rejection: peak_error={dist_summary['peak_error_deg']:.6f} deg",
         source_file="analysis/numerical.py",
+        execution_metadata=dist_meta,
     )
 
-    print(f"  Evidence artifacts created: {len(list(ev_graph.subjects()))} nodes")
+    print(f"  Evidence artifacts created: {len(list(ev_graph.subjects()))} nodes "
+          f"(written to <adcs:evidence>)")
 
     # ── Stage 5: RTM_ASSEMBLED ───────────────────────────────────
     stage = LifecycleStage.RTM_ASSEMBLED
+    emit_stage_activity(rtm_ds, "AssembleRTM")
     print("\n[Stage 5] Assembling RTM...")
-    rtm = assemble_rtm(base_graph, ev_graph)
+    # The Dataset already contains structural + ontology + evidence in
+    # their respective named graphs; assembly is a no-op for the runtime
+    # path (default_union exposes the merged view to queries).
+    rtm = rtm_ds
 
     ev_issues = validate_evidence_completeness(rtm)
     if ev_issues:
@@ -173,11 +213,12 @@ def run_pipeline(
         print(f"  Evidence completeness: PASS (all requirements have evidence)")
 
     export_rtm(rtm, OUTPUT_DIR / "rtm_pre_attestation.ttl")
-    print(f"  Pre-attestation RTM exported to output/rtm_pre_attestation.ttl")
+    print(f"  Pre-attestation RTM exported to output/rtm_pre_attestation.{{ttl,trig}}")
 
     # ── Stage 6: ATTESTATION ─────────────────────────────────────
     if not skip_attestation:
         stage = LifecycleStage.ATTESTATION
+        emit_stage_activity(rtm_ds, "Attest")
         print("\n[Stage 6] Human attestation...")
 
         adequacy_statements = {
@@ -196,12 +237,31 @@ def run_pipeline(
                         "0.1 N.m actuator capacity. Simulation confirms negligible pointing impact."),
         }
 
-        # REQ-001: DECLINED — settling time 262s exceeds 120s requirement
+        # REQ-001: explicit DECLINATION — settling time 262s exceeds 120s requirement.
+        # Emitted as a well-formed attestation with outcome=earl:failed so the
+        # closure-rule suite can validate against an audit-complete graph.
+        from traceability.attestation import OUTCOME_FAILED
         print(f"\n  REQ-001: ATTESTATION DECLINED")
         print(f"    Settling time {step_summary['settling_time_s']:.0f}s exceeds 120s requirement.")
         print(f"    Action: retune gains (Kp: {params['Kp']:.0f}->4, Kd: {params['Kd']:.0f}->30) and re-verify.")
+        if auto_attest:
+            request_attestation(
+                rtm, "REQ-001", engineer_name,
+                auto_attest=True,
+                model_adequacy=(
+                    "Step-response simulation is adequate for evaluating pointing-"
+                    "accuracy settling time at this point in the lifecycle."
+                ),
+                evidence_sufficiency=(
+                    f"Evidence is sufficient to conclude REQ-001 is NOT yet satisfied: "
+                    f"settling time {step_summary['settling_time_s']:.0f}s exceeds the "
+                    f"120s requirement. Action item: retune gains "
+                    f"(Kp: {params['Kp']:.0f}->4, Kd: {params['Kd']:.0f}->30) and re-verify."
+                ),
+                outcome=OUTCOME_FAILED,
+            )
 
-        # Attest REQ-002, REQ-003, REQ-004
+        # Attest REQ-002, REQ-003, REQ-004 with earl:passed
         for req_id in ["REQ-002", "REQ-003", "REQ-004"]:
             if auto_attest:
                 request_attestation(
@@ -213,17 +273,59 @@ def run_pipeline(
             else:
                 request_attestation(rtm, req_id, engineer_name)
 
+    # ── Stage 6.5: VALIDATE CLOSURE RULES ────────────────────────
+    emit_stage_activity(rtm_ds, "ValidateShapes")
+    print("\n[Stage 6.5] Validating closure-rule suite...")
+    report = validate_closure_rules(rtm_ds, skip_reverification=False)
+    for line in report.summary_lines():
+        print(f"  {line}")
+    # We surface violations but do not fail the pipeline by default —
+    # the audit module (Phase H) renders a structured report. CI can opt
+    # into hard-fail behavior by checking `report.conforms`.
+
+    # ── Stage 7a: AUDIT TRACE ────────────────────────────────────
+    emit_stage_activity(rtm_ds, "AuditTrace")
+    print("\n[Stage 7a] Auditing forward / backward / bidirectional traceability...")
+    audit_report = run_audit(rtm_ds)
+    print(f"  {audit_report.forward.summary()}")
+    print(f"  {audit_report.backward.summary()}")
+    bidirect = audit_report.bidirectional()
+    print(f"  Bidirectional: {'PASS' if bidirect.passed else 'FAIL'}")
+    if audit_report.orphans.any:
+        if audit_report.orphans.requirements_without_evidence:
+            print(f"  Orphan reqs (no evidence): "
+                  f"{audit_report.orphans.requirements_without_evidence}")
+        if audit_report.orphans.evidence_without_requirement:
+            print(f"  Orphan evidence: {len(audit_report.orphans.evidence_without_requirement)}")
+        if audit_report.orphans.attestations_with_broken_refs:
+            print(f"  Broken attestations: {len(audit_report.orphans.attestations_with_broken_refs)}")
+    else:
+        print("  Orphans: none")
+    emit_audit_graph(rtm_ds, audit_report)
+
+    # Write a human-readable audit report alongside the RTM export.
+    audit_md = OUTPUT_DIR / "audit.md"
+    audit_md.parent.mkdir(parents=True, exist_ok=True)
+    audit_md.write_text(render_report(audit_report, fmt="md"))
+    (OUTPUT_DIR / "audit.csv").write_text(render_report(audit_report, fmt="csv"))
+    print(f"  Audit report -> output/audit.md, output/audit.csv")
+
     # ── Stage 7: REPORTED ────────────────────────────────────────
     stage = LifecycleStage.REPORTED
+    emit_stage_activity(rtm_ds, "Report")
     print("\n[Stage 7] Generating reports...")
-    export_rtm(rtm, OUTPUT_DIR / "rtm.ttl")
-    print(f"  Final RTM exported to output/rtm.ttl")
+    store = get_backend(backend)
+    print(f"  Backend: {store.describe()}")
+    persisted = store.persist(rtm_ds, OUTPUT_DIR)
+    print(f"  Persisted {len(persisted)} named graphs "
+          f"({sum(persisted.values())} triples total)")
 
     summary = print_rtm_summary(rtm)
     print(summary)
 
     # ── Stage 8: VISUALIZED_AND_INTERROGABLE ─────────────────────
     stage = LifecycleStage.VISUALIZED_AND_INTERROGABLE
+    emit_stage_activity(rtm_ds, "Interrogate")
     print("\n[Stage 8] Visualization and interrogation ready.")
     print("  Use interrogate/explain.py for 'How do you know X?' queries")
     print("  Use interrogate/reproduce.py to re-verify evidence")
@@ -240,12 +342,23 @@ def main():
                         help="Skip attestation stage")
     parser.add_argument("--engineer", default="Dr. Michael Zargham (@mzargham)",
                         help="Engineer name for attestation")
+    parser.add_argument("--rebuild", action="store_true",
+                        help="Invoke `make ontology` before Stage 0 (live-demo rebuild path)")
+    parser.add_argument("--backend", choices=["local", "flexo", "fuseki"], default="local",
+                        help="Persistence backend (default: local filesystem)")
+    parser.add_argument("--compute", choices=["local", "docker"], default="local",
+                        help="Compute backend for Stage 2/3 analysis. "
+                             "`docker` emulates remote compute and captures "
+                             "image/hostname/container-ID as RTM provenance.")
     args = parser.parse_args()
 
     run_pipeline(
         auto_attest=args.auto,
         skip_attestation=args.no_attest,
         engineer_name=args.engineer,
+        rebuild_ontology=args.rebuild,
+        backend=args.backend,
+        compute=args.compute,
     )
 
 

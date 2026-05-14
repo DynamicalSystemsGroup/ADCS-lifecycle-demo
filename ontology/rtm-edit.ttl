@@ -1,0 +1,267 @@
+@prefix rdf:       <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:      <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:       <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:       <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms:   <http://purl.org/dc/terms/> .
+@prefix prov:      <http://www.w3.org/ns/prov#> .
+@prefix earl:      <http://www.w3.org/ns/earl#> .
+@prefix gsn:       <https://w3id.org/OntoGSN/ontology#> .
+@prefix p-plan:    <http://purl.org/net/p-plan#> .
+@prefix oslc_rm:   <http://open-services.net/ns/rm#> .
+@prefix oslc_qm:   <http://open-services.net/ns/qm#> .
+@prefix sysml:     <https://www.omg.org/spec/SysML/2.0/> .
+@prefix omg-sysml: <http://www.omg.org/spec/SysML/20240501/> .
+@prefix rtm:       <http://example.org/ontology/rtm#> .
+
+# =============================================================================
+# Ontology declaration
+#
+# rtm: is an integration ontology. It assembles established upstream
+# vocabularies (PROV-O, EARL, OntoGSN, P-PLAN, OSLC RM/QM, SysMLv2 via
+# openCAESAR) and contributes only:
+#   (a) convenience subclasses with no new semantics, used as
+#       SHACL/SPARQL handles;
+#   (b) operational content-addressing properties (hashes, source links);
+#   (c) the closure-rule suite (in rtm_shapes.ttl) that enforces
+#       well-formedness invariants across the assembled graph.
+#
+# No novel epistemic vocabulary. The model-adequacy / evidence-sufficiency
+# split (Hawkins-Habli ACP categorization) is expressed via OntoGSN's
+# gsn:Assumption and gsn:Justification nodes.
+# =============================================================================
+
+rtm: a owl:Ontology ;
+    dcterms:title "RTM Integration Ontology" ;
+    dcterms:description """Thin application ontology assembling PROV-O, EARL,
+        OntoGSN, P-PLAN, OSLC RM/QM, and the openCAESAR SysMLv2 OWL rendering.
+        Contributes convenience handles, content-addressing properties, and
+        the closure-rule suite. Introduces no novel epistemic vocabulary —
+        adequacy and sufficiency are gsn:Assumption and gsn:Justification.""" ;
+    dcterms:license <https://www.apache.org/licenses/LICENSE-2.0> ;
+    owl:imports <http://www.w3.org/ns/prov-o> ,
+                <http://www.w3.org/ns/earl#> ,
+                <https://w3id.org/OntoGSN/ontology> ,
+                <http://purl.org/net/p-plan> ,
+                <http://open-services.net/ns/rm#> ,
+                <http://open-services.net/ns/qm#> .
+
+# =============================================================================
+# SysMLv2 binding — equivalence axioms to openCAESAR's OWL rendering
+#
+# Authoritative vocabulary used by JPL/OpenMBEE is openCAESAR's SysMLv2 OWL
+# (`omg-sysml:`). We keep the local `sysml:` prefix in instance data and
+# publish equivalence axioms so reasoners and SysMLv2-aware tooling treat
+# them interchangeably. The mapping is sourced from
+# `ontology/sysml_term_map.csv` and validated by `make ontology`.
+#
+# Each local term is explicitly typed (owl:Class / owl:ObjectProperty /
+# owl:DatatypeProperty) so that OWL parsers (ROBOT, OWL API) can classify
+# the equivalentClass / equivalentProperty axioms without ambiguity.
+# =============================================================================
+
+sysml:RequirementDefinition       a owl:Class ;
+                                  owl:equivalentClass    omg-sysml:RequirementDefinition ;
+                                  rdfs:subClassOf        oslc_rm:Requirement .
+omg-sysml:RequirementDefinition   a owl:Class .
+
+sysml:RequirementUsage            a owl:Class ;
+                                  owl:equivalentClass    omg-sysml:RequirementUsage .
+omg-sysml:RequirementUsage        a owl:Class .
+
+sysml:SatisfyRequirementUsage     a owl:Class ;
+                                  owl:equivalentClass    omg-sysml:SatisfyRequirementUsage .
+omg-sysml:SatisfyRequirementUsage a owl:Class .
+
+sysml:PartDefinition              a owl:Class ;
+                                  owl:equivalentClass    omg-sysml:PartDefinition .
+omg-sysml:PartDefinition          a owl:Class .
+
+sysml:PartUsage                   a owl:Class ;
+                                  owl:equivalentClass    omg-sysml:PartUsage .
+omg-sysml:PartUsage               a owl:Class .
+
+sysml:AttributeUsage              a owl:Class ;
+                                  owl:equivalentClass    omg-sysml:AttributeUsage .
+omg-sysml:AttributeUsage          a owl:Class .
+
+sysml:declaredName                a owl:DatatypeProperty ;
+                                  owl:equivalentProperty omg-sysml:declaredName .
+omg-sysml:declaredName            a owl:DatatypeProperty .
+
+sysml:text                        a owl:DatatypeProperty ;
+                                  owl:equivalentProperty omg-sysml:text .
+omg-sysml:text                    a owl:DatatypeProperty .
+
+sysml:ownedRelationship           a owl:ObjectProperty ;
+                                  owl:equivalentProperty omg-sysml:ownedRelationship .
+omg-sysml:ownedRelationship       a owl:ObjectProperty .
+
+# =============================================================================
+# Convenience classes — subclass-only, no new semantics
+# Multi-typed against standard classes so external consumers see the
+# standard-vocabulary view.
+# =============================================================================
+
+rtm:Attestation a owl:Class ;
+    rdfs:subClassOf earl:Assertion , gsn:Strategy , prov:Activity ;
+    rdfs:label "Attestation" ;
+    rdfs:comment """Human judgment event linking a requirement to evidence
+        under an adequacy assumption and a sufficiency justification.
+        Semantically: an earl:Assertion (carries outcome + mode), a
+        gsn:Strategy (argues the requirement via supporting solutions
+        in context of assumptions and justifications), and a prov:Activity
+        (provenance-tracked event in time).""" .
+
+rtm:Evidence a owl:Class ;
+    rdfs:subClassOf prov:Entity , gsn:Solution ;
+    rdfs:label "Evidence" ;
+    rdfs:comment """A computational artifact constituting a claim true
+        within a model. Subclass of gsn:Solution (a leaf of the
+        argument tree) and prov:Entity (provenance-tracked).""" .
+
+rtm:ProofArtifact a owl:Class ;
+    rdfs:subClassOf rtm:Evidence ;
+    rdfs:label "Proof Artifact" ;
+    rdfs:comment "Symbolic proof produced by SymPy (chain of independently re-verifiable lemmas)." .
+
+rtm:SimulationResult a owl:Class ;
+    rdfs:subClassOf rtm:Evidence ;
+    rdfs:label "Simulation Result" ;
+    rdfs:comment "Numerical simulation output produced by scipy." .
+
+rtm:SymbolicAnalysis a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Symbolic Analysis" .
+
+rtm:NumericalSimulation a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:label "Numerical Simulation" .
+
+rtm:Engineer a owl:Class ;
+    rdfs:subClassOf earl:Assertor , prov:Agent ;
+    rdfs:label "Engineer" .
+
+rtm:ComputationEngine a owl:Class ;
+    rdfs:subClassOf prov:SoftwareAgent ;
+    rdfs:label "Computation Engine" .
+
+rtm:EvidenceMethod a owl:Class ;
+    rdfs:label "Evidence Method" ;
+    rdfs:comment "Classification of how an evidence artifact was produced (Analysis / Simulation / FormalProof)." .
+
+# =============================================================================
+# Convenience properties — subPropertyOf standard terms, no new axioms
+# =============================================================================
+
+rtm:attests a owl:ObjectProperty ;
+    rdfs:subPropertyOf earl:test , oslc_qm:validatesRequirement ;
+    rdfs:domain rtm:Attestation ;
+    rdfs:range sysml:RequirementDefinition ;
+    rdfs:label "attests" ;
+    rdfs:comment "The requirement this attestation makes a claim about." ;
+    owl:inverseOf rtm:attestedBy .
+
+rtm:attestedBy a owl:ObjectProperty ;
+    rdfs:domain sysml:RequirementDefinition ;
+    rdfs:range rtm:Attestation ;
+    rdfs:label "attested by" ;
+    owl:inverseOf rtm:attests .
+
+rtm:addresses a owl:ObjectProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range sysml:RequirementDefinition ;
+    rdfs:label "addresses" ;
+    rdfs:comment """Structural intent link from evidence to the requirement
+        it was produced to evaluate. NOT an attestation — only records that
+        the artifact was constructed in service of this requirement.""" ;
+    owl:inverseOf rtm:addressedBy .
+
+rtm:addressedBy a owl:ObjectProperty ;
+    rdfs:domain sysml:RequirementDefinition ;
+    rdfs:range rtm:Evidence ;
+    rdfs:label "addressed by" ;
+    owl:inverseOf rtm:addresses .
+
+rtm:hasEvidence a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:used , gsn:supportedBy ;
+    rdfs:domain rtm:Attestation ;
+    rdfs:range rtm:Evidence ;
+    rdfs:label "has evidence" ;
+    rdfs:comment "Evidence artifacts the engineer reviewed when making this attestation." .
+
+rtm:hasOutcome a owl:ObjectProperty ;
+    rdfs:subPropertyOf earl:outcome ;
+    rdfs:domain rtm:Attestation ;
+    rdfs:label "has outcome" ;
+    rdfs:comment """The EARL outcome of the attestation. Range values:
+        earl:passed, earl:failed, earl:cantTell, earl:inapplicable,
+        earl:untested. cantTell and inapplicable are first-class in EARL
+        and fit the demo's 'models are imperfect' framing better than
+        a binary verify/not-verify.""" .
+
+rtm:attestationMode a owl:ObjectProperty ;
+    rdfs:subPropertyOf earl:mode ;
+    rdfs:domain rtm:Attestation ;
+    rdfs:label "attestation mode" ;
+    rdfs:comment "earl:manual (interactive), earl:semiAuto (--auto with text), earl:automatic (CI sign-off)." .
+
+rtm:followedProcedure a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:hadPlan ;
+    rdfs:domain rtm:Attestation ;
+    rdfs:range prov:Plan ;
+    rdfs:label "followed procedure" ;
+    rdfs:comment "The SOP / checklist the attester followed (content-hashable plan instance)." .
+
+rtm:evidenceMethod a owl:ObjectProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range rtm:EvidenceMethod ;
+    rdfs:label "evidence method" .
+
+rtm:derivedFrom a owl:ObjectProperty ;
+    rdfs:domain sysml:RequirementDefinition ;
+    rdfs:range sysml:RequirementDefinition ;
+    rdfs:label "derived from" ;
+    rdfs:comment "Subsystem requirement derived from a parent (system-level) requirement." .
+
+# =============================================================================
+# Datatype properties — operational identity, not epistemic
+# =============================================================================
+
+rtm:contentHash a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:string ;
+    rdfs:label "content hash" ;
+    rdfs:comment "SHA-256 hash of the evidence artifact content." .
+
+rtm:modelHash a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:string ;
+    rdfs:label "model hash" ;
+    rdfs:comment "SHA-256 hash of the structural model at the time evidence was produced." .
+
+rtm:proofHash a owl:DatatypeProperty ;
+    rdfs:domain rtm:ProofArtifact ;
+    rdfs:range xsd:string ;
+    rdfs:label "proof hash" ;
+    rdfs:comment "SHA-256 hash of proof script content + model hash. Used by the re-verification closure check." .
+
+rtm:gitCommit a owl:DatatypeProperty ;
+    rdfs:domain prov:Entity ;
+    rdfs:range xsd:string ;
+    rdfs:label "git commit" .
+
+rtm:sourceFile a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:string ;
+    rdfs:label "source file" .
+
+rtm:resultSummary a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:string ;
+    rdfs:label "result summary" .
+
+# Adequacy and sufficiency are not novel epistemic terms — they map to
+# gsn:Assumption and gsn:Justification (Hawkins-Habli ACP categorization).
+# The attestation links them via gsn:inContextOf; their textual content
+# lives on those nodes in gsn:statement. The pairing-as-closure rule is a
+# SHACL shape in rtm_shapes.ttl (rtm:AttestationShape).

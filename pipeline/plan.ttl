@@ -1,0 +1,166 @@
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix p-plan:  <http://purl.org/net/p-plan#> .
+@prefix rtm:     <http://example.org/ontology/rtm#> .
+
+# =============================================================================
+# ADCS Lifecycle Plan (P-PLAN)
+#
+# Declarative process model for the RTM construction pipeline. Each
+# pipeline stage is a p-plan:Step in this plan. Stage executions at
+# runtime emit p-plan:Activity instances into <adcs:plan-execution> with
+# correspondsToStep pointing at one of the steps below.
+#
+# Ordering constraints expressed via p-plan:isPrecededBy. Input/output
+# typing expressed via p-plan:Variable + hasInputVar / hasOutputVar.
+#
+# IRIs use the hierarchical form rtm#plan/step/<Name> and rtm#plan/var/<Name>
+# (full IRIs rather than prefixed since Turtle local names disallow `/`).
+# This matches how Flexo MMS will later partition these resources.
+# =============================================================================
+
+<http://example.org/ontology/rtm#plan/AdcsLifecycle> a p-plan:Plan ;
+    dcterms:title "ADCS RTM construction plan" ;
+    dcterms:description """Declarative process model for the eight-stage
+        ADCS lifecycle pipeline. Stages 0-8 are p-plan:Step instances;
+        runtime executions are p-plan:Activity correspondsToStep these.""" ;
+    dcterms:created "2026-05-14"^^xsd:date .
+
+# =============================================================================
+# Variables — typed inputs/outputs that flow between steps
+# =============================================================================
+
+<http://example.org/ontology/rtm#plan/var/OntologyGraph> a p-plan:Variable ;
+    rdfs:label "Ontology Graph" ;
+    rdfs:comment "Loaded <rtm:ontology> named graph (TBox + shapes + individuals)." .
+
+<http://example.org/ontology/rtm#plan/var/StructuralGraph> a p-plan:Variable ;
+    rdfs:label "Structural Graph" ;
+    rdfs:comment "Loaded <adcs:structural> named graph (SysMLv2 instance data)." .
+
+<http://example.org/ontology/rtm#plan/var/ProofEvidence> a p-plan:Variable ;
+    rdfs:label "Proof Evidence" ;
+    rdfs:comment "rtm:ProofArtifact instances produced by symbolic analysis." .
+
+<http://example.org/ontology/rtm#plan/var/SimulationEvidence> a p-plan:Variable ;
+    rdfs:label "Simulation Evidence" ;
+    rdfs:comment "rtm:SimulationResult instances produced by numerical simulation." .
+
+<http://example.org/ontology/rtm#plan/var/AssembledRTM> a p-plan:Variable ;
+    rdfs:label "Assembled RTM" ;
+    rdfs:comment "Dataset with structural + evidence merged in their named graphs." .
+
+<http://example.org/ontology/rtm#plan/var/AttestedRTM> a p-plan:Variable ;
+    rdfs:label "Attested RTM" ;
+    rdfs:comment "Dataset after stage 6 with attestations in <adcs:attestations>." .
+
+<http://example.org/ontology/rtm#plan/var/ValidationReport> a p-plan:Variable ;
+    rdfs:label "Validation Report" ;
+    rdfs:comment "Closure-rule suite validation results (SHACL + runtime checks)." .
+
+<http://example.org/ontology/rtm#plan/var/AuditReport> a p-plan:Variable ;
+    rdfs:label "Audit Report" ;
+    rdfs:comment "Forward / backward / bidirectional trace report (coverage matrix)." .
+
+# =============================================================================
+# Steps — one per pipeline stage
+# =============================================================================
+
+<http://example.org/ontology/rtm#plan/step/OntologyAssembly> a p-plan:Step ;
+    rdfs:label "Stage 0 — Ontology Assembly" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:hasOutputVar <http://example.org/ontology/rtm#plan/var/OntologyGraph> ;
+    dcterms:description """Verify ontology/assembly_manifest.json matches
+        rtm.ttl, load TBox + shapes into <rtm:ontology>, print narrative
+        banner.""" .
+
+<http://example.org/ontology/rtm#plan/step/LoadStructural> a p-plan:Step ;
+    rdfs:label "Stage 1 — Load Structural Model" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/OntologyAssembly> ;
+    p-plan:hasInputVar  <http://example.org/ontology/rtm#plan/var/OntologyGraph> ;
+    p-plan:hasOutputVar <http://example.org/ontology/rtm#plan/var/StructuralGraph> ;
+    dcterms:description "Load structural/*.ttl into <adcs:structural>." .
+
+<http://example.org/ontology/rtm#plan/step/SymbolicAnalysis> a p-plan:Step ;
+    rdfs:label "Stage 2 — Symbolic Analysis" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/LoadStructural> ;
+    p-plan:hasInputVar  <http://example.org/ontology/rtm#plan/var/StructuralGraph> ;
+    p-plan:hasOutputVar <http://example.org/ontology/rtm#plan/var/ProofEvidence> ;
+    dcterms:description "SymPy derives proofs from structural parameters." .
+
+<http://example.org/ontology/rtm#plan/step/NumericalSimulation> a p-plan:Step ;
+    rdfs:label "Stage 3 — Numerical Simulation" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/LoadStructural> ;
+    p-plan:hasInputVar  <http://example.org/ontology/rtm#plan/var/StructuralGraph> ;
+    p-plan:hasOutputVar <http://example.org/ontology/rtm#plan/var/SimulationEvidence> ;
+    dcterms:description "scipy integrates quaternion + Euler dynamics." .
+
+<http://example.org/ontology/rtm#plan/step/BindEvidence> a p-plan:Step ;
+    rdfs:label "Stage 4 — Bind Evidence" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/SymbolicAnalysis> ,
+                        <http://example.org/ontology/rtm#plan/step/NumericalSimulation> ;
+    p-plan:hasInputVar  <http://example.org/ontology/rtm#plan/var/ProofEvidence> ,
+                        <http://example.org/ontology/rtm#plan/var/SimulationEvidence> ;
+    p-plan:hasOutputVar <http://example.org/ontology/rtm#plan/var/AssembledRTM> ;
+    dcterms:description "Emit RDF for each evidence artifact into <adcs:evidence>." .
+
+<http://example.org/ontology/rtm#plan/step/AssembleRTM> a p-plan:Step ;
+    rdfs:label "Stage 5 — Assemble RTM" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/BindEvidence> ;
+    p-plan:hasInputVar  <http://example.org/ontology/rtm#plan/var/AssembledRTM> ;
+    p-plan:hasOutputVar <http://example.org/ontology/rtm#plan/var/AssembledRTM> ;
+    dcterms:description """Validate evidence completeness against the
+        structural model. With named-graph layout the assembly is
+        implicit (default_union covers it); the step exists to anchor
+        the pre-attestation checkpoint.""" .
+
+<http://example.org/ontology/rtm#plan/step/Attest> a p-plan:Step ;
+    rdfs:label "Stage 6 — Human Attestation" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/AssembleRTM> ;
+    p-plan:hasInputVar  <http://example.org/ontology/rtm#plan/var/AssembledRTM> ;
+    p-plan:hasOutputVar <http://example.org/ontology/rtm#plan/var/AttestedRTM> ;
+    dcterms:description """Engineer reviews evidence and emits attestations
+        (with adequacy assumption + sufficiency justification + outcome
+        + qualified association) into <adcs:attestations>.""" .
+
+<http://example.org/ontology/rtm#plan/step/ValidateShapes> a p-plan:Step ;
+    rdfs:label "Stage 6.5 — Validate Closure-Rule Suite" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/Attest> ;
+    p-plan:hasInputVar  <http://example.org/ontology/rtm#plan/var/AttestedRTM> ;
+    p-plan:hasOutputVar <http://example.org/ontology/rtm#plan/var/ValidationReport> ;
+    dcterms:description """Run the 9 SHACL shapes from rtm_shapes.ttl
+        plus the runtime re-verification check (#10).""" .
+
+<http://example.org/ontology/rtm#plan/step/AuditTrace> a p-plan:Step ;
+    rdfs:label "Stage 7a — Audit Trace" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/ValidateShapes> ;
+    p-plan:hasInputVar  <http://example.org/ontology/rtm#plan/var/AttestedRTM> ,
+                        <http://example.org/ontology/rtm#plan/var/ValidationReport> ;
+    p-plan:hasOutputVar <http://example.org/ontology/rtm#plan/var/AuditReport> ;
+    dcterms:description """Compute forward + backward + bidirectional
+        traces, coverage matrix, orphan detection. Writes the audit
+        report into <adcs:audit>.""" .
+
+<http://example.org/ontology/rtm#plan/step/Report> a p-plan:Step ;
+    rdfs:label "Stage 7 — Report" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/AuditTrace> ;
+    p-plan:hasInputVar  <http://example.org/ontology/rtm#plan/var/AuditReport> ;
+    dcterms:description "Export RTM to output/rtm.{ttl,trig} and print status summary." .
+
+<http://example.org/ontology/rtm#plan/step/Interrogate> a p-plan:Step ;
+    rdfs:label "Stage 8 — Interrogate" ;
+    p-plan:isStepOfPlan <http://example.org/ontology/rtm#plan/AdcsLifecycle> ;
+    p-plan:isPrecededBy <http://example.org/ontology/rtm#plan/step/Report> ;
+    dcterms:description """Make the explain / reproduce / visualize tools
+        available. No graph writes — interactive stage.""" .
