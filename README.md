@@ -1,5 +1,7 @@
 # ADCS Lifecycle Demo
 
+**Live demo:** <https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/>
+
 Bidirectional requirements traceability for a satellite Attitude Determination
 and Control System (ADCS), demonstrating the full lifecycle from SysMLv2
 structural specification through symbolic analysis, numerical simulation, and
