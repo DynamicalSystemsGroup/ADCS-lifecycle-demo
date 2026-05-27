@@ -16,7 +16,8 @@ from typing import TYPE_CHECKING, Any
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF, RDFS, XSD
 
-from ontology.prefixes import ADCS, PROV, RTM, bind_prefixes
+from ontology.prefixes import ADCS, P_PLAN, PROV, RTM, bind_prefixes
+from traceability.plan_execution import step_iri
 
 if TYPE_CHECKING:
     from compute.base import ExecutionMetadata
@@ -129,8 +130,10 @@ def bind_proof_evidence(
     if git_commit:
         graph.add((ev_uri, RTM.gitCommit, Literal(git_commit)))
 
-    # Activity node
+    # Activity node — typed and linked to its pipeline step so
+    # interrogate.rerun can walk evidence -> activity -> step -> stage.
     graph.add((act_uri, RDF.type, RTM.SymbolicAnalysis))
+    graph.add((act_uri, P_PLAN.correspondsToStep, step_iri("SymbolicAnalysis")))
     graph.add((act_uri, PROV.used, ADCS[requirement_id]))
     graph.add((act_uri, PROV.wasAssociatedWith, ADCS["SymPyEngine"]))
     _bind_execution_metadata(graph, act_uri, execution_metadata)
@@ -174,8 +177,10 @@ def bind_simulation_evidence(
     if git_commit:
         graph.add((ev_uri, RTM.gitCommit, Literal(git_commit)))
 
-    # Activity node
+    # Activity node — typed and linked to its pipeline step so
+    # interrogate.rerun can walk evidence -> activity -> step -> stage.
     graph.add((act_uri, RDF.type, RTM.NumericalSimulation))
+    graph.add((act_uri, P_PLAN.correspondsToStep, step_iri("NumericalSimulation")))
     graph.add((act_uri, PROV.used, ADCS[requirement_id]))
     graph.add((act_uri, PROV.wasAssociatedWith, ADCS["ScipyEngine"]))
     _bind_execution_metadata(graph, act_uri, execution_metadata)

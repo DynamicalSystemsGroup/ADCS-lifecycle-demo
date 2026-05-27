@@ -56,3 +56,32 @@ def test_pipeline_runner_main_callable_preserved_for_console_script():
     the `main` symbol to remain importable + callable."""
     from pipeline.runner import main
     assert callable(main)
+
+
+# ---------------------------------------------------------------------------
+# interrogate.rerun — new Typer CLI introduced in WP1 §4.5 (closes #3)
+# ---------------------------------------------------------------------------
+
+def test_rerun_help_lists_known_flags():
+    from interrogate.rerun import app
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    for flag in ("--input", "--requirement", "--format"):
+        assert flag in result.stdout, (
+            f"Missing {flag} in rerun --help:\n{result.stdout}"
+        )
+
+
+def test_rerun_returns_exit_2_when_input_missing(tmp_path):
+    from interrogate.rerun import app
+    bogus = tmp_path / "does-not-exist.trig"
+    result = runner.invoke(app, ["--input", str(bogus)])
+    assert result.exit_code == 2
+
+
+def test_rerun_rejects_unknown_format(tmp_path):
+    from interrogate.rerun import app
+    bogus = tmp_path / "x.trig"
+    bogus.write_text("")
+    result = runner.invoke(app, ["--input", str(bogus), "--format", "bogus"])
+    assert result.exit_code != 0

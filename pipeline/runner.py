@@ -329,7 +329,21 @@ def run_stage_6_5_verify_closure(state: PipelineState) -> ClosureRuleResult:
         print(f"  {line}")
     # Violations are surfaced but do not fail the pipeline by default —
     # the audit module renders a structured report. CI can opt into
-    # hard-fail behaviour by checking `report.conforms`.
+    # hard-fail behaviour by checking `report.conforms`. When violations
+    # are present, render the rerun plan inline so the engineer sees
+    # which pipeline stages must re-run (issue #3).
+    if not report.conforms:
+        from interrogate.rerun import rerun_from_report
+        plan = rerun_from_report(state.ds, report)
+        if plan.stages:
+            print(f"  Re-run plan: stages {plan.stage_set}")
+            for s in plan.stages:
+                print(f"    - Stage {s.stage_number} ({s.step_name}): {s.reason}")
+        if plan.structural_violations:
+            print(
+                f"  Structural violations: {len(plan.structural_violations)} "
+                "(see `uv run python -m interrogate.rerun`)"
+            )
     return ClosureRuleResult(report=report)
 
 
