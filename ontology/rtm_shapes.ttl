@@ -311,3 +311,78 @@ rtm:DockerEvidenceShape a sh:NodeShape ;
             }
         """
     ] .
+
+# -- WP4 c8: DockerImageProvenanceShape ----------------------------------
+# Every rtm:DockerImage MUST carry an rtm:gitRef so reproducers can
+# rebuild the image at the recorded source state and digest-compare.
+rtm:DockerImageProvenanceShape a sh:NodeShape ;
+    sh:targetClass rtm:DockerImage ;
+    sh:property [
+        sh:path rtm:gitRef ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:anyURI ;
+        sh:message "rtm:DockerImage must carry exactly one rtm:gitRef." ;
+        sh:severity sh:Violation ;
+    ] .
+
+# -- WP4 c8: DockerContainerShape ----------------------------------------
+# Every rtm:DockerContainer MUST link to exactly one rtm:DockerImage via
+# prov:wasDerivedFrom, and MUST carry an rtm:containerId literal.
+rtm:DockerContainerShape a sh:NodeShape ;
+    sh:targetClass rtm:DockerContainer ;
+    sh:property [
+        sh:path prov:wasDerivedFrom ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "rtm:DockerContainer must derive from exactly one image." ;
+        sh:severity sh:Violation ;
+    ] ;
+    sh:property [
+        sh:path rtm:containerId ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "rtm:DockerContainer must carry exactly one rtm:containerId." ;
+        sh:severity sh:Violation ;
+    ] .
+
+# -- WP4 c8: OrganizationAuspicesShape (Warning) -------------------------
+# rtm:DockerContainer SHOULD carry prov:wasAttributedTo of class
+# prov:Organization. Warning (not Violation) so partial-config runs
+# without ADCS_OPERATING_ORG_IRI still pass closure.
+rtm:OrganizationAuspicesShape a sh:NodeShape ;
+    sh:targetClass rtm:DockerContainer ;
+    sh:property [
+        sh:path prov:wasAttributedTo ;
+        sh:minCount 1 ;
+        sh:message "rtm:DockerContainer SHOULD declare its operating organization via prov:wasAttributedTo." ;
+        sh:severity sh:Warning ;
+    ] .
+
+# -- WP4 c8: TransactionLogShape -----------------------------------------
+# Any rtm:Evidence carrying rtm:documentRef (i.e., a wire-log evidence
+# node) MUST also carry rtm:contentHash and link to its generating
+# activity via prov:wasGeneratedBy; the activity MUST carry
+# rtm:transactionId.
+rtm:TransactionLogShape a sh:NodeShape ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:prefixes rtm: ;
+        sh:select """
+            PREFIX rtm: <http://example.org/ontology/rtm#>
+            SELECT $this WHERE { $this rtm:documentRef ?ref . }
+        """
+    ] ;
+    sh:property [
+        sh:path rtm:contentHash ;
+        sh:minCount 1 ;
+        sh:message "Wire-log rtm:Evidence must carry rtm:contentHash." ;
+        sh:severity sh:Violation ;
+    ] ;
+    sh:property [
+        sh:path prov:wasGeneratedBy ;
+        sh:minCount 1 ;
+        sh:message "Wire-log rtm:Evidence must link to its generating activity." ;
+        sh:severity sh:Violation ;
+    ] .

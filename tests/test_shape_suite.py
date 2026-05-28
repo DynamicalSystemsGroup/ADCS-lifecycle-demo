@@ -255,6 +255,11 @@ def test_docker_evidence_with_image_link_passes(nominal_dataset):
     ev_g.add((docker_act, PROV.atLocation, docker_loc))
     ev_g.add((image_iri, RDF.type, RTM.DockerImage))
     ev_g.add((image_iri, RTM.contentHash, Literal("sha256:image-with-evidence")))
+    # WP4 c8 — DockerImageProvenanceShape requires rtm:gitRef on every
+    # rtm:DockerImage; satisfy it in the positive fixture.
+    from rdflib.namespace import XSD as _XSD
+    ev_g.add((image_iri, RTM.gitRef,
+              Literal("git+local://test@abc#compute/Dockerfile", datatype=_XSD.anyURI)))
     ev_g.add((good_ev, RDF.type, RTM.ProofArtifact))
     ev_g.add((good_ev, RTM.contentHash, Literal("contenthash-abc")))
     ev_g.add((good_ev, RTM.modelHash, Literal("modelhash-abc")))

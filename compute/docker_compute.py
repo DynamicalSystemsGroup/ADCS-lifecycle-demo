@@ -72,8 +72,16 @@ _STAGE_FNS: dict[str, Callable[[dict], Any]] = {
 }
 
 
-class DockerNotAvailable(RuntimeError):
-    """The Docker daemon isn't reachable from this host."""
+from compute.base import ComputeUnavailable
+
+
+class DockerNotAvailable(ComputeUnavailable):
+    """The Docker daemon isn't reachable from this host.
+
+    Subclass of `ComputeUnavailable` (WP4) so the preflight gate can
+    catch the broader exception type. Existing call sites that catch
+    `DockerNotAvailable` keep working unchanged.
+    """
 
 
 class DockerCompute:
@@ -96,6 +104,12 @@ class DockerCompute:
         self._image_node_iri: URIRef | None = None
         self._image_built_at: str | None = None
         self._base_image_digest: str | None = None
+
+    # -- Preflight ---------------------------------------------------------
+
+    def probe(self) -> None:
+        """Verify the Docker daemon is reachable; raises ComputeUnavailable."""
+        self._check_daemon()
 
     # -- Daemon / image management -----------------------------------------
 
@@ -251,6 +265,14 @@ class DockerCompute:
         graph.add((iri, RTM.buildContextHash, Literal(build_context_hash)))
         graph.add((iri, PROV.generatedAtTime,
                    Literal(built_at, datatype=XSD.dateTime)))
+
+        # WP4 c3 — git ref of the Dockerfile at the commit this image
+        # was built from. Enables compute.reproduce to rebuild at the
+        # exact same source state and digest-compare. xsd:anyURI datatype
+        # matches the DockerImageProvenanceShape constraint.
+        from compute.git_ref import current_git_ref
+        git_ref = current_git_ref(ROOT, file_path="compute/Dockerfile")
+        graph.add((iri, RTM.gitRef, Literal(git_ref, datatype=XSD.anyURI)))
 
         self._image_node_iri = iri
         return iri

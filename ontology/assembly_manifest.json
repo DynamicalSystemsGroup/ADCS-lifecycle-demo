@@ -2,15 +2,15 @@
   "artifact": {
     "equivalence_axioms": 9,
     "path": "ontology/rtm.ttl",
-    "sha256": "b51f0e4bc099bcaeb21fa7e6cd8e076141e391e505dd7c80095ce374dbf7e16b",
-    "subclass_axioms": 14,
-    "subproperty_axioms": 7,
-    "total_triples": 176
+    "sha256": "6b94006ac4abf47a623e51e19464a1e84d36ac2093eb4cb9a198992f7952a12e",
+    "subclass_axioms": 19,
+    "subproperty_axioms": 8,
+    "total_triples": 218
   },
-  "build_time": "2026-05-28T16:00:38Z",
+  "build_time": "2026-05-28T22:17:46Z",
   "edit_source": {
     "path": "ontology/rtm-edit.ttl",
-    "sha256": "2bfcf730707c56729b8682a72de84b8a7662227a54b8a96ccc0947c47de8431e"
+    "sha256": "863ee3972aa670c69ad91c5a00e87bbd38b3ca4f956c34832b783785bbd6268b"
   },
   "imports": {
     "EARL": {
@@ -82,15 +82,18 @@
       "iri": "http://www.w3.org/ns/prov-o",
       "missing_terms": [],
       "namespace": "http://www.w3.org/ns/prov#",
-      "referenced_count": 7,
+      "referenced_count": 10,
       "referenced_terms": [
         "Activity",
         "Agent",
         "Entity",
+        "Location",
+        "Organization",
         "Plan",
         "SoftwareAgent",
         "hadPlan",
-        "used"
+        "used",
+        "wasAttributedTo"
       ],
       "sha256": "faa4beee01504650382be111d2b76725c51435a5a100cede48434e6e23411f7c",
       "total_triples": 1146
@@ -104,8 +107,8 @@
     "sha256": "47c34b99c5a4d0bd9e4e9e0d6f945412eb6bec2f3b18b4d0da702cc4a5f0009f"
   },
   "triple_budget": {
-    "headroom": 204,
-    "rationale": "Integration ontology parsimony gate. WP3 bumped 356 -> 380 after adding rtm:DockerImage class + 4 datatype properties (+20 triples). See WP3 subplan \u00a74.8.",
-    "value": 380
+    "headroom": 232,
+    "rationale": "Integration ontology parsimony gate. WP4 bumped 380 -> 450 after adding the three-remote provenance terms (rtm:DockerContainer + rtm:gitRef + rtm:flexoRecord + rtm:operatedBy), EARL-wrapped verification outcomes (rtm:DigestMatchAssertion + rtm:ClosureRuleAssertion + rtm:violationCount), service-invocation properties (rtm:transactionId + rtm:documentRef), and 4 new SHACL shapes. See WP4 subplan \u00a74.6 (ontology additions).",
+    "value": 450
   }
 }

@@ -12,6 +12,17 @@ from typing import Any, Protocol, runtime_checkable
 from rdflib import URIRef
 
 
+class ComputeUnavailable(RuntimeError):
+    """Preflight probe detected the compute backend is unreachable / misconfigured.
+
+    Raised by `ComputeBackend.probe()`. The runner catches this at startup,
+    prints the backend's `describe()` output + the cause, and exits
+    with code 2 (matches WP2's ROBOT fail-fast shape — the integration
+    story must not silently degrade). `DockerNotAvailable` is a subclass
+    so existing call sites keep working.
+    """
+
+
 @dataclass(frozen=True)
 class ExecutionMetadata:
     """Where and how an analysis stage was executed.
@@ -56,6 +67,22 @@ class ExecutionMetadata:
         host = self.hostname or "unknown"
         return URIRef(f"urn:adcs:location:{self.location_kind}:{host}")
 
+    def container_uri(self) -> URIRef | None:
+        """Stable IRI for the rtm:DockerContainer materialization, or None.
+
+        WP4 §4.5 — the per-run container entity sits between the activity
+        and the image: the activity prov:used the container; the container
+        prov:wasDerivedFrom the image. Distinct from `location_uri()`
+        (the host machine) and `executor_uri()` (the agent that ran the work).
+
+        Returns None when not a Docker run or when container_id is empty —
+        in those cases no container entity is emitted.
+        """
+        if self.location_kind != "docker" or not self.container_id:
+            return None
+        suffix = self.container_id.replace(":", "-")
+        return URIRef(f"urn:adcs:docker-container:{suffix}")
+
 
 @runtime_checkable
 class ComputeBackend(Protocol):
@@ -70,6 +97,15 @@ class ComputeBackend(Protocol):
     """
 
     name: str
+
+    def probe(self) -> None:
+        """Preflight reachability check; raise ComputeUnavailable on failure.
+
+        Called by the runner before Stage 1 so failure is fast and clear
+        rather than discovered at Stage 2. LocalCompute is a no-op
+        (in-process); DockerCompute wraps `_check_daemon`.
+        """
+        ...
 
     def describe(self) -> str:
         ...

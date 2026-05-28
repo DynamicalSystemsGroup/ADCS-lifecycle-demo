@@ -19,6 +19,7 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import sys
 from enum import Enum
 from pathlib import Path
@@ -187,6 +188,20 @@ def run_stage_4_bind_evidence(state: PipelineState) -> EvidenceBindingResult:
     if state.compute_name == "docker":
         image_iri = state.compute_backend.emit_image_node(ev_graph)
         print(f"  rtm:DockerImage emitted: {image_iri}")
+        # WP4 c4 — when a remote-store backend is in use (Flexo / Fuseki),
+        # attach rtm:flexoRecord to the image so consumers can find the
+        # storage location of this image's record across remotes.
+        from ontology.prefixes import RTM as _RTM
+        flexo_record = state.store_backend.record_uri("evidence")
+        if flexo_record is not None:
+            ev_graph.add((image_iri, _RTM.flexoRecord, flexo_record))
+            print(f"  rtm:flexoRecord: {flexo_record}")
+
+    # WP4 c6 — pass the per-run org IRIs to binding so executor + container
+    # + host carry their organizational auspices.
+    from rdflib import URIRef as _U
+    operating_org = _U(state.operating_org_iri)
+    hosting_org = _U(state.hosting_org_iri)
 
     # Proof evidence for all 4 requirements.
     for req_id, script in proofs.items():
@@ -204,6 +219,8 @@ def run_stage_4_bind_evidence(state: PipelineState) -> EvidenceBindingResult:
             source_file="analysis/build_proofs.py",
             execution_metadata=sym_meta,
             image_iri=image_iri,
+            operating_org_iri=operating_org,
+            hosting_org_iri=hosting_org,
         )
 
     # Simulation evidence for REQ-001, REQ-002.
@@ -225,6 +242,8 @@ def run_stage_4_bind_evidence(state: PipelineState) -> EvidenceBindingResult:
             source_file="analysis/numerical.py",
             execution_metadata=step_meta,
             image_iri=image_iri,
+            operating_org_iri=operating_org,
+            hosting_org_iri=hosting_org,
         )
 
     # Disturbance rejection evidence for REQ-004.
@@ -240,6 +259,8 @@ def run_stage_4_bind_evidence(state: PipelineState) -> EvidenceBindingResult:
         source_file="analysis/numerical.py",
         execution_metadata=dist_meta,
         image_iri=image_iri,
+        operating_org_iri=operating_org,
+        hosting_org_iri=hosting_org,
     )
 
     evidence_node_count = len(list(ev_graph.subjects()))
@@ -341,6 +362,11 @@ def run_stage_6_5_verify_closure(state: PipelineState) -> ClosureRuleResult:
     report = verify_closure_rules(state.ds, skip_reverification=False)
     for line in report.summary_lines():
         print(f"  {line}")
+    # WP4 c7 — persist the closure outcome as an rtm:ClosureRuleAssertion
+    # in <adcs:audit> so the technical-trust witness is queryable.
+    from traceability.closure_assertion import emit_closure_assertion
+    closure_iri = emit_closure_assertion(state.ds, report)
+    print(f"  Closure-rule assertion: {closure_iri}")
     # Violations are surfaced but do not fail the pipeline by default —
     # the audit module renders a structured report. CI can opt into
     # hard-fail behaviour by checking `report.conforms`. When violations
@@ -395,7 +421,7 @@ def run_stage_7a_audit(state: PipelineState) -> AuditStageResult:
 def run_stage_7_report(state: PipelineState) -> ReportStageResult:
     emit_stage_activity(state.ds, "Report")
     print("\n[Stage 7] Generating reports...")
-    store = get_backend(state.backend_name)
+    store = state.store_backend
     print(f"  Backend: {store.describe()}")
     persisted = store.persist(state.ds, OUTPUT_DIR)
     print(f"  Persisted {len(persisted)} named graphs "
@@ -404,6 +430,55 @@ def run_stage_7_report(state: PipelineState) -> ReportStageResult:
     summary = print_rtm_summary(state.ds)
     print(summary)
     return ReportStageResult(persisted_graphs=persisted, backend_name=state.backend_name)
+
+
+# ── Preflight (WP4 c2 + c12) ─────────────────────────────────────────
+def _run_preflight(compute_backend, store_backend, txnlog_store=None) -> None:
+    """Probe backends; print outcomes; fail-fast with exit 2 on error.
+
+    The preflight runs before Stage 0 so unreachable backends are
+    surfaced immediately, not at the last persist step. Honors the
+    "stop being a mock-up" framing: the integration story doesn't
+    silently degrade when a remote is down.
+    """
+    from compute.base import ComputeUnavailable
+    from pipeline.backends.base import BackendUnavailable
+
+    print("\n[Preflight] Probing backends...")
+    print(f"  Compute: {compute_backend.describe()}")
+    print(f"  Storage: {store_backend.describe()}")
+    if txnlog_store is not None:
+        print(f"  Txnlog:  {txnlog_store.describe()}")
+
+    failures: list[str] = []
+    try:
+        compute_backend.probe()
+        print("  Compute probe: PASS")
+    except ComputeUnavailable as exc:
+        failures.append(f"compute={compute_backend.name}: {exc}")
+        print(f"  Compute probe: FAIL — {exc}")
+
+    try:
+        store_backend.probe()
+        print("  Storage probe: PASS")
+    except BackendUnavailable as exc:
+        failures.append(f"backend={store_backend.name}: {exc}")
+        print(f"  Storage probe: FAIL — {exc}")
+
+    if txnlog_store is not None:
+        try:
+            txnlog_store.probe()
+            print("  Txnlog probe:  PASS")
+        except BackendUnavailable as exc:
+            failures.append(f"txnlog={txnlog_store.name}: {exc}")
+            print(f"  Txnlog probe:  FAIL — {exc}")
+
+    if failures:
+        print("\n[Preflight] ERROR: one or more backends are unreachable.")
+        for f in failures:
+            print(f"  - {f}")
+        print("\nFix the failing backend(s) and re-run, or switch to --backend=local / --compute=local.")
+        sys.exit(2)
 
 
 # ── Stage 8: VISUALIZED_AND_INTERROGABLE ─────────────────────────────
@@ -434,15 +509,45 @@ def run_pipeline(
     Default-union is enabled so consumers can query across the union
     with plain SPARQL.
     """
+    # WP4 c2 — preflight gate: construct both backends up-front and
+    # probe reachability BEFORE any stage runs. Fail-fast with exit
+    # code 2 (matches WP2's ROBOT discipline) so the integration
+    # story doesn't degrade silently at Stage 7.
+    compute_backend = get_compute_backend(compute)
+    store_backend = get_backend(backend)
+    # WP4 c12 — optional txnlog store (CouchDB) as the fourth service.
+    # Off by default; opt-in via ADCS_TXNLOG_ENABLED=1.
+    txnlog_store = None
+    if os.environ.get("ADCS_TXNLOG_ENABLED", "0") == "1":
+        from pipeline.backends.txnlog import TxnLogBackend
+        txnlog_store = TxnLogBackend()
+    _run_preflight(compute_backend, store_backend, txnlog_store)
+
+    # WP4 c6 — organizational auspices loaded from env (defaults
+    # urn:adcs:org:local-operator for both).
+    from compute.organizations import emit_org_nodes, load_auspices
+    auspices = load_auspices()
+    print(f"  Operating org: {auspices.operating_iri} ({auspices.operating_label})")
+    if str(auspices.hosting_iri) != str(auspices.operating_iri):
+        print(f"  Hosting org:   {auspices.hosting_iri} ({auspices.hosting_label})")
+
     ds = run_stage_0(rebuild=rebuild_ontology)
+    # Emit the org nodes into <adcs:context> so they accumulate across runs
+    from pipeline.dataset import graph_for
+    emit_org_nodes(graph_for(ds, "context"), auspices)
+
     state = PipelineState(
         ds=ds,
-        compute_backend=get_compute_backend(compute),
+        compute_backend=compute_backend,
+        store_backend=store_backend,
         engineer_name=engineer_name,
         auto_attest=auto_attest,
         skip_attestation=skip_attestation,
         backend_name=backend,
         compute_name=compute,
+        operating_org_iri=str(auspices.operating_iri),
+        hosting_org_iri=str(auspices.hosting_iri),
+        txnlog_store=txnlog_store,
     )
     state.structural    = run_stage_1_structural(state)
     state.symbolic      = run_stage_2_symbolic(state)

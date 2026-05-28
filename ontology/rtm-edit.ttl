@@ -292,6 +292,73 @@ rtm:buildContextHash a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "SHA-256 over a sorted manifest of build-context file hashes" .
 
+# -- WP4 three-remote provenance additions -----------------------------------
+#
+# Image / container / host are distinct first-class entities. WP4
+# adds the container entity + its lifecycle properties; rtm:gitRef /
+# rtm:flexoRecord extend rtm:DockerImage (WP3) to cross-link the
+# storage backends; rtm:operatedBy gives prov:Location an
+# auspices-bearing edge.
+
+rtm:DockerContainer a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Docker container" ;
+    rdfs:comment "A transient materialization of an rtm:DockerImage; one per run, identified by the runtime container ID. Distinct from prov:Location (the host machine) and prov:SoftwareAgent (the executor that ran the work)." .
+
+rtm:containerId a owl:DatatypeProperty ;
+    rdfs:domain rtm:DockerContainer ;
+    rdfs:range xsd:string ;
+    rdfs:label "Container ID (runtime)" .
+
+rtm:gitRef a owl:DatatypeProperty ;
+    rdfs:domain rtm:DockerImage ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "git+URI of source at build commit" .
+
+rtm:flexoRecord a owl:ObjectProperty ;
+    rdfs:domain rtm:DockerImage ;
+    rdfs:label "URI into the storage backend (where this image's record lives)" .
+
+rtm:operatedBy a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:wasAttributedTo ;
+    rdfs:domain prov:Location ;
+    rdfs:range prov:Organization ;
+    rdfs:label "host operated by organization" .
+
+# -- WP4 EARL-wrapped automated-verification outcomes ------------------------
+
+rtm:DigestMatchAssertion a owl:Class ;
+    rdfs:subClassOf earl:Assertion , prov:Activity ;
+    rdfs:label "Image-digest reproduction assertion" ;
+    rdfs:comment "Automated outcome of an image-digest reproduction check (compute.reproduce). earl:mode is always earl:automatic." .
+
+rtm:ClosureRuleAssertion a owl:Class ;
+    rdfs:subClassOf earl:Assertion , prov:Activity ;
+    rdfs:label "SHACL closure-rule assertion" ;
+    rdfs:comment "Automated outcome of a SHACL closure-rule check (Stage 6.5). earl:mode is always earl:automatic." .
+
+rtm:violationCount a owl:DatatypeProperty ;
+    rdfs:domain rtm:ClosureRuleAssertion ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "Number of violations summarized by this closure assertion" .
+
+# -- WP4 service-invocation properties (transaction logs as evidence) --------
+#
+# Invocation events are just prov:Activity instances with a transaction
+# ID. The wire-log document IS an rtm:Evidence (reuse existing class)
+# with a documentRef pointing into the txnlog store. No new classes for
+# invocation; only two new properties.
+
+rtm:transactionId a owl:DatatypeProperty ;
+    rdfs:domain prov:Activity ;
+    rdfs:range xsd:string ;
+    rdfs:label "Service-invocation transaction ID" .
+
+rtm:documentRef a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "URI of the evidence document in its backing store" .
+
 # Adequacy and sufficiency are not novel epistemic terms — they map to
 # gsn:Assumption and gsn:Justification (Hawkins-Habli ACP categorization).
 # The attestation links them via gsn:inContextOf; their textual content

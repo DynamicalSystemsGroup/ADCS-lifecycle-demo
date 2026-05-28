@@ -22,6 +22,8 @@ from rdflib import Dataset
 
 if TYPE_CHECKING:
     from compute.base import ComputeBackend, ExecutionMetadata
+    from pipeline.backends.base import StoreBackend
+    from pipeline.backends.txnlog import TxnLogBackend
     from traceability.audit import AuditReport
     from traceability.verification import VerificationReport
 
@@ -89,11 +91,19 @@ class PipelineState:
 
     ds: Dataset
     compute_backend: "ComputeBackend"
+    store_backend: "StoreBackend"
     engineer_name: str
     auto_attest: bool = False
     skip_attestation: bool = False
     backend_name: str = "local"
     compute_name: str = "local"
+    # WP4 c6 — organizational auspices (operating + hosting orgs)
+    operating_org_iri: str = "urn:adcs:org:local-operator"
+    hosting_org_iri: str = "urn:adcs:org:local-operator"
+    # WP4 c12 — optional fourth-service txnlog store. None when
+    # ADCS_TXNLOG_ENABLED is unset; TransactionLogger no-ops on the
+    # wire-log evidence half (activity triples still emitted) when None.
+    txnlog_store: "TxnLogBackend | None" = None
 
     structural: StructuralResult | None = None
     symbolic: SymbolicResult | None = None

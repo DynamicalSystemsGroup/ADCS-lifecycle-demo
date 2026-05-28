@@ -270,3 +270,25 @@ def test_audit_graph_populated_after_pipeline(nominal_dataset):
     # Confirm a forwardPassed triple is present
     fp_triples = [q for q in audit_g_quads if str(q[1]).endswith("forwardPassed")]
     assert fp_triples, "Expected rtm:forwardPassed in audit graph"
+
+
+# ---------------------------------------------------------------------------
+# WP4 c7 — rtm:ClosureRuleAssertion in <adcs:audit>
+# ---------------------------------------------------------------------------
+
+def test_closure_assertion_emitted_into_audit_graph(nominal_dataset):
+    """Stage 6.5 emits exactly one rtm:ClosureRuleAssertion per run."""
+    from ontology.prefixes import EARL, RTM
+    audit_g = nominal_dataset.graph(URIRef(G_AUDIT))
+    assertions = list(audit_g.subjects(RDF.type, RTM.ClosureRuleAssertion))
+    assert assertions, "Expected at least one rtm:ClosureRuleAssertion"
+    # Each assertion is also typed earl:Assertion + prov:Activity
+    a = assertions[0]
+    types = set(audit_g.objects(a, RDF.type))
+    assert EARL.Assertion in types
+    # Outcome must be one of the EARL semantic values
+    outcomes = set(audit_g.objects(a, EARL.outcome))
+    assert outcomes & {EARL.passed, EARL.failed, EARL.cantTell}
+    # Mode is automatic (this is verification, not validation)
+    modes = set(audit_g.objects(a, EARL.mode))
+    assert EARL.automatic in modes
