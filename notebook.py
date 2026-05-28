@@ -1425,6 +1425,72 @@ def __(v2_rtm, mo):
 
 
 @app.cell(hide_code=True)
+def __(v2_rtm, mo):
+    # WP3 + WP4 — the rtm:DockerImage node as first-class evidence,
+    # cross-linked to its git ref and to the storage backend's record.
+    # In a live `--compute=docker --backend=flexo` run, these triples
+    # are emitted by DockerCompute._emit_image_node + the runner Stage 4.
+    from rdflib import Literal as _Lit, URIRef as _URI
+    from rdflib.namespace import RDF as _RDF, XSD as _XSD
+    from ontology.prefixes import G_EVIDENCE as _G_EV, PROV as _PROV, RTM as _RTM
+
+    _ev_g = v2_rtm.graph(_URI(_G_EV))
+    _image = _URI("urn:adcs:docker-image:sha256-92bb8bf18f5f2ba7a6e332e4fe1fa1b12911e9b6c4cddb4b35e1659b01b21d30")
+    _ev_g.add((_image, _RDF.type, _RTM.DockerImage))
+    _ev_g.add((_image, _RDF.type, _PROV.Entity))
+    _ev_g.add((_image, _RTM.contentHash, _Lit("sha256:92bb8bf18f5f2ba7a6e332e4fe1fa1b12911e9b6c4cddb4b35e1659b01b21d30")))
+    _ev_g.add((_image, _RTM.imageLabel, _Lit("adcs-compute:latest")))
+    _ev_g.add((_image, _RTM.dockerfileHash, _Lit("sha256:dockerfile-bytes-hash-here")))
+    _ev_g.add((_image, _RTM.buildContextHash, _Lit("sha256:build-context-manifest-hash")))
+    _ev_g.add((_image, _RTM.gitRef,
+               _Lit("git+https://github.com/DynamicalSystemsGroup/ADCS-lifecycle-demo@HEAD#compute/Dockerfile",
+                    datatype=_XSD.anyURI)))
+    _ev_g.add((_image, _RTM.flexoRecord,
+               _URI("urn:adcs:flexo:adcs-demo/lifecycle/evidence")))
+
+    # Link the synthesized v2 evidence to derive from this image,
+    # so the "image → evidence" SPARQL join populates.
+    from ontology.prefixes import ADCS as _ADCS
+    for _rid in ["REQ-001", "REQ-002", "REQ-003", "REQ-004"]:
+        _ev_g.add((_ADCS[f"EV-PROOF-{_rid}-v2"], _PROV.wasDerivedFrom, _image))
+        _ev_g.add((_ADCS[f"EV-SIM-{_rid}-v2"], _PROV.wasDerivedFrom, _image))
+
+    # Run the WP3 evidence_by_image join + WP4 trust query against the
+    # newly-augmented dataset to show the result the auditor sees.
+    from traceability.queries import evidence_by_image as _evbyimg
+    _rows = _evbyimg(v2_rtm, "sha256:92bb8bf18f5f2ba7a6e332e4fe1fa1b12911e9b6c4cddb4b35e1659b01b21d30")
+    _ev_count = len(_rows)
+
+    mo.md(
+        "### The Docker image as a tracked node (WP3 + WP4)\n\n"
+        "Beyond the executor-agent label from the cell above, the live "
+        "pipeline emits the image itself as an `rtm:DockerImage` entity "
+        "with content hashes, the git ref it was built from, and a "
+        "cross-link to its storage record in Flexo:\n\n"
+        "```turtle\n"
+        "<urn:adcs:docker-image:sha256-92bb8bf18f5f...>\n"
+        "    a rtm:DockerImage, prov:Entity ;\n"
+        "    rtm:contentHash       \"sha256:92bb8bf18f5f...\" ;\n"
+        "    rtm:imageLabel        \"adcs-compute:latest\" ;\n"
+        "    rtm:dockerfileHash    \"sha256:dockerfile-bytes-...\" ;\n"
+        "    rtm:buildContextHash  \"sha256:build-context-...\" ;\n"
+        "    rtm:gitRef            \"git+https://github.com/.../@HEAD#compute/Dockerfile\"^^xsd:anyURI ;\n"
+        "    rtm:flexoRecord       <urn:adcs:flexo:adcs-demo/lifecycle/evidence> .\n\n"
+        "<adcs:EV-PROOF-REQ-003-v2> prov:wasDerivedFrom <urn:adcs:docker-image:sha256-92bb8bf18f5f...> .\n"
+        "```\n\n"
+        f"`evidence_by_image(\"sha256:92bb8bf18f5f...\")` returns **{_ev_count} evidence node(s)** "
+        "derived from this image — the inverse query that the\n"
+        "earlier executor-label model couldn't answer.\n\n"
+        "An auditor can now walk: `evidence → wasDerivedFrom → image → "
+        "gitRef`, and use `compute.reproduce --image-digest sha256:92bb...` "
+        "to rebuild the image at the recorded git ref and digest-compare "
+        "the result. If the rebuilt digest matches, an `rtm:DigestMatchAssertion` "
+        "(earl:passed) lands in `<adcs:audit>`."
+    )
+    return
+
+
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("""
     ---

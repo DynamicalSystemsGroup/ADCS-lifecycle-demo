@@ -114,12 +114,29 @@ class OrphanReport:
 
 
 @dataclass
+class DockerProvenanceRow:
+    """One Docker-image record surfaced in the audit (WP5 narrative).
+
+    Populated only for runs that emitted at least one rtm:DockerImage
+    (i.e. --compute=docker). The audit lists each image along with the
+    git ref it was built from and the count of evidence nodes derived
+    from it, so the auditor can see the "what produced what" picture
+    without leaving the report.
+    """
+    image: str
+    digest: str
+    git_ref: str | None
+    evidence_count: int
+
+
+@dataclass
 class AuditReport:
     forward: DirectionResult
     backward: DirectionResult
     coverage: list[CoverageCell]
     orphans: OrphanReport
     timestamp: str
+    docker_provenance: list[DockerProvenanceRow] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -352,6 +369,34 @@ def orphans(ds: Dataset) -> OrphanReport:
 # Full audit
 # ---------------------------------------------------------------------------
 
+_DOCKER_PROVENANCE_Q = """
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX rtm:  <http://example.org/ontology/rtm#>
+SELECT ?image ?digest ?gitRef (COUNT(DISTINCT ?ev) AS ?evCount) WHERE {
+    ?image a rtm:DockerImage ;
+           rtm:contentHash ?digest .
+    OPTIONAL { ?image rtm:gitRef ?gitRef . }
+    OPTIONAL { ?ev prov:wasDerivedFrom ?image . }
+}
+GROUP BY ?image ?digest ?gitRef
+ORDER BY ?image
+"""
+
+
+def docker_provenance(ds: Dataset) -> list[DockerProvenanceRow]:
+    """List every rtm:DockerImage in the dataset with its git ref +
+    evidence-derivation count. Empty for local-compute runs."""
+    rows: list[DockerProvenanceRow] = []
+    for row in ds.query(_DOCKER_PROVENANCE_Q):
+        rows.append(DockerProvenanceRow(
+            image=str(row["image"]),
+            digest=str(row["digest"]),
+            git_ref=str(row["gitRef"]) if row.get("gitRef") else None,
+            evidence_count=int(row["evCount"]) if row.get("evCount") is not None else 0,
+        ))
+    return rows
+
+
 def audit(ds: Dataset) -> AuditReport:
     """Run the full audit suite. Forward and backward are independent;
     bidirectional is derived via AuditReport.bidirectional()."""
@@ -361,6 +406,7 @@ def audit(ds: Dataset) -> AuditReport:
         coverage=coverage_matrix(ds),
         orphans=orphans(ds),
         timestamp=datetime.now(timezone.utc).isoformat(),
+        docker_provenance=docker_provenance(ds),
     )
 
 
@@ -390,6 +436,21 @@ def _render_markdown(report: AuditReport) -> str:
     for cell in report.coverage:
         lines.append(f"| {cell.requirement} | {cell.evidence} | {cell.status} |")
     lines.append("")
+
+    # WP5 — Docker image provenance surfaced for --compute=docker runs.
+    # Closes the residual issue-#4 AC: the audit summary names the image
+    # identity for each Docker-derived evidence node, not just its
+    # executor-agent label.
+    if report.docker_provenance:
+        lines.append("## Docker image provenance")
+        lines.append("| Image | Digest | Git ref | Evidence count |")
+        lines.append("| --- | --- | --- | --- |")
+        for row in report.docker_provenance:
+            git_ref_short = (row.git_ref[:60] + "...") if row.git_ref and len(row.git_ref) > 60 else (row.git_ref or "-")
+            lines.append(
+                f"| `{row.image}` | `{row.digest[:24]}...` | `{git_ref_short}` | {row.evidence_count} |"
+            )
+        lines.append("")
 
     lines.append("## Orphans")
     if not report.orphans.any:
