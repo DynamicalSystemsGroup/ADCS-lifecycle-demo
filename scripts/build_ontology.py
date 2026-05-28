@@ -30,6 +30,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -49,7 +50,23 @@ SYSML_MAP_FILE = ONTOLOGY_DIR / "sysml_term_map.csv"
 
 
 SYSML_LOCAL_NS = "https://www.omg.org/spec/SysML/2.0/"
-SYSML_OPENCAESAR_NS = "http://www.omg.org/spec/SysML/20240501/"
+# The OMG SysMLv2 OWL rendering's namespace.
+SYSML_OMG_NS = "http://www.omg.org/spec/SysML/20240501/"
+
+# Parsimony gate (WP2 §4.C). rtm: is an integration ontology — it should
+# contribute only convenience handles, hashing properties, and SHACL
+# targets, never new epistemic vocabulary. The gate keeps that promise
+# honest by failing the build if the assembled artifact grows past the
+# budget. The budget is the current size (156 triples) + 200 headroom
+# for WP3's rtm:DockerImage class + property set and other small adds.
+# WP3 will bump this when it lands; bumping is a deliberate act, not a
+# silent drift.
+TRIPLE_BUDGET = 356
+TRIPLE_BUDGET_RATIONALE = (
+    "Integration ontology parsimony gate. Current size + 200 headroom. "
+    "Bumped deliberately when a new term class lands (next: WP3 "
+    "rtm:DockerImage). See WP2 subplan §4.C."
+)
 
 
 @dataclass(frozen=True)
@@ -111,21 +128,24 @@ def _load_sysml_term_map() -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def _validate_sysml_axioms(edit_graph: Graph, term_map: list[dict[str, str]]) -> list[str]:
-    """Verify every term-map row has the corresponding equivalence axiom in edit_graph."""
+def _verify_sysml_axioms(edit_graph: Graph, term_map: list[dict[str, str]]) -> list[str]:
+    """Verify every term-map row has the corresponding equivalence axiom in
+    edit_graph. Automated, fully specified — verification per the WP1 §4.4
+    discipline (renamed from `_validate_sysml_axioms` in WP2 §4.D since this
+    file is being touched anyway for the CSV column rename)."""
     errors: list[str] = []
     for row in term_map:
         local = URIRef(f"{SYSML_LOCAL_NS}{row['local_term']}")
-        opencaesar = URIRef(f"{SYSML_OPENCAESAR_NS}{row['opencaesar_iri']}")
+        omg = URIRef(f"{SYSML_OMG_NS}{row['omg_iri']}")
         if row["kind"] == "Class":
-            axiom = (local, OWL.equivalentClass, opencaesar)
+            axiom = (local, OWL.equivalentClass, omg)
         elif row["kind"] == "Property":
-            axiom = (local, OWL.equivalentProperty, opencaesar)
+            axiom = (local, OWL.equivalentProperty, omg)
         else:
             errors.append(f"sysml_term_map.csv: unknown kind {row['kind']!r} for {row['local_term']}")
             continue
         if axiom not in edit_graph:
-            errors.append(f"Missing axiom: {row['local_term']} -> {row['opencaesar_iri']} ({row['kind']})")
+            errors.append(f"Missing axiom: {row['local_term']} -> {row['omg_iri']} ({row['kind']})")
     return errors
 
 
@@ -190,7 +210,7 @@ def build() -> int:
 
     # Step 2: validate sysml_term_map against rtm-edit equivalence axioms
     term_map = _load_sysml_term_map()
-    sysml_errors = _validate_sysml_axioms(edit_graph, term_map)
+    sysml_errors = _verify_sysml_axioms(edit_graph, term_map)
     if sysml_errors:
         for e in sysml_errors:
             print(f"  ERROR  {e}", file=sys.stderr)
@@ -237,16 +257,39 @@ def build() -> int:
     artifact_sha = _sha256_bytes(final_bytes)
     print(f"  Wrote {OUT_FILE.relative_to(ROOT)} ({len(out_graph)} triples, sha256={artifact_sha[:12]}...)")
 
+    # Step 4.5: triple-count budget gate (WP2 §4.C parsimony rule)
+    total_triples = len(out_graph)
+    if total_triples > TRIPLE_BUDGET:
+        print(
+            f"  ERROR  rtm.ttl exceeds triple budget: "
+            f"{total_triples} > {TRIPLE_BUDGET}",
+            file=sys.stderr,
+        )
+        print(f"         Rationale: {TRIPLE_BUDGET_RATIONALE}", file=sys.stderr)
+        print(
+            "         To raise the budget, bump TRIPLE_BUDGET in "
+            "scripts/build_ontology.py and update the rationale comment.",
+            file=sys.stderr,
+        )
+        return 1
+    headroom = TRIPLE_BUDGET - total_triples
+    print(f"  Parsimony: {total_triples}/{TRIPLE_BUDGET} triples ({headroom} headroom)")
+
     # Step 5: emit manifest
     manifest = {
         "build_time": build_time,
         "artifact": {
             "path": "ontology/rtm.ttl",
             "sha256": artifact_sha,
-            "total_triples": len(out_graph),
+            "total_triples": total_triples,
             "subclass_axioms": _count_subclass_axioms(out_graph),
             "subproperty_axioms": _count_subproperty_axioms(out_graph),
             "equivalence_axioms": _count_equivalence_axioms(out_graph),
+        },
+        "triple_budget": {
+            "value": TRIPLE_BUDGET,
+            "rationale": TRIPLE_BUDGET_RATIONALE,
+            "headroom": headroom,
         },
         "edit_source": {
             "path": "ontology/rtm-edit.ttl",
@@ -258,10 +301,17 @@ def build() -> int:
             "row_count": len(term_map),
         },
         "imports": import_info,
-        "robot_used": False,
+        # ADCS_ROBOT_VERIFIED is set by the Makefile's `ontology` target
+        # after the ROBOT preflight + merge + reason + report step has
+        # cleared. `make ontology-python` (no-Java path) leaves it unset,
+        # so the manifest records `robot_used: false` and Stage 0 prints
+        # the Python-only banner.
+        "robot_used": os.environ.get("ADCS_ROBOT_VERIFIED", "0") == "1",
         "notes": (
-            "Python-based build. ROBOT-based MIREOT extracts and full reasoning "
-            "are the optional `make ontology-robot` path (future work)."
+            "Python assembly + ROBOT/ELK verification (canonical `make ontology` path)."
+            if os.environ.get("ADCS_ROBOT_VERIFIED", "0") == "1"
+            else "Python assembly only (`make ontology-python`; run `make ontology` "
+                 "with Java + obo-robot installed for ROBOT/ELK verification)."
         ),
     }
     MANIFEST_FILE.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
