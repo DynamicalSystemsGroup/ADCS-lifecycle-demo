@@ -46,6 +46,65 @@ def test_factory_rejects_unknown():
         get_compute_backend("not-a-backend")
 
 
+class TestImageNodeEmitsGitRef:
+    """WP4 c3 — emit_image_node attaches rtm:gitRef to the rtm:DockerImage."""
+
+    def test_emit_image_node_includes_git_ref_triple(self, monkeypatch, tmp_path):
+        """Stubbing _image_metadata so the test doesn't need a Docker daemon,
+        verify the image-node emission attaches the rtm:gitRef literal."""
+        from rdflib import Graph
+        from compute.docker_compute import DockerCompute
+        from ontology.prefixes import RTM
+
+        backend = DockerCompute(build_on_demand=False)
+        # Skip docker subprocess; pretend image already inspected
+        monkeypatch.setattr(
+            backend, "_image_metadata",
+            lambda: ("sha256:abc123", "adcs-compute:latest"),
+        )
+        monkeypatch.setattr(
+            backend, "_resolve_base_image_digest", lambda: "",
+        )
+        backend._image_built_at = "2026-05-28T12:00:00+00:00"
+
+        g = Graph()
+        iri = backend.emit_image_node(g)
+
+        # The git-ref triple must be present
+        git_refs = list(g.objects(iri, RTM.gitRef))
+        assert len(git_refs) == 1, f"expected one rtm:gitRef triple, got {len(git_refs)}"
+        ref = str(git_refs[0])
+        assert ref.startswith("git+"), f"expected git+ URI, got {ref!r}"
+        assert "#compute/Dockerfile" in ref, ref
+
+
+class TestGitRef:
+    """WP4 c3 — compute.git_ref captures git+URI shape for rtm:gitRef."""
+
+    def test_current_git_ref_returns_https_uri_in_real_repo(self, tmp_path):
+        """Inside the project repo, the URI is the https form with sha + path."""
+        from pathlib import Path
+        from compute.git_ref import current_git_ref
+        repo_root = Path(__file__).resolve().parent.parent
+        ref = current_git_ref(repo_root, file_path="compute/Dockerfile")
+        # Either https remote (DynamicalSystemsGroup) or file:// fallback;
+        # both must include a SHA and the path fragment.
+        assert ref.startswith("git+"), f"unexpected shape: {ref}"
+        assert "@" in ref and "#compute/Dockerfile" in ref, ref
+
+    def test_current_git_ref_falls_back_outside_git(self, tmp_path):
+        """Outside a git repo, fall back to git+local://unknown@uncommitted."""
+        from compute.git_ref import current_git_ref
+        ref = current_git_ref(tmp_path, file_path="compute/Dockerfile")
+        assert "uncommitted" in ref or ref.startswith("git+file://"), ref
+
+    def test_normalize_ssh_remote_to_https(self):
+        """git@github.com:Org/Repo.git -> https://github.com/Org/Repo"""
+        from compute.git_ref import _normalize_remote_url
+        assert _normalize_remote_url("git@github.com:Org/Repo.git") == "https://github.com/Org/Repo"
+        assert _normalize_remote_url("https://github.com/Org/Repo.git") == "https://github.com/Org/Repo"
+
+
 class TestComputeProbe:
     """WP4 c2 — ComputeBackend.probe() preflight."""
 

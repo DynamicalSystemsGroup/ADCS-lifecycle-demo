@@ -266,6 +266,13 @@ class DockerCompute:
         graph.add((iri, PROV.generatedAtTime,
                    Literal(built_at, datatype=XSD.dateTime)))
 
+        # WP4 c3 — git ref of the Dockerfile at the commit this image
+        # was built from. Enables compute.reproduce to rebuild at the
+        # exact same source state and digest-compare.
+        from compute.git_ref import current_git_ref
+        git_ref = current_git_ref(ROOT, file_path="compute/Dockerfile")
+        graph.add((iri, RTM.gitRef, Literal(git_ref)))
+
         self._image_node_iri = iri
         return iri
 
