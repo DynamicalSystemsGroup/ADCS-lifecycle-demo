@@ -282,3 +282,32 @@ rtm:BackwardTraceabilityShape a sh:NodeShape ;
 # Rule: for every triple ?s rtm:attests ?o, ?o must exist as a
 # sysml:RequirementDefinition in <adcs:structural> (or <rtm:ontology>).
 # The audit module implements this via cross-graph SPARQL queries.
+
+# -- #11: DockerEvidenceShape (WP3 §4.6, issue #4 AC6) ------------------------
+# Conditional closure rule: every rtm:Evidence whose generating activity
+# ran under --compute=docker (signalled by prov:atLocation matching
+# urn:adcs:location:docker:*) MUST link to a rtm:DockerImage via
+# prov:wasDerivedFrom. Local-compute evidence is exempt — the SPARQL
+# filter excludes urn:adcs:location:local:* activities. The shape gives
+# Stage 6.5 verification teeth for the "image is an artifact, not a
+# label" contract introduced by WP3.
+
+rtm:DockerEvidenceShape a sh:NodeShape ;
+    sh:targetClass rtm:Evidence ;
+    sh:sparql [
+        sh:message "Docker-executed evidence must link to a rtm:DockerImage via prov:wasDerivedFrom." ;
+        sh:prefixes rtm: ;
+        sh:select """
+            PREFIX rtm:  <http://example.org/ontology/rtm#>
+            PREFIX prov: <http://www.w3.org/ns/prov#>
+            SELECT $this WHERE {
+                $this prov:wasGeneratedBy ?act .
+                ?act  prov:atLocation ?loc .
+                FILTER(STRSTARTS(STR(?loc), "urn:adcs:location:docker:"))
+                FILTER NOT EXISTS {
+                    $this prov:wasDerivedFrom ?image .
+                    ?image a rtm:DockerImage .
+                }
+            }
+        """
+    ] .

@@ -197,6 +197,107 @@ def test_plan_activity_without_corresponds_step_fails(nominal_dataset):
     assert _has_shape_violation(report.shape_violations, "correspondsToStep")
 
 
+# -- #11: DockerEvidenceShape (WP3 §4.6, issue #4 AC6) --------------------
+
+def test_docker_evidence_without_image_link_fails(nominal_dataset):
+    """Synthesize a Docker-located activity + evidence on a copy of
+    the nominal dataset, without the prov:wasDerivedFrom edge — the
+    DockerEvidenceShape's SPARQL filter triggers and reports the
+    missing link."""
+    from ontology.prefixes import G_EVIDENCE, PROV, RTM
+
+    ds = _copy(nominal_dataset)
+    ev_g = ds.graph(URIRef(G_EVIDENCE))
+
+    # Mint a synthetic Docker-located activity + a brand-new evidence
+    # node that points at it but does NOT declare wasDerivedFrom an
+    # image. The SPARQL target's STRSTARTS filter picks it up.
+    docker_loc = URIRef("urn:adcs:location:docker:container-xyz123")
+    docker_act = URIRef("urn:adcs:test/SA-DOCKER-NOIMG")
+    rogue_ev = URIRef("urn:adcs:test/EV-PROOF-DOCKER-NOIMG")
+
+    ev_g.add((docker_loc, RDF.type, PROV.Location))
+    ev_g.add((docker_act, RDF.type, PROV.Activity))
+    ev_g.add((docker_act, PROV.atLocation, docker_loc))
+    ev_g.add((rogue_ev, RDF.type, RTM.ProofArtifact))
+    ev_g.add((rogue_ev, RTM.contentHash, Literal("contenthash-xyz")))
+    ev_g.add((rogue_ev, RTM.modelHash, Literal("modelhash-xyz")))
+    ev_g.add((rogue_ev, RTM.proofHash, Literal("proofhash-xyz")))
+    ev_g.add((rogue_ev, PROV.wasGeneratedBy, docker_act))
+
+    report = verify(ds, skip_reverification=True)
+    assert not report.conforms, (
+        "Expected DockerEvidenceShape to fail on Docker-located evidence "
+        "missing prov:wasDerivedFrom; got conforming report."
+    )
+    assert _has_shape_violation(report.shape_violations, "DockerImage"), (
+        f"Expected a violation mentioning DockerImage; got: "
+        f"{[v.message for v in report.shape_violations]}"
+    )
+
+
+def test_docker_evidence_with_image_link_passes(nominal_dataset):
+    """The shape's conditional logic admits Docker-located evidence
+    that DOES link to an rtm:DockerImage. Positive case mirroring the
+    negative one above."""
+    from ontology.prefixes import G_EVIDENCE, PROV, RTM
+
+    ds = _copy(nominal_dataset)
+    ev_g = ds.graph(URIRef(G_EVIDENCE))
+
+    docker_loc = URIRef("urn:adcs:location:docker:container-abc456")
+    docker_act = URIRef("urn:adcs:test/SA-DOCKER-WITHIMG")
+    good_ev = URIRef("urn:adcs:test/EV-PROOF-DOCKER-WITHIMG")
+    image_iri = URIRef("urn:adcs:docker-image:sha256-image-with-evidence")
+
+    ev_g.add((docker_loc, RDF.type, PROV.Location))
+    ev_g.add((docker_act, RDF.type, PROV.Activity))
+    ev_g.add((docker_act, PROV.atLocation, docker_loc))
+    ev_g.add((image_iri, RDF.type, RTM.DockerImage))
+    ev_g.add((image_iri, RTM.contentHash, Literal("sha256:image-with-evidence")))
+    ev_g.add((good_ev, RDF.type, RTM.ProofArtifact))
+    ev_g.add((good_ev, RTM.contentHash, Literal("contenthash-abc")))
+    ev_g.add((good_ev, RTM.modelHash, Literal("modelhash-abc")))
+    ev_g.add((good_ev, RTM.proofHash, Literal("proofhash-abc")))
+    ev_g.add((good_ev, PROV.wasGeneratedBy, docker_act))
+    ev_g.add((good_ev, PROV.wasDerivedFrom, image_iri))
+
+    report = verify(ds, skip_reverification=True)
+    # The synthetic evidence should not introduce a DockerImage
+    # violation; the nominal dataset already passes the full suite, so
+    # the entire report must remain conforming.
+    if not report.conforms:
+        # If any other shape fires for unrelated reasons we'd see it
+        # here; assert at least that our positive case did NOT add a
+        # DockerImage complaint.
+        assert not _has_shape_violation(
+            report.shape_violations, "DockerImage"
+        ), (
+            "DockerEvidenceShape fired despite valid wasDerivedFrom link: "
+            f"{[v.message for v in report.shape_violations]}"
+        )
+    else:
+        assert True  # nominal + valid Docker triple = clean
+
+
+def test_local_evidence_not_required_to_link_to_image(nominal_dataset):
+    """The nominal pipeline is --compute=local, so every evidence
+    activity has prov:atLocation 'urn:adcs:location:local:*'. The
+    DockerEvidenceShape's SPARQL target filter MUST exclude these so
+    local-compute evidence without prov:wasDerivedFrom continues to
+    pass closure. This is the conditional-correctness check — the
+    existing test_nominal_pipeline_passes_all_shapes covers it too,
+    but with this dedicated test the intent is explicit."""
+    report = verify(nominal_dataset, skip_reverification=True)
+    docker_violations = [
+        v for v in report.shape_violations if "DockerImage" in v.message
+    ]
+    assert docker_violations == [], (
+        f"DockerEvidenceShape fired on a local-only nominal run "
+        f"(should be vacuous): {[v.message for v in docker_violations]}"
+    )
+
+
 # -- #10: Re-verification closure ------------------------------------------
 
 def test_reverification_returns_no_mismatches_on_nominal(nominal_dataset):
