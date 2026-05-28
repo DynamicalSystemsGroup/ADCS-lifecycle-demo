@@ -1,7 +1,7 @@
 # =============================================================================
 # AUTO-GENERATED ARTIFACT — DO NOT EDIT DIRECTLY
 #
-# Built 2026-05-28T16:00:38Z by scripts/build_ontology.py from:
+# Built 2026-05-28T22:17:46Z by scripts/build_ontology.py from:
 #   - ontology/rtm-edit.ttl
 #   - ontology/sysml_term_map.csv (SysMLv2 equivalences)
 #   - ontology/imports/*.ttl (validation only; full MIREOT merge is
@@ -42,6 +42,12 @@ rtm:ComputationEngine a owl:Class ;
     rdfs:label "Computation Engine" ;
     rdfs:subClassOf prov:SoftwareAgent .
 
+rtm:DigestMatchAssertion a owl:Class ;
+    rdfs:label "Image-digest reproduction assertion" ;
+    rdfs:comment "Automated outcome of an image-digest reproduction check (compute.reproduce). earl:mode is always earl:automatic." ;
+    rdfs:subClassOf earl:Assertion,
+        prov:Activity .
+
 rtm:Engineer a owl:Class ;
     rdfs:label "Engineer" ;
     rdfs:subClassOf earl:Assertor,
@@ -76,6 +82,11 @@ rtm:buildContextHash a owl:DatatypeProperty ;
     rdfs:domain rtm:DockerImage ;
     rdfs:range xsd:string .
 
+rtm:containerId a owl:DatatypeProperty ;
+    rdfs:label "Container ID (runtime)" ;
+    rdfs:domain rtm:DockerContainer ;
+    rdfs:range xsd:string .
+
 rtm:contentHash a owl:DatatypeProperty ;
     rdfs:label "content hash" ;
     rdfs:comment "SHA-256 hash of the evidence artifact content." ;
@@ -93,10 +104,19 @@ rtm:dockerfileHash a owl:DatatypeProperty ;
     rdfs:domain rtm:DockerImage ;
     rdfs:range xsd:string .
 
+rtm:documentRef a owl:DatatypeProperty ;
+    rdfs:label "URI of the evidence document in its backing store" ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:anyURI .
+
 rtm:evidenceMethod a owl:ObjectProperty ;
     rdfs:label "evidence method" ;
     rdfs:domain rtm:Evidence ;
     rdfs:range rtm:EvidenceMethod .
+
+rtm:flexoRecord a owl:ObjectProperty ;
+    rdfs:label "URI into the storage backend (where this image's record lives)" ;
+    rdfs:domain rtm:DockerImage .
 
 rtm:followedProcedure a owl:ObjectProperty ;
     rdfs:label "followed procedure" ;
@@ -109,6 +129,11 @@ rtm:gitCommit a owl:DatatypeProperty ;
     rdfs:label "git commit" ;
     rdfs:domain prov:Entity ;
     rdfs:range xsd:string .
+
+rtm:gitRef a owl:DatatypeProperty ;
+    rdfs:label "git+URI of source at build commit" ;
+    rdfs:domain rtm:DockerImage ;
+    rdfs:range xsd:anyURI .
 
 rtm:hasEvidence a owl:ObjectProperty ;
     rdfs:label "has evidence" ;
@@ -139,6 +164,12 @@ rtm:modelHash a owl:DatatypeProperty ;
     rdfs:domain rtm:Evidence ;
     rdfs:range xsd:string .
 
+rtm:operatedBy a owl:ObjectProperty ;
+    rdfs:label "host operated by organization" ;
+    rdfs:domain prov:Location ;
+    rdfs:range prov:Organization ;
+    rdfs:subPropertyOf prov:wasAttributedTo .
+
 rtm:proofHash a owl:DatatypeProperty ;
     rdfs:label "proof hash" ;
     rdfs:comment "SHA-256 hash of proof script content + model hash. Used by the re-verification closure check." ;
@@ -154,6 +185,16 @@ rtm:sourceFile a owl:DatatypeProperty ;
     rdfs:label "source file" ;
     rdfs:domain rtm:Evidence ;
     rdfs:range xsd:string .
+
+rtm:transactionId a owl:DatatypeProperty ;
+    rdfs:label "Service-invocation transaction ID" ;
+    rdfs:domain prov:Activity ;
+    rdfs:range xsd:string .
+
+rtm:violationCount a owl:DatatypeProperty ;
+    rdfs:label "Number of violations summarized by this closure assertion" ;
+    rdfs:domain rtm:ClosureRuleAssertion ;
+    rdfs:range xsd:nonNegativeInteger .
 
 sysml:AttributeUsage a owl:Class ;
     owl:equivalentClass omg-sysml:AttributeUsage .
@@ -178,6 +219,17 @@ sysml:ownedRelationship a owl:ObjectProperty ;
 
 sysml:text a owl:DatatypeProperty ;
     owl:equivalentProperty omg-sysml:text .
+
+rtm:ClosureRuleAssertion a owl:Class ;
+    rdfs:label "SHACL closure-rule assertion" ;
+    rdfs:comment "Automated outcome of a SHACL closure-rule check (Stage 6.5). earl:mode is always earl:automatic." ;
+    rdfs:subClassOf earl:Assertion,
+        prov:Activity .
+
+rtm:DockerContainer a owl:Class ;
+    rdfs:label "Docker container" ;
+    rdfs:comment "A transient materialization of an rtm:DockerImage; one per run, identified by the runtime container ID. Distinct from prov:Location (the host machine) and prov:SoftwareAgent (the executor that ran the work)." ;
+    rdfs:subClassOf prov:Entity .
 
 rtm:EvidenceMethod a owl:Class ;
     rdfs:label "Evidence Method" ;
@@ -236,16 +288,6 @@ omg-sysml:ownedRelationship a owl:ObjectProperty .
 
 omg-sysml:text a owl:DatatypeProperty .
 
-rtm:DockerImage a owl:Class ;
-    rdfs:label "Docker container image" ;
-    rdfs:comment """Content-tracked Docker image. Every analysis activity
-        that ran under --compute=docker has its evidence link back to a
-        DockerImage via prov:wasDerivedFrom. The image's identity is
-        rtm:contentHash (the runtime digest); reproducibility is anchored
-        by rtm:dockerfileHash + rtm:buildContextHash + rtm:baseImageDigest
-        which together pin the build inputs.""" ;
-    rdfs:subClassOf prov:Entity .
-
 rtm:Attestation a owl:Class ;
     rdfs:label "Attestation" ;
     rdfs:comment """Human judgment event linking a requirement to evidence
@@ -257,6 +299,16 @@ rtm:Attestation a owl:Class ;
     rdfs:subClassOf earl:Assertion,
         prov:Activity,
         gsn:Strategy .
+
+rtm:DockerImage a owl:Class ;
+    rdfs:label "Docker container image" ;
+    rdfs:comment """Content-tracked Docker image. Every analysis activity
+        that ran under --compute=docker has its evidence link back to a
+        DockerImage via prov:wasDerivedFrom. The image's identity is
+        rtm:contentHash (the runtime digest); reproducibility is anchored
+        by rtm:dockerfileHash + rtm:buildContextHash + rtm:baseImageDigest
+        which together pin the build inputs.""" ;
+    rdfs:subClassOf prov:Entity .
 
 sysml:RequirementDefinition a owl:Class ;
     rdfs:subClassOf oslc_rm:Requirement ;

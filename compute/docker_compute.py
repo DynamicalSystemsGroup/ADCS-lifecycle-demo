@@ -268,10 +268,11 @@ class DockerCompute:
 
         # WP4 c3 — git ref of the Dockerfile at the commit this image
         # was built from. Enables compute.reproduce to rebuild at the
-        # exact same source state and digest-compare.
+        # exact same source state and digest-compare. xsd:anyURI datatype
+        # matches the DockerImageProvenanceShape constraint.
         from compute.git_ref import current_git_ref
         git_ref = current_git_ref(ROOT, file_path="compute/Dockerfile")
-        graph.add((iri, RTM.gitRef, Literal(git_ref)))
+        graph.add((iri, RTM.gitRef, Literal(git_ref, datatype=XSD.anyURI)))
 
         self._image_node_iri = iri
         return iri

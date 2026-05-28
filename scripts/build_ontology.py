@@ -65,11 +65,20 @@ SYSML_OMG_NS = "http://www.omg.org/spec/SysML/20240501/"
 #   WP3 bumped to 380: rtm:DockerImage class + 4 datatype properties
 #     added +20 triples (now 176); 204 headroom for the SHACL
 #     DockerEvidenceShape (commit 6 of WP3) and future small adds.
-TRIPLE_BUDGET = 380
+#   WP4 bumped to 450: rtm:DockerContainer + 5 new properties on
+#     rtm:DockerImage / Container / Location + 2 EARL assertion classes
+#     + violationCount + transactionId + documentRef + 4 new shapes
+#     (DockerImageProvenance, DockerContainer, OrganizationAuspices,
+#     TransactionLog). 218 used; 232 headroom for the WP5 narrative pass.
+TRIPLE_BUDGET = 450
 TRIPLE_BUDGET_RATIONALE = (
-    "Integration ontology parsimony gate. WP3 bumped 356 -> 380 after "
-    "adding rtm:DockerImage class + 4 datatype properties (+20 triples). "
-    "See WP3 subplan §4.8."
+    "Integration ontology parsimony gate. WP4 bumped 380 -> 450 after "
+    "adding the three-remote provenance terms (rtm:DockerContainer + "
+    "rtm:gitRef + rtm:flexoRecord + rtm:operatedBy), EARL-wrapped "
+    "verification outcomes (rtm:DigestMatchAssertion + "
+    "rtm:ClosureRuleAssertion + rtm:violationCount), service-invocation "
+    "properties (rtm:transactionId + rtm:documentRef), and 4 new SHACL "
+    "shapes. See WP4 subplan §4.6 (ontology additions)."
 )
 
 
