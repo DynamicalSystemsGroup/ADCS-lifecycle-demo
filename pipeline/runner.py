@@ -361,6 +361,11 @@ def run_stage_6_5_verify_closure(state: PipelineState) -> ClosureRuleResult:
     report = verify_closure_rules(state.ds, skip_reverification=False)
     for line in report.summary_lines():
         print(f"  {line}")
+    # WP4 c7 — persist the closure outcome as an rtm:ClosureRuleAssertion
+    # in <adcs:audit> so the technical-trust witness is queryable.
+    from traceability.closure_assertion import emit_closure_assertion
+    closure_iri = emit_closure_assertion(state.ds, report)
+    print(f"  Closure-rule assertion: {closure_iri}")
     # Violations are surfaced but do not fail the pipeline by default —
     # the audit module renders a structured report. CI can opt into
     # hard-fail behaviour by checking `report.conforms`. When violations
