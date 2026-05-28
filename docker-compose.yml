@@ -1,0 +1,22 @@
+# docker-compose.yml — alternative to tools/start-services.sh for users
+# who prefer compose. Same defaults; same image; same auth.
+#
+# Usage:
+#   docker compose up -d
+#   docker compose down            # stop + remove (volume retained)
+#   docker compose down -v         # stop + remove + wipe volume
+
+services:
+  couchdb:
+    image: couchdb:3
+    container_name: couchdb-adcs
+    ports:
+      - "5984:5984"
+    environment:
+      COUCHDB_USER: adcs
+      COUCHDB_PASSWORD: adcs
+    volumes:
+      - couchdb-data:/opt/couchdb/data
+
+volumes:
+  couchdb-data:
