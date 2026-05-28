@@ -46,6 +46,77 @@ def test_factory_rejects_unknown():
         get_compute_backend("not-a-backend")
 
 
+class TestContainerEntity:
+    """WP4 c5 — rtm:DockerContainer entity emission via ExecutionMetadata."""
+
+    def test_container_uri_returns_none_for_local(self):
+        from compute.base import ExecutionMetadata
+        m = ExecutionMetadata(location_kind="local", hostname="myhost")
+        assert m.container_uri() is None
+
+    def test_container_uri_returns_none_when_no_container_id(self):
+        from compute.base import ExecutionMetadata
+        m = ExecutionMetadata(location_kind="docker", hostname="myhost", container_id="")
+        assert m.container_uri() is None
+
+    def test_container_uri_shape_for_docker(self):
+        from compute.base import ExecutionMetadata
+        m = ExecutionMetadata(location_kind="docker", hostname="myhost", container_id="abc123")
+        assert str(m.container_uri()) == "urn:adcs:docker-container:abc123"
+
+    def test_bind_execution_metadata_emits_container_entity(self):
+        """When metadata has a container, _bind_execution_metadata
+        emits rtm:DockerContainer + prov:used edge + wasDerivedFrom."""
+        from rdflib import Graph, URIRef
+        from compute.base import ExecutionMetadata
+        from evidence.binding import _bind_execution_metadata
+        from ontology.prefixes import PROV, RTM
+
+        g = Graph()
+        activity = URIRef("urn:adcs:test/activity-1")
+        image = URIRef("urn:adcs:docker-image:sha256-abc")
+        meta = ExecutionMetadata(
+            location_kind="docker",
+            hostname="myhost",
+            container_id="def456",
+            started_at="2026-05-28T12:00:00+00:00",
+            ended_at="2026-05-28T12:00:05+00:00",
+        )
+        _bind_execution_metadata(g, activity, meta, image_iri=image)
+
+        container = URIRef("urn:adcs:docker-container:def456")
+        assert (container, RTM.DockerContainer, None) not in g  # subject is container, not object
+        # Container exists with correct type
+        types = set(g.objects(container, URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")))
+        assert RTM.DockerContainer in types
+        assert PROV.Entity in types
+        # Container linked to image
+        assert (container, PROV.wasDerivedFrom, image) in g
+        # Activity used the container
+        assert (activity, PROV.used, container) in g
+        # Container ID literal
+        assert (container, RTM.containerId, None) in g
+
+    def test_bind_execution_metadata_skips_container_for_local(self):
+        """Local runs emit NO rtm:DockerContainer node."""
+        from rdflib import Graph, URIRef
+        from compute.base import ExecutionMetadata
+        from evidence.binding import _bind_execution_metadata
+        from ontology.prefixes import PROV, RTM
+
+        g = Graph()
+        activity = URIRef("urn:adcs:test/activity-2")
+        meta = ExecutionMetadata(
+            location_kind="local",
+            hostname="myhost",
+            started_at="2026-05-28T12:00:00+00:00",
+            ended_at="2026-05-28T12:00:05+00:00",
+        )
+        _bind_execution_metadata(g, activity, meta)
+        # No rtm:DockerContainer triples anywhere
+        assert not list(g.subjects(URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), RTM.DockerContainer))
+
+
 class TestImageNodeEmitsGitRef:
     """WP4 c3 — emit_image_node attaches rtm:gitRef to the rtm:DockerImage."""
 

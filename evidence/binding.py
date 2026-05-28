@@ -27,6 +27,7 @@ def _bind_execution_metadata(
     graph: Graph,
     activity_uri: URIRef,
     metadata: "ExecutionMetadata | None",
+    image_iri: URIRef | None = None,
 ) -> None:
     """Attach execution-context PROV triples to an analysis activity.
 
@@ -87,6 +88,24 @@ def _bind_execution_metadata(
         graph.add((activity_uri, PROV.endedAtTime,
                    Literal(metadata.ended_at, datatype=XSD.dateTime)))
 
+    # WP4 c5 — Docker container as a first-class entity distinct from
+    # the host (location) and the executor (agent). Materialization
+    # of the image; one per run.
+    container = metadata.container_uri()
+    if container is not None:
+        graph.add((container, RDF.type, RTM.DockerContainer))
+        graph.add((container, RDF.type, PROV.Entity))
+        graph.add((container, RTM.containerId, Literal(metadata.container_id)))
+        graph.add((activity_uri, PROV.used, container))
+        if image_iri is not None:
+            graph.add((container, PROV.wasDerivedFrom, image_iri))
+        if metadata.started_at:
+            graph.add((container, PROV.startedAtTime,
+                       Literal(metadata.started_at, datatype=XSD.dateTime)))
+        if metadata.ended_at:
+            graph.add((container, PROV.endedAtTime,
+                       Literal(metadata.ended_at, datatype=XSD.dateTime)))
+
 
 def bind_proof_evidence(
     graph: Graph,
@@ -137,7 +156,7 @@ def bind_proof_evidence(
     graph.add((act_uri, P_PLAN.correspondsToStep, step_iri("SymbolicAnalysis")))
     graph.add((act_uri, PROV.used, ADCS[requirement_id]))
     graph.add((act_uri, PROV.wasAssociatedWith, ADCS["SymPyEngine"]))
-    _bind_execution_metadata(graph, act_uri, execution_metadata)
+    _bind_execution_metadata(graph, act_uri, execution_metadata, image_iri=image_iri)
 
     # WP3 §4.4 — Docker-produced evidence derives from a tracked image.
     # Local-compute runs pass None and skip this edge.
@@ -190,7 +209,7 @@ def bind_simulation_evidence(
     graph.add((act_uri, P_PLAN.correspondsToStep, step_iri("NumericalSimulation")))
     graph.add((act_uri, PROV.used, ADCS[requirement_id]))
     graph.add((act_uri, PROV.wasAssociatedWith, ADCS["ScipyEngine"]))
-    _bind_execution_metadata(graph, act_uri, execution_metadata)
+    _bind_execution_metadata(graph, act_uri, execution_metadata, image_iri=image_iri)
 
     # WP3 §4.4 — Docker-produced evidence derives from a tracked image.
     if image_iri is not None:
