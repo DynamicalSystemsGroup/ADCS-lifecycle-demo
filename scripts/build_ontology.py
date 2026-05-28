@@ -51,6 +51,21 @@ SYSML_MAP_FILE = ONTOLOGY_DIR / "sysml_term_map.csv"
 SYSML_LOCAL_NS = "https://www.omg.org/spec/SysML/2.0/"
 SYSML_OPENCAESAR_NS = "http://www.omg.org/spec/SysML/20240501/"
 
+# Parsimony gate (WP2 §4.C). rtm: is an integration ontology — it should
+# contribute only convenience handles, hashing properties, and SHACL
+# targets, never new epistemic vocabulary. The gate keeps that promise
+# honest by failing the build if the assembled artifact grows past the
+# budget. The budget is the current size (156 triples) + 200 headroom
+# for WP3's rtm:DockerImage class + property set and other small adds.
+# WP3 will bump this when it lands; bumping is a deliberate act, not a
+# silent drift.
+TRIPLE_BUDGET = 356
+TRIPLE_BUDGET_RATIONALE = (
+    "Integration ontology parsimony gate. Current size + 200 headroom. "
+    "Bumped deliberately when a new term class lands (next: WP3 "
+    "rtm:DockerImage). See WP2 subplan §4.C."
+)
+
 
 @dataclass(frozen=True)
 class VendoredImport:
@@ -237,16 +252,39 @@ def build() -> int:
     artifact_sha = _sha256_bytes(final_bytes)
     print(f"  Wrote {OUT_FILE.relative_to(ROOT)} ({len(out_graph)} triples, sha256={artifact_sha[:12]}...)")
 
+    # Step 4.5: triple-count budget gate (WP2 §4.C parsimony rule)
+    total_triples = len(out_graph)
+    if total_triples > TRIPLE_BUDGET:
+        print(
+            f"  ERROR  rtm.ttl exceeds triple budget: "
+            f"{total_triples} > {TRIPLE_BUDGET}",
+            file=sys.stderr,
+        )
+        print(f"         Rationale: {TRIPLE_BUDGET_RATIONALE}", file=sys.stderr)
+        print(
+            "         To raise the budget, bump TRIPLE_BUDGET in "
+            "scripts/build_ontology.py and update the rationale comment.",
+            file=sys.stderr,
+        )
+        return 1
+    headroom = TRIPLE_BUDGET - total_triples
+    print(f"  Parsimony: {total_triples}/{TRIPLE_BUDGET} triples ({headroom} headroom)")
+
     # Step 5: emit manifest
     manifest = {
         "build_time": build_time,
         "artifact": {
             "path": "ontology/rtm.ttl",
             "sha256": artifact_sha,
-            "total_triples": len(out_graph),
+            "total_triples": total_triples,
             "subclass_axioms": _count_subclass_axioms(out_graph),
             "subproperty_axioms": _count_subproperty_axioms(out_graph),
             "equivalence_axioms": _count_equivalence_axioms(out_graph),
+        },
+        "triple_budget": {
+            "value": TRIPLE_BUDGET,
+            "rationale": TRIPLE_BUDGET_RATIONALE,
+            "headroom": headroom,
         },
         "edit_source": {
             "path": "ontology/rtm-edit.ttl",
