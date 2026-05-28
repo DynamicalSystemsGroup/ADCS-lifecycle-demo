@@ -216,6 +216,24 @@ ORDER BY ?ev
 
 
 # ---------------------------------------------------------------------------
+# WP3 §4.5 — DockerImage / evidence cross-reference
+# ---------------------------------------------------------------------------
+
+EVIDENCE_BY_IMAGE = """
+SELECT ?ev ?type ?evContentHash ?modelHash WHERE {
+    ?image a rtm:DockerImage ;
+           rtm:contentHash ?imageDigest .
+    ?ev prov:wasDerivedFrom ?image ;
+        a ?type ;
+        rtm:contentHash ?evContentHash ;
+        rtm:modelHash ?modelHash .
+    FILTER(?imageDigest = ?digest)
+}
+ORDER BY ?ev
+"""
+
+
+# ---------------------------------------------------------------------------
 # Query runner helpers
 # ---------------------------------------------------------------------------
 
@@ -229,6 +247,37 @@ def query_to_dicts(graph: Graph, sparql: str) -> list[dict[str, str]]:
     written assuming the union view.
     """
     results = graph.query(sparql, initNs=_INIT_NS)
+    rows = []
+    for row in results:
+        d = {}
+        for var in results.vars:
+            val = getattr(row, str(var), None)
+            d[str(var)] = str(val) if val is not None else None
+        rows.append(d)
+    return rows
+
+
+def evidence_by_image(graph, digest: str) -> list[dict[str, str]]:
+    """Return evidence artifacts derived from the image with the given digest.
+
+    `digest` is the runtime digest (e.g. ``sha256:71a59f23...``) as
+    stored in the image node's ``rtm:contentHash``. Returns a list of
+    row dicts with keys ``ev``, ``type``, ``evContentHash``,
+    ``modelHash``; empty list on miss.
+
+    Implements WP3 §4.5 / issue #4 AC5. Use case: given an image
+    digest, find every evidence node that was produced by a container
+    started from that image — the cross-reference that today's
+    "agent label" model cannot answer.
+
+    Pass a Dataset (union view) to query across the assembled RTM;
+    pass a single named-graph view if you intend layer scoping.
+    """
+    from rdflib import Literal
+    results = graph.query(
+        EVIDENCE_BY_IMAGE, initNs=_INIT_NS,
+        initBindings={"digest": Literal(digest)},
+    )
     rows = []
     for row in results:
         d = {}

@@ -45,10 +45,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+import re
+
+from rdflib import Graph, Literal, URIRef
+from rdflib.namespace import RDF, XSD
+
 from analysis.numerical import run_disturbance_rejection as _run_dist
 from analysis.numerical import run_step_response as _run_step
 from analysis.symbolic import run_symbolic_analysis as _run_sym
 from compute.base import ExecutionMetadata
+from evidence.hashing import hash_docker_image
+from ontology.prefixes import PROV, RTM
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_IMAGE = "adcs-compute:latest"
@@ -83,6 +90,12 @@ class DockerCompute:
         self.docker_cmd = docker_cmd
         self._image_digest: str | None = None
         self._image_built: bool = False
+        # WP3 §4.3 — DockerImage provenance node cache. Populated lazily
+        # on first emit_image_node() call; all subsequent calls in the
+        # same run short-circuit by returning the cached IRI.
+        self._image_node_iri: URIRef | None = None
+        self._image_built_at: str | None = None
+        self._base_image_digest: str | None = None
 
     # -- Daemon / image management -----------------------------------------
 
@@ -118,6 +131,9 @@ class DockerCompute:
                 f"{proc.stderr[-2000:]}"
             )
         self._image_built = True
+        # WP3 §4.3 — capture the build timestamp so emit_image_node()
+        # can stamp prov:generatedAtTime on the DockerImage entity.
+        self._image_built_at = datetime.now(timezone.utc).isoformat()
 
     def _image_metadata(self) -> tuple[str, str]:
         """Returns (image_digest, image_label). image_digest is the
@@ -131,6 +147,113 @@ class DockerCompute:
         if proc.returncode != 0:
             return "", self.image
         return proc.stdout.strip(), self.image
+
+    # -- WP3: DockerImage as evidence (§4.3) -------------------------------
+
+    def _parse_from_image(self) -> str:
+        """Parse the first `FROM <image>` line from the Dockerfile.
+
+        Returns the image tag/reference (e.g. ``python:3.12-slim``).
+        Returns the empty string if no FROM line is found (graceful
+        degrade: base-image digest will be left empty rather than
+        failing the build).
+        """
+        try:
+            text = DOCKERFILE.read_text()
+        except OSError:
+            return ""
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            m = re.match(r"^FROM\s+(?:--platform=\S+\s+)?(\S+)", stripped, re.IGNORECASE)
+            if m:
+                # FROM may include an `AS <name>` suffix on a single line
+                # (multi-stage). The first whitespace-delimited token
+                # after FROM is the image reference.
+                return m.group(1)
+        return ""
+
+    def _resolve_base_image_digest(self) -> str:
+        """Resolve the base image's digest via `docker image inspect`.
+
+        Cached per-instance. Graceful fallback to empty string if the
+        base image is not pulled locally — we record what we know and
+        let the auditor see the gap, rather than failing the pipeline.
+        """
+        if self._base_image_digest is not None:
+            return self._base_image_digest
+        base = self._parse_from_image()
+        if not base:
+            self._base_image_digest = ""
+            return ""
+        try:
+            proc = subprocess.run(
+                [self.docker_cmd, "image", "inspect", base, "--format", "{{.Id}}"],
+                capture_output=True, text=True, timeout=10,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            self._base_image_digest = ""
+            return ""
+        if proc.returncode != 0:
+            # Image not pulled locally; record empty (not a build failure).
+            self._base_image_digest = ""
+            return ""
+        self._base_image_digest = proc.stdout.strip()
+        return self._base_image_digest
+
+    def emit_image_node(self, graph: Graph) -> URIRef:
+        """Idempotent: emit one rtm:DockerImage node per WP3 run + return its IRI.
+
+        Called from evidence-binding code the first time a Docker-
+        produced evidence node needs an image to derive from. The IRI
+        is content-addressed on the runtime digest, with colons
+        replaced by dashes to match the ExecutionMetadata.executor_uri
+        convention. Subsequent calls within the same DockerCompute
+        instance short-circuit via ``self._image_node_iri``.
+
+        The image node carries six properties:
+
+          rtm:contentHash       — runtime image digest
+          rtm:imageLabel        — repo:tag
+          rtm:baseImageDigest   — FROM-image digest (may be empty if
+                                  the base image isn't pulled)
+          rtm:dockerfileHash    — SHA-256 of Dockerfile bytes
+          rtm:buildContextHash  — SHA-256 of build-context manifest
+          prov:generatedAtTime  — build timestamp captured in _build_image
+
+        The DockerImage is typed both rtm:DockerImage and prov:Entity
+        so OWL reasoners and PROV-aware tooling both classify it
+        correctly.
+        """
+        if self._image_node_iri is not None:
+            return self._image_node_iri
+
+        digest, image_label = self._image_metadata()
+        # IRI shape: urn:adcs:docker-image:<digest> with colons -> dashes.
+        # Mirrors ExecutionMetadata.executor_uri() (WP1 §4.3).
+        suffix = (digest or "unknown").replace(":", "-")
+        iri = URIRef(f"urn:adcs:docker-image:{suffix}")
+
+        dockerfile_hash, build_context_hash = hash_docker_image(DOCKERFILE, ROOT)
+        base_digest = self._resolve_base_image_digest()
+        built_at = self._image_built_at or datetime.now(timezone.utc).isoformat()
+
+        graph.add((iri, RDF.type, RTM.DockerImage))
+        graph.add((iri, RDF.type, PROV.Entity))
+        if digest:
+            graph.add((iri, RTM.contentHash, Literal(digest)))
+        if image_label:
+            graph.add((iri, RTM.imageLabel, Literal(image_label)))
+        if base_digest:
+            graph.add((iri, RTM.baseImageDigest, Literal(base_digest)))
+        graph.add((iri, RTM.dockerfileHash, Literal(dockerfile_hash)))
+        graph.add((iri, RTM.buildContextHash, Literal(build_context_hash)))
+        graph.add((iri, PROV.generatedAtTime,
+                   Literal(built_at, datatype=XSD.dateTime)))
+
+        self._image_node_iri = iri
+        return iri
 
     # -- Stage execution ---------------------------------------------------
 
