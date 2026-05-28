@@ -46,6 +46,7 @@ from pathlib import Path
 import httpx
 from rdflib import Dataset, URIRef
 
+from pipeline.backends.base import BackendUnavailable
 from pipeline.dataset import triples_by_graph
 
 
@@ -81,7 +82,43 @@ class FlexoBackend:
         if timeout is None:
             timeout = float(os.environ.get("FLEXO_TIMEOUT", "180"))
         self.timeout = timeout
+        # Preflight probe is fast by design; separate, shorter timeout.
+        self.probe_timeout = float(os.environ.get("FLEXO_PROBE_TIMEOUT", "10"))
         self._client: httpx.Client | None = None
+
+    # --- Preflight -------------------------------------------------------
+
+    def probe(self) -> None:
+        """HEAD the org endpoint to verify Flexo is reachable + auth works.
+
+        Cheap check: does NOT create the org or repo (persist() handles
+        idempotent creation). Just verifies HTTP reachability and that
+        the token (or login flow) yields a usable Authorization header.
+        """
+        try:
+            with httpx.Client(timeout=self.probe_timeout) as client:
+                try:
+                    token = self._ensure_token(client)
+                except (httpx.HTTPError, RuntimeError) as exc:
+                    raise BackendUnavailable(
+                        f"Flexo auth failed against {self.auth_url}: {exc}. "
+                        f"Set FLEXO_TOKEN (pre-issued) or check FLEXO_USER/FLEXO_PASS."
+                    ) from exc
+                head = client.head(
+                    f"{self.url}/orgs/{self.org}",
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+                # 200/204 = org exists; 404 = org absent but server reachable
+                # (persist() will create it). Anything else is a real problem.
+                if head.status_code not in (200, 204, 404):
+                    raise BackendUnavailable(
+                        f"Flexo HEAD {self.url}/orgs/{self.org} returned "
+                        f"{head.status_code}: {head.text[:200]}"
+                    )
+        except httpx.HTTPError as exc:
+            raise BackendUnavailable(
+                f"Flexo at {self.url} is unreachable: {exc}"
+            ) from exc
 
     # --- Auth -------------------------------------------------------------
 

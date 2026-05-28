@@ -216,6 +216,136 @@ def test_flexo_backend_describe_reflects_token_origin():
 # FuskeiBackend (mocked httpx)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Probe (WP4 §4.1) — preflight reachability checks
+# ---------------------------------------------------------------------------
+
+def test_local_backend_probe_succeeds_on_writable_dir(tmp_path):
+    """LocalBackend.probe() writes + deletes a .probe sentinel."""
+    LocalBackend().probe(output_dir=tmp_path)
+    # Sentinel cleaned up
+    assert not (tmp_path / ".probe").exists()
+
+
+def test_local_backend_probe_fails_on_unwritable_dir(tmp_path, monkeypatch):
+    """probe() raises BackendUnavailable if the directory is not writable."""
+    from pipeline.backends.base import BackendUnavailable
+
+    target = tmp_path / "readonly"
+    target.mkdir()
+    target.chmod(0o555)
+    try:
+        with pytest.raises(BackendUnavailable, match="not writable"):
+            LocalBackend().probe(output_dir=target)
+    finally:
+        target.chmod(0o755)  # restore so pytest can clean up
+
+
+def test_flexo_backend_probe_succeeds_on_reachable_org(monkeypatch):
+    """probe() HEADs the org endpoint; 200/204/404 are all OK."""
+    record: list[dict] = []
+    monkeypatch.setenv("FLEXO_TOKEN", "fake-token")
+    backend = FlexoBackend(url="http://flexo.test", org="adcs-demo")
+
+    orig_init = httpx.Client.__init__
+
+    def patched_init(self, *args, **kwargs):
+        kwargs["transport"] = _flexo_mock_transport(record)
+        orig_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.Client, "__init__", patched_init)
+    backend.probe()  # should not raise
+
+    heads = [r for r in record if r["method"] == "HEAD"]
+    head_paths = [r["url"].replace("http://flexo.test", "") for r in heads]
+    assert "/orgs/adcs-demo" in head_paths, (
+        "probe must HEAD /orgs/<org> to verify reachability"
+    )
+
+
+def test_flexo_backend_probe_fails_on_unreachable_url(monkeypatch):
+    """probe() raises BackendUnavailable when HTTP fails."""
+    from pipeline.backends.base import BackendUnavailable
+
+    monkeypatch.setenv("FLEXO_TOKEN", "fake-token")
+    backend = FlexoBackend(url="http://flexo.test")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("simulated connection refused")
+
+    orig_init = httpx.Client.__init__
+
+    def patched_init(self, *args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        orig_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.Client, "__init__", patched_init)
+    with pytest.raises(BackendUnavailable, match="unreachable"):
+        backend.probe()
+
+
+def test_flexo_backend_probe_fails_on_bad_auth(monkeypatch):
+    """probe() raises BackendUnavailable when /login returns no token."""
+    from pipeline.backends.base import BackendUnavailable
+
+    monkeypatch.delenv("FLEXO_TOKEN", raising=False)
+    backend = FlexoBackend(url="http://flexo.test", auth_url="http://auth.test")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/login"):
+            return httpx.Response(200, json={})  # no token in response
+        return httpx.Response(200)
+
+    orig_init = httpx.Client.__init__
+
+    def patched_init(self, *args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        orig_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.Client, "__init__", patched_init)
+    with pytest.raises(BackendUnavailable, match="auth failed"):
+        backend.probe()
+
+
+def test_fuseki_backend_probe_succeeds(monkeypatch):
+    """Fuseki probe HEADs /data; 200 succeeds."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200)
+
+    backend = FuskeiBackend(url="http://fuseki.test/adcs")
+    orig_init = httpx.Client.__init__
+
+    def patched_init(self, *args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        orig_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.Client, "__init__", patched_init)
+    backend.probe()  # should not raise
+
+
+def test_fuseki_backend_probe_fails_on_unreachable(monkeypatch):
+    """Fuseki probe raises BackendUnavailable when HTTP fails."""
+    from pipeline.backends.base import BackendUnavailable
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("simulated")
+
+    backend = FuskeiBackend(url="http://fuseki.test/adcs")
+    orig_init = httpx.Client.__init__
+
+    def patched_init(self, *args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        orig_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.Client, "__init__", patched_init)
+    with pytest.raises(BackendUnavailable, match="unreachable"):
+        backend.probe()
+
+
+# ---------------------------------------------------------------------------
+# FuskeiBackend (mocked httpx) — persist path
+# ---------------------------------------------------------------------------
+
 def test_fuseki_backend_puts_via_graph_store_protocol(pipeline_dataset, monkeypatch):
     """Each named graph is PUT to <base>/data?graph=<iri> with Turtle."""
     record: list[dict] = []

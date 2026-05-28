@@ -6,11 +6,27 @@ from pathlib import Path
 
 from rdflib import Dataset
 
+from pipeline.backends.base import BackendUnavailable
 from pipeline.dataset import export_trig, export_union_turtle, triples_by_graph
+
+_DEFAULT_OUTPUT = Path(__file__).resolve().parent.parent.parent / "output"
 
 
 class LocalBackend:
     name = "local"
+
+    def probe(self, output_dir: Path | None = None) -> None:
+        """Verify the output directory is writable (preflight check)."""
+        target = Path(output_dir) if output_dir is not None else _DEFAULT_OUTPUT
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+            sentinel = target / ".probe"
+            sentinel.write_text("ok\n")
+            sentinel.unlink()
+        except OSError as exc:
+            raise BackendUnavailable(
+                f"local output directory {target} is not writable: {exc}"
+            ) from exc
 
     def persist(self, ds: Dataset, output_dir: Path) -> dict:
         output_dir = Path(output_dir)

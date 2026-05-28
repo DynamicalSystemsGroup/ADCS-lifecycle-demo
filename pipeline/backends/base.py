@@ -8,6 +8,16 @@ from typing import Protocol, runtime_checkable
 from rdflib import Dataset
 
 
+class BackendUnavailable(RuntimeError):
+    """Preflight probe detected the backend is unreachable / misconfigured.
+
+    Raised by `StoreBackend.probe()`. The runner catches this at startup,
+    prints the backend's `describe()` output + the cause, and exits
+    with code 2 (matches WP2's ROBOT fail-fast shape — the integration
+    story must not silently degrade).
+    """
+
+
 @runtime_checkable
 class StoreBackend(Protocol):
     """Persistence target for the runtime RTM Dataset.
@@ -23,6 +33,16 @@ class StoreBackend(Protocol):
     """
 
     name: str
+
+    def probe(self) -> None:
+        """Preflight reachability check; raise BackendUnavailable on failure.
+
+        Called by the runner before Stage 1 so failure is fast and clear
+        rather than discovered at the last stage. Implementations should
+        be cheap (target seconds, not minutes) and report concrete causes
+        (HTTP status, missing path, missing credentials).
+        """
+        ...
 
     def persist(self, ds: Dataset, output_dir: Path) -> dict:
         """Push `ds` to the persistence target.
