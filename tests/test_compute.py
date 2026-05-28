@@ -46,6 +46,25 @@ def test_factory_rejects_unknown():
         get_compute_backend("not-a-backend")
 
 
+class TestComputeProbe:
+    """WP4 c2 — ComputeBackend.probe() preflight."""
+
+    def test_local_compute_probe_is_noop(self):
+        LocalCompute().probe()  # must not raise
+
+    def test_docker_not_available_is_compute_unavailable(self):
+        """WP4: DockerNotAvailable subclasses ComputeUnavailable so the
+        preflight gate can catch the broader type uniformly."""
+        from compute.base import ComputeUnavailable
+        assert issubclass(DockerNotAvailable, ComputeUnavailable)
+
+    def test_docker_probe_raises_when_daemon_missing(self):
+        """DockerCompute.probe wraps _check_daemon; raises when docker absent."""
+        backend = DockerCompute(docker_cmd="docker-does-not-exist")
+        with pytest.raises(DockerNotAvailable):
+            backend.probe()
+
+
 class TestExecutionMetadataURIs:
     """ExecutionMetadata.executor_uri / location_uri — §4.3 of WP1.
 

@@ -31,6 +31,7 @@ class TestPipelineState:
         state = PipelineState(
             ds=Dataset(),
             compute_backend=None,  # type: ignore[arg-type]
+            store_backend=None,    # type: ignore[arg-type]
             engineer_name="test",
         )
         # Stage 0 (OntologyAssembly) is emitted by stage0_assembly; all

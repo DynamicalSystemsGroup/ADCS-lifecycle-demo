@@ -22,6 +22,7 @@ from rdflib import Dataset
 
 if TYPE_CHECKING:
     from compute.base import ComputeBackend, ExecutionMetadata
+    from pipeline.backends.base import StoreBackend
     from traceability.audit import AuditReport
     from traceability.verification import VerificationReport
 
@@ -89,6 +90,7 @@ class PipelineState:
 
     ds: Dataset
     compute_backend: "ComputeBackend"
+    store_backend: "StoreBackend"
     engineer_name: str
     auto_attest: bool = False
     skip_attestation: bool = False

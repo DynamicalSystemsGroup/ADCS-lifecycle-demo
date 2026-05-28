@@ -72,8 +72,16 @@ _STAGE_FNS: dict[str, Callable[[dict], Any]] = {
 }
 
 
-class DockerNotAvailable(RuntimeError):
-    """The Docker daemon isn't reachable from this host."""
+from compute.base import ComputeUnavailable
+
+
+class DockerNotAvailable(ComputeUnavailable):
+    """The Docker daemon isn't reachable from this host.
+
+    Subclass of `ComputeUnavailable` (WP4) so the preflight gate can
+    catch the broader exception type. Existing call sites that catch
+    `DockerNotAvailable` keep working unchanged.
+    """
 
 
 class DockerCompute:
@@ -96,6 +104,12 @@ class DockerCompute:
         self._image_node_iri: URIRef | None = None
         self._image_built_at: str | None = None
         self._base_image_digest: str | None = None
+
+    # -- Preflight ---------------------------------------------------------
+
+    def probe(self) -> None:
+        """Verify the Docker daemon is reachable; raises ComputeUnavailable."""
+        self._check_daemon()
 
     # -- Daemon / image management -----------------------------------------
 

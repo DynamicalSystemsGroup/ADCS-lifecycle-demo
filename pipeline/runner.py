@@ -395,7 +395,7 @@ def run_stage_7a_audit(state: PipelineState) -> AuditStageResult:
 def run_stage_7_report(state: PipelineState) -> ReportStageResult:
     emit_stage_activity(state.ds, "Report")
     print("\n[Stage 7] Generating reports...")
-    store = get_backend(state.backend_name)
+    store = state.store_backend
     print(f"  Backend: {store.describe()}")
     persisted = store.persist(state.ds, OUTPUT_DIR)
     print(f"  Persisted {len(persisted)} named graphs "
@@ -404,6 +404,45 @@ def run_stage_7_report(state: PipelineState) -> ReportStageResult:
     summary = print_rtm_summary(state.ds)
     print(summary)
     return ReportStageResult(persisted_graphs=persisted, backend_name=state.backend_name)
+
+
+# ── Preflight (WP4 c2) ───────────────────────────────────────────────
+def _run_preflight(compute_backend, store_backend) -> None:
+    """Probe both backends; print outcomes; fail-fast with exit 2 on error.
+
+    The preflight runs before Stage 0 so unreachable backends are
+    surfaced immediately, not at the last persist step. Honors the
+    "stop being a mock-up" framing: the integration story doesn't
+    silently degrade when a remote is down.
+    """
+    from compute.base import ComputeUnavailable
+    from pipeline.backends.base import BackendUnavailable
+
+    print("\n[Preflight] Probing compute + storage backends...")
+    print(f"  Compute: {compute_backend.describe()}")
+    print(f"  Storage: {store_backend.describe()}")
+
+    failures: list[str] = []
+    try:
+        compute_backend.probe()
+        print("  Compute probe: PASS")
+    except ComputeUnavailable as exc:
+        failures.append(f"compute={compute_backend.name}: {exc}")
+        print(f"  Compute probe: FAIL — {exc}")
+
+    try:
+        store_backend.probe()
+        print("  Storage probe: PASS")
+    except BackendUnavailable as exc:
+        failures.append(f"backend={store_backend.name}: {exc}")
+        print(f"  Storage probe: FAIL — {exc}")
+
+    if failures:
+        print("\n[Preflight] ERROR: one or more backends are unreachable.")
+        for f in failures:
+            print(f"  - {f}")
+        print("\nFix the failing backend(s) and re-run, or switch to --backend=local / --compute=local.")
+        sys.exit(2)
 
 
 # ── Stage 8: VISUALIZED_AND_INTERROGABLE ─────────────────────────────
@@ -434,10 +473,19 @@ def run_pipeline(
     Default-union is enabled so consumers can query across the union
     with plain SPARQL.
     """
+    # WP4 c2 — preflight gate: construct both backends up-front and
+    # probe reachability BEFORE any stage runs. Fail-fast with exit
+    # code 2 (matches WP2's ROBOT discipline) so the integration
+    # story doesn't degrade silently at Stage 7.
+    compute_backend = get_compute_backend(compute)
+    store_backend = get_backend(backend)
+    _run_preflight(compute_backend, store_backend)
+
     ds = run_stage_0(rebuild=rebuild_ontology)
     state = PipelineState(
         ds=ds,
-        compute_backend=get_compute_backend(compute),
+        compute_backend=compute_backend,
+        store_backend=store_backend,
         engineer_name=engineer_name,
         auto_attest=auto_attest,
         skip_attestation=skip_attestation,
