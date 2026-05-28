@@ -96,6 +96,9 @@ class PipelineState:
     skip_attestation: bool = False
     backend_name: str = "local"
     compute_name: str = "local"
+    # WP4 c6 — organizational auspices (operating + hosting orgs)
+    operating_org_iri: str = "urn:adcs:org:local-operator"
+    hosting_org_iri: str = "urn:adcs:org:local-operator"
 
     structural: StructuralResult | None = None
     symbolic: SymbolicResult | None = None

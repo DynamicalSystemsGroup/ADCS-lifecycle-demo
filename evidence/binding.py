@@ -28,6 +28,8 @@ def _bind_execution_metadata(
     activity_uri: URIRef,
     metadata: "ExecutionMetadata | None",
     image_iri: URIRef | None = None,
+    operating_org_iri: URIRef | None = None,
+    hosting_org_iri: URIRef | None = None,
 ) -> None:
     """Attach execution-context PROV triples to an analysis activity.
 
@@ -81,6 +83,13 @@ def _bind_execution_metadata(
     graph.add((location, RDFS.label,
                Literal(f"{metadata.location_kind}:{metadata.hostname or '?'}")))
 
+    # WP4 c6 — organizational auspices: executor acted on behalf of
+    # the operating org; host is operated by the hosting org.
+    if operating_org_iri is not None:
+        graph.add((executor, PROV.actedOnBehalfOf, operating_org_iri))
+    if hosting_org_iri is not None:
+        graph.add((location, RTM.operatedBy, hosting_org_iri))
+
     if metadata.started_at:
         graph.add((activity_uri, PROV.startedAtTime,
                    Literal(metadata.started_at, datatype=XSD.dateTime)))
@@ -105,6 +114,9 @@ def _bind_execution_metadata(
         if metadata.ended_at:
             graph.add((container, PROV.endedAtTime,
                        Literal(metadata.ended_at, datatype=XSD.dateTime)))
+        # WP4 c6 — container attributed to operating org
+        if operating_org_iri is not None:
+            graph.add((container, PROV.wasAttributedTo, operating_org_iri))
 
 
 def bind_proof_evidence(
@@ -120,6 +132,8 @@ def bind_proof_evidence(
     git_commit: str = "",
     execution_metadata: "ExecutionMetadata | None" = None,
     image_iri: URIRef | None = None,
+    operating_org_iri: URIRef | None = None,
+    hosting_org_iri: URIRef | None = None,
 ) -> URIRef:
     """Create an rtm:ProofArtifact node in the graph.
 
@@ -156,7 +170,9 @@ def bind_proof_evidence(
     graph.add((act_uri, P_PLAN.correspondsToStep, step_iri("SymbolicAnalysis")))
     graph.add((act_uri, PROV.used, ADCS[requirement_id]))
     graph.add((act_uri, PROV.wasAssociatedWith, ADCS["SymPyEngine"]))
-    _bind_execution_metadata(graph, act_uri, execution_metadata, image_iri=image_iri)
+    _bind_execution_metadata(graph, act_uri, execution_metadata, image_iri=image_iri,
+                             operating_org_iri=operating_org_iri,
+                             hosting_org_iri=hosting_org_iri)
 
     # WP3 §4.4 — Docker-produced evidence derives from a tracked image.
     # Local-compute runs pass None and skip this edge.
@@ -179,6 +195,8 @@ def bind_simulation_evidence(
     git_commit: str = "",
     execution_metadata: "ExecutionMetadata | None" = None,
     image_iri: URIRef | None = None,
+    operating_org_iri: URIRef | None = None,
+    hosting_org_iri: URIRef | None = None,
 ) -> URIRef:
     """Create an rtm:SimulationResult node in the graph.
 
@@ -209,7 +227,9 @@ def bind_simulation_evidence(
     graph.add((act_uri, P_PLAN.correspondsToStep, step_iri("NumericalSimulation")))
     graph.add((act_uri, PROV.used, ADCS[requirement_id]))
     graph.add((act_uri, PROV.wasAssociatedWith, ADCS["ScipyEngine"]))
-    _bind_execution_metadata(graph, act_uri, execution_metadata, image_iri=image_iri)
+    _bind_execution_metadata(graph, act_uri, execution_metadata, image_iri=image_iri,
+                             operating_org_iri=operating_org_iri,
+                             hosting_org_iri=hosting_org_iri)
 
     # WP3 §4.4 — Docker-produced evidence derives from a tracked image.
     if image_iri is not None:

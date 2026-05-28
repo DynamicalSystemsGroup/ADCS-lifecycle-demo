@@ -196,6 +196,12 @@ def run_stage_4_bind_evidence(state: PipelineState) -> EvidenceBindingResult:
             ev_graph.add((image_iri, _RTM.flexoRecord, flexo_record))
             print(f"  rtm:flexoRecord: {flexo_record}")
 
+    # WP4 c6 — pass the per-run org IRIs to binding so executor + container
+    # + host carry their organizational auspices.
+    from rdflib import URIRef as _U
+    operating_org = _U(state.operating_org_iri)
+    hosting_org = _U(state.hosting_org_iri)
+
     # Proof evidence for all 4 requirements.
     for req_id, script in proofs.items():
         p_hash = hash_proof(script, model_hash)
@@ -212,6 +218,8 @@ def run_stage_4_bind_evidence(state: PipelineState) -> EvidenceBindingResult:
             source_file="analysis/build_proofs.py",
             execution_metadata=sym_meta,
             image_iri=image_iri,
+            operating_org_iri=operating_org,
+            hosting_org_iri=hosting_org,
         )
 
     # Simulation evidence for REQ-001, REQ-002.
@@ -233,6 +241,8 @@ def run_stage_4_bind_evidence(state: PipelineState) -> EvidenceBindingResult:
             source_file="analysis/numerical.py",
             execution_metadata=step_meta,
             image_iri=image_iri,
+            operating_org_iri=operating_org,
+            hosting_org_iri=hosting_org,
         )
 
     # Disturbance rejection evidence for REQ-004.
@@ -248,6 +258,8 @@ def run_stage_4_bind_evidence(state: PipelineState) -> EvidenceBindingResult:
         source_file="analysis/numerical.py",
         execution_metadata=dist_meta,
         image_iri=image_iri,
+        operating_org_iri=operating_org,
+        hosting_org_iri=hosting_org,
     )
 
     evidence_node_count = len(list(ev_graph.subjects()))
@@ -489,7 +501,19 @@ def run_pipeline(
     store_backend = get_backend(backend)
     _run_preflight(compute_backend, store_backend)
 
+    # WP4 c6 — organizational auspices loaded from env (defaults
+    # urn:adcs:org:local-operator for both).
+    from compute.organizations import emit_org_nodes, load_auspices
+    auspices = load_auspices()
+    print(f"  Operating org: {auspices.operating_iri} ({auspices.operating_label})")
+    if str(auspices.hosting_iri) != str(auspices.operating_iri):
+        print(f"  Hosting org:   {auspices.hosting_iri} ({auspices.hosting_label})")
+
     ds = run_stage_0(rebuild=rebuild_ontology)
+    # Emit the org nodes into <adcs:context> so they accumulate across runs
+    from pipeline.dataset import graph_for
+    emit_org_nodes(graph_for(ds, "context"), auspices)
+
     state = PipelineState(
         ds=ds,
         compute_backend=compute_backend,
@@ -499,6 +523,8 @@ def run_pipeline(
         skip_attestation=skip_attestation,
         backend_name=backend,
         compute_name=compute,
+        operating_org_iri=str(auspices.operating_iri),
+        hosting_org_iri=str(auspices.hosting_iri),
     )
     state.structural    = run_stage_1_structural(state)
     state.symbolic      = run_stage_2_symbolic(state)
