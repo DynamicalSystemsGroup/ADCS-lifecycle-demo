@@ -14,8 +14,11 @@ Reference: gds-proof/gds_proof/identity/hashing.py
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import sympy
@@ -25,9 +28,112 @@ if TYPE_CHECKING:
     from analysis.proof_scripts import ProofScript
 
 
+# Default ignore patterns for hash_docker_image()'s build-context walk.
+# Filenames matched by ANY of these globs are excluded from the manifest.
+# Path components anywhere in the relative path also match — `.git/index`
+# is excluded because its first component `.git` matches `.git`.
+DOCKER_BUILD_CONTEXT_DEFAULT_IGNORES: tuple[str, ...] = (
+    ".git",
+    "__pycache__",
+    "*.pyc",
+    ".venv",
+    "venv",
+    "node_modules",
+    ".docker-ipc",
+    "output",
+    ".DS_Store",
+    ".pytest_cache",
+    ".ruff_cache",
+)
+
+
 def _serialize_for_hash(data: dict) -> str:
     """JSON-serialize a dict deterministically for hashing."""
     return json.dumps(data, sort_keys=True, default=str)
+
+
+def _ignored(rel_path: str, ignore_patterns: tuple[str, ...]) -> bool:
+    """True if any path component (or the leaf) matches any ignore glob."""
+    parts = rel_path.split(os.sep)
+    for pat in ignore_patterns:
+        # Match against the leaf (so `*.pyc` works), against each
+        # intermediate component (so `.git` excludes `.git/index`), and
+        # against the whole relative path (so `output/foo.txt` works).
+        if fnmatch.fnmatch(parts[-1], pat):
+            return True
+        for part in parts[:-1]:
+            if fnmatch.fnmatch(part, pat):
+                return True
+        if fnmatch.fnmatch(rel_path, pat):
+            return True
+    return False
+
+
+def hash_docker_image(
+    dockerfile_path: str | Path,
+    build_context_root: str | Path,
+    *,
+    ignore_patterns: tuple[str, ...] = DOCKER_BUILD_CONTEXT_DEFAULT_IGNORES,
+) -> tuple[str, str]:
+    """Compute deterministic hashes for Docker build inputs.
+
+    Returns ``(dockerfile_hash, build_context_hash)`` where:
+
+    - ``dockerfile_hash`` is the SHA-256 of the Dockerfile bytes.
+    - ``build_context_hash`` is the SHA-256 of a sorted manifest of
+      ``<relative-path>\\t<file-sha256>`` lines for every file under
+      ``build_context_root`` that is NOT matched by ``ignore_patterns``.
+
+    These pin the **build inputs** — they're independent of the runtime
+    image digest the Docker daemon assigns after build. The pair plus
+    the resolved base-image digest are what makes a Docker image
+    reproducibly identifiable.
+
+    The manifest format is intentionally simple. If the demo adopts
+    SLSA / in-toto envelopes in the future signing work item, that
+    becomes the canonical envelope and this hash stays as a fast
+    self-check.
+
+    Raises ``FileNotFoundError`` if ``dockerfile_path`` does not exist.
+    """
+    dockerfile = Path(dockerfile_path)
+    if not dockerfile.is_file():
+        raise FileNotFoundError(f"Dockerfile not found: {dockerfile}")
+    dockerfile_hash = hashlib.sha256(dockerfile.read_bytes()).hexdigest()
+
+    context = Path(build_context_root).resolve()
+    manifest_lines: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(context):
+        # Prune ignored directories so we don't recurse into them.
+        rel_dir = os.path.relpath(dirpath, context)
+        dirnames[:] = [
+            d for d in dirnames
+            if not _ignored(
+                d if rel_dir == "." else os.path.join(rel_dir, d),
+                ignore_patterns,
+            )
+        ]
+        for fname in filenames:
+            rel = fname if rel_dir == "." else os.path.join(rel_dir, fname)
+            if _ignored(rel, ignore_patterns):
+                continue
+            abs_path = Path(dirpath) / fname
+            try:
+                file_sha = hashlib.sha256(abs_path.read_bytes()).hexdigest()
+            except (PermissionError, OSError):
+                # Unreadable files (sockets, broken symlinks) are skipped;
+                # their absence from the manifest is part of the hash's
+                # determinism guarantee on the current host.
+                continue
+            # Normalize separator to forward-slash so the manifest is
+            # the same on macOS/Linux/WSL.
+            rel_posix = rel.replace(os.sep, "/")
+            manifest_lines.append(f"{rel_posix}\t{file_sha}")
+
+    manifest_lines.sort()
+    manifest = "\n".join(manifest_lines) + "\n"
+    build_context_hash = hashlib.sha256(manifest.encode("utf-8")).hexdigest()
+    return dockerfile_hash, build_context_hash
 
 
 def hash_structural_model(graph: Graph) -> str:
