@@ -130,3 +130,80 @@ def test_hash_docker_image_against_repo_dockerfile():
     assert len(dockerfile_hash) == 64
     assert len(context_hash) == 64
     assert dockerfile_hash != context_hash
+
+
+# ---------------------------------------------------------------------------
+# AC5: evidence_by_image SPARQL helper
+# ---------------------------------------------------------------------------
+
+def _build_image_evidence_dataset():
+    """Synthesize a minimal dataset with two images and three evidence
+    nodes — two derived from image A, one from image B — plus one
+    evidence node with no wasDerivedFrom edge (negative case)."""
+    from rdflib import Dataset, Literal, URIRef
+    from rdflib.namespace import RDF
+    from ontology.prefixes import ADCS, PROV, RTM, bind_prefixes
+
+    ds = Dataset(default_union=True)
+    bind_prefixes(ds)
+    g = ds.graph(URIRef("urn:adcs:test-evidence"))
+
+    img_a = URIRef("urn:adcs:docker-image:sha256-aaaa")
+    img_b = URIRef("urn:adcs:docker-image:sha256-bbbb")
+    for img, digest in [(img_a, "sha256:aaaa"), (img_b, "sha256:bbbb")]:
+        g.add((img, RDF.type, RTM.DockerImage))
+        g.add((img, RDF.type, PROV.Entity))
+        g.add((img, RTM.contentHash, Literal(digest)))
+
+    def _add_ev(ev_iri, ev_type, model_hash, content_hash, derived_from=None):
+        g.add((ev_iri, RDF.type, ev_type))
+        g.add((ev_iri, RTM.modelHash, Literal(model_hash)))
+        g.add((ev_iri, RTM.contentHash, Literal(content_hash)))
+        if derived_from is not None:
+            g.add((ev_iri, PROV.wasDerivedFrom, derived_from))
+
+    _add_ev(ADCS["EV-PROOF-001"], RTM.ProofArtifact, "m1", "c1", img_a)
+    _add_ev(ADCS["EV-SIM-001"], RTM.SimulationResult, "m1", "c2", img_a)
+    _add_ev(ADCS["EV-PROOF-002"], RTM.ProofArtifact, "m1", "c3", img_b)
+    # Unlinked: not derived from any image (local-compute style).
+    _add_ev(ADCS["EV-PROOF-003"], RTM.ProofArtifact, "m1", "c4", None)
+    return ds
+
+
+def test_evidence_by_image_returns_linked_evidence():
+    from traceability.queries import evidence_by_image
+    ds = _build_image_evidence_dataset()
+    rows_a = evidence_by_image(ds, "sha256:aaaa")
+    # Image A has 2 derived evidence nodes; image B has 1; unlinked is
+    # invisible to all queries.
+    assert len(rows_a) == 2, f"expected 2 rows for image A, got {len(rows_a)}: {rows_a}"
+    contents = {r["evContentHash"] for r in rows_a}
+    assert contents == {"c1", "c2"}
+
+
+def test_evidence_by_image_isolates_by_digest():
+    from traceability.queries import evidence_by_image
+    ds = _build_image_evidence_dataset()
+    rows_b = evidence_by_image(ds, "sha256:bbbb")
+    assert len(rows_b) == 1
+    assert rows_b[0]["evContentHash"] == "c3"
+
+
+def test_evidence_by_image_miss_returns_empty_list():
+    from traceability.queries import evidence_by_image
+    ds = _build_image_evidence_dataset()
+    rows = evidence_by_image(ds, "sha256:does-not-exist")
+    assert rows == []
+
+
+def test_evidence_by_image_skips_unlinked_evidence():
+    """Evidence with no prov:wasDerivedFrom must never appear in any
+    image's result set — even if the digest filter would match
+    something else. EV-PROOF-003 in the fixture has no edge."""
+    from traceability.queries import evidence_by_image
+    ds = _build_image_evidence_dataset()
+    # Try every present digest; EV-PROOF-003's contentHash ("c4") must
+    # never appear.
+    for digest in ("sha256:aaaa", "sha256:bbbb"):
+        rows = evidence_by_image(ds, digest)
+        assert all(r["evContentHash"] != "c4" for r in rows)
