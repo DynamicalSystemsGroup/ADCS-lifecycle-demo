@@ -5,7 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from rdflib import Dataset
+from rdflib import Dataset, URIRef
+
+
+class BackendUnavailable(RuntimeError):
+    """Preflight probe detected the backend is unreachable / misconfigured.
+
+    Raised by `StoreBackend.probe()`. The runner catches this at startup,
+    prints the backend's `describe()` output + the cause, and exits
+    with code 2 (matches WP2's ROBOT fail-fast shape — the integration
+    story must not silently degrade).
+    """
 
 
 @runtime_checkable
@@ -23,6 +33,34 @@ class StoreBackend(Protocol):
     """
 
     name: str
+
+    def probe(self) -> None:
+        """Preflight reachability check; raise BackendUnavailable on failure.
+
+        Called by the runner before Stage 1 so failure is fast and clear
+        rather than discovered at the last stage. Implementations should
+        be cheap (target seconds, not minutes) and report concrete causes
+        (HTTP status, missing path, missing credentials).
+        """
+        ...
+
+    def record_uri(self, layer: str) -> URIRef | None:
+        """Stable IRI for the location where this layer's graph lives.
+
+        Used by WP4 to attach `rtm:flexoRecord` to `rtm:DockerImage`
+        nodes so consumers can resolve "where in the storage backend
+        does this image's record live?" via standard PROV traversal.
+
+        Implementations:
+          - LocalBackend  : returns None (no remote IRI)
+          - FlexoBackend  : returns urn:adcs:flexo:<org>/<repo>/<branch>
+          - FuskeiBackend : returns urn:adcs:fuseki:<host>/<dataset>/<branch>
+
+        `layer` is a named-graph key from ontology.prefixes.NAMED_GRAPHS
+        (e.g. "evidence", "attestations"); the implementation may map
+        it to the backend-specific identifier (branch, container, etc.).
+        """
+        ...
 
     def persist(self, ds: Dataset, output_dir: Path) -> dict:
         """Push `ds` to the persistence target.

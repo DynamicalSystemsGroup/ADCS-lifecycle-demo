@@ -29,7 +29,7 @@ project's contribution is the assembly, not new terms.
 | Namespace                            | Role                                             |
 | ------------------------------------ | ------------------------------------------------ |
 | `prov:`                              | Provenance spine                                 |
-| `sysml:` ↔ `omg-sysml:`              | SysMLv2; local prefix aliased to openCAESAR     |
+| `sysml:` ↔ `omg-sysml:`              | SysMLv2; local prefix aliased to OMG SysMLv2 OWL |
 | `earl:`                              | Assertion + outcome lattice + mode               |
 | `gsn:` (OntoGSN)                     | Goal / Strategy / Solution / Assumption / Justification |
 | `p-plan:`                            | Process model (one Step per pipeline stage)      |
@@ -47,13 +47,56 @@ sized to match Flexo MMS branch conventions:
 <rtm:plan>            P-PLAN process model
 <adcs:structural>     SysMLv2 instance data
 <adcs:context>        Stable gsn:Context / gsn:Assumption individuals
-<adcs:evidence>       rtm:Evidence artifacts
+<adcs:evidence>       rtm:Evidence artifacts (incl. rtm:DockerImage under --compute=docker, WP3)
 <adcs:attestations>   rtm:Attestation events
 <adcs:plan-execution> p-plan:Activity instances (one per stage)
 <adcs:audit>          Forward/backward/bidirectional audit summary
 ```
 
 IRIs and the `NAMED_GRAPHS` dict are in [`ontology/prefixes.py`](ontology/prefixes.py).
+
+## Three-remote architecture (WP4)
+
+The demo runs against three remotes + a fourth service. See
+[ARCHITECTURE.md](ARCHITECTURE.md) for the full picture; one-paragraph
+summary:
+
+- **git** holds code, ontology, Dockerfile.
+- **Flexo** holds RDF named graphs (incl. `rtm:DockerImage` records).
+- **local Docker** is the runtime: image (static, content-addressed)
+  vs container (transient, per-run) vs host (the machine).
+- **transaction-log store** (CouchDB; opt-in via `ADCS_TXNLOG_ENABLED=1`)
+  holds the wire-log JSON for each service invocation.
+
+URI scheme (canonical shapes):
+
+- Image: `urn:adcs:docker-image:<digest>` (`rtm:DockerImage`)
+- Container: `urn:adcs:docker-container:<container-id>` (`rtm:DockerContainer`)
+- Host: `urn:adcs:location:docker:<host>` (`prov:Location`)
+- Executor: `urn:adcs:executor:<id>` (`prov:SoftwareAgent`)
+- Operating org: `urn:adcs:org:local-operator` default (`prov:Organization`)
+- Flexo record: `urn:adcs:flexo:<org>/<repo>/<branch>`
+- Txnlog service: `urn:adcs:service:transaction-log-store`
+
+Standard PROV edges link them: `<container> prov:wasDerivedFrom
+<image>`, `<activity> prov:used <container>`, `<host> rtm:operatedBy
+<hosting-org>` (subPropertyOf prov:wasAttributedTo), `<executor>
+prov:actedOnBehalfOf <operating-org>`. The image carries `rtm:gitRef`
++ `rtm:flexoRecord` for cross-remote linking.
+
+**EARL-wrapped verification outcomes** sit beside human attestation:
+`rtm:ClosureRuleAssertion` (Stage 6.5 SHACL outcome) and
+`rtm:DigestMatchAssertion` (`compute.reproduce` rebuild outcome) are
+both `earl:Assertion` subclasses with `earl:mode = earl:automatic`.
+
+**Preflight gate** probes every configured backend before Stage 0 and
+fails fast on any unreachable remote. Matches WP2's ROBOT-default
+discipline — no silent degrade.
+
+**Six trust queries** in `traceability/queries.py` answer "how can I
+trust this?" — `technical_provenance`, `auspices_chain`,
+`reproducibility_witnesses`, `closure_witnesses`,
+`service_invocations_for`, `trust_summary`.
 
 ## Key directories
 
@@ -66,11 +109,13 @@ IRIs and the `NAMED_GRAPHS` dict are in [`ontology/prefixes.py`](ontology/prefix
   remote-emulation with PROV provenance capture) + `Dockerfile`
 - `evidence/` — content hashing + RDF evidence binding (with execution metadata)
 - `traceability/` — RTM assembly, SPARQL queries, attestation (GSN-based),
-  closure-rule validation, audit module
-- `pipeline/` — stage orchestrator, `dataset.py` (named-graph helpers),
+  closure-rule verification (`verification.py`), audit module
+- `pipeline/` — stage orchestrator (`PipelineState` + per-stage free
+  functions in `runner.py`; `state.py` defines the typed result records),
+  `dataset.py` (named-graph helpers incl. `query_named_graph`),
   `stage0_assembly.py`, `plan.ttl`, `backends/` (Local / Flexo / Fuseki)
 - `flexo/` — Flexo MMS provisioning scripts + integration docs
-- `interrogate/` — explain / reproduce / visualize
+- `interrogate/` — explain / reproduce / visualize / rerun
 - `scripts/` — `fetch_imports.py`, `build_ontology.py`
 - `tests/` — 166 tests (alignment, named graphs, shape suite, audit,
   backends, compute, live Flexo opt-in)
@@ -82,14 +127,87 @@ suite; Stage 7a runs the audit. Every stage emits a `p-plan:Activity`
 into `<adcs:plan-execution>` so the construction process is itself
 queryable.
 
+### Pipeline state + structured stage results
+
+The orchestrator threads a [`PipelineState`](pipeline/state.py) object
+through per-stage free functions (`run_stage_<N>_<name>(state) ->
+<StageResult>` in [`pipeline/runner.py`](pipeline/runner.py)). Each
+stage returns a frozen dataclass (`StructuralResult`,
+`SymbolicResult`, `NumericalResult`, …) that the next stage reads via
+`state.<prior>.<field>`. The runner's job is narration + the ordered
+call sequence; stage bodies stand alone and are unit-testable.
+
+`PipelineState.activity_to_stage` maps `p-plan` step IRI fragments
+(`STEP_NAMES` in
+[`traceability/plan_execution.py`](traceability/plan_execution.py))
+to stage numbers; [`interrogate/rerun.py`](interrogate/rerun.py)
+keeps a parallel `ACTIVITY_TO_STAGE` table, cross-checked by a unit
+test against `STEP_NAMES`.
+
+## CLI surface
+
+Every CLI in this repo is a Typer app (Click + Rich transitively).
+Pattern per module: `app = typer.Typer(...)` + `@app.command()`
+function + `if __name__ == "__main__": app()`. Existing `uv run python
+-m <module>` invocations and the `[project.scripts] adcs-pipeline`
+console script work unchanged. Choice-validated options use `Enum`
+subclasses so Typer matches the prior argparse `choices=` semantics.
+
+CLIs today:
+
+- `pipeline.runner` — runs the full lifecycle (flags: `--auto`,
+  `--no-attest`, `--engineer`, `--rebuild`, `--backend`, `--compute`).
+- `interrogate.rerun` — translates a verification report into the
+  pipeline stages that must re-run (flags: `--input`,
+  `--requirement`, `--format`).
+
+`interrogate.explain`, `interrogate.reproduce`, `interrogate.visualize`
+are library-only (no CLI entry points). Tests use
+`typer.testing.CliRunner` in [`tests/test_cli.py`](tests/test_cli.py).
+A top-level `adcs` aggregator (`adcs pipeline run`, `adcs interrogate
+rerun`, etc.) is tracked as a follow-up — see
+[issue #5](https://github.com/DynamicalSystemsGroup/ADCS-lifecycle-demo/issues/5).
+
+## Verification vs validation (term discipline)
+
+Strict semantic split across module names, function names, doc
+strings, RDF property labels, log/banner strings, and commit messages:
+
+- **Verification** = automated check whose computation result is
+  fully specified (SHACL conformance, ROBOT/ELK consistency,
+  content-hash matching, completeness checks, HTTP-connectivity
+  probes, triple-count budgets).
+- **Validation** = human judgement with expertise, additional context,
+  and/or interpretation (engineer attestation, adequacy assumption,
+  sufficiency justification).
+
+This breaks with pyshacl's `validate()` convention deliberately —
+upstream APIs keep their names, the demo's own wrappers use the
+discipline. SHACL conformance is wrapped by `traceability.verification.verify`;
+human judgement lives in `traceability.attestation.request_attestation`.
+The split pairs with the longer-standing rule that **evidence does not
+verify requirements; only human attestation does**: evidence and
+verification are both system-internal, attestation is the human
+boundary.
+
+One IRI fragment is intentionally out-of-sync with the discipline:
+`<plan/step/ValidateShapes>` in `pipeline/plan.ttl` is preserved so
+already-persisted `<adcs:plan-execution>` and `<adcs:audit>` graphs
+stay valid. The rdfs:label says "Verify"; the IRI rename is tracked
+separately for a future Flexo migration.
+
 ## Toolchain
 
 - Python 3.12+, managed by `uv` — required
 - `rdflib` for RDF/SPARQL, `sympy` for symbolic math, `scipy` for ODE integration
-- `pyshacl` for closure-rule validation, `httpx` for backend HTTP
+- `pyshacl` for closure-rule verification (the demo's own wrapper is
+  named `verify`; pyshacl's upstream API is `validate` and is wrapped,
+  not renamed), `httpx` for backend HTTP, `typer` for CLI surfaces
 - ProofScript/ProofBuilder pattern reimplemented from gds-proof
 - Docker — optional, for `--compute=docker`
-- OBO ROBOT (Java) — optional, for `make ontology-robot`
+- OBO ROBOT (Java) — **required for default `make ontology`**; no-Java
+  users invoke the explicit `make ontology-python` target instead.
+  CI installs Java 17 + a cached `robot.jar` and verifies every push.
 
 ## Running
 
@@ -99,19 +217,38 @@ uv run python -m pipeline.runner --auto --backend=flexo   # push to Flexo MMS
 uv run python -m pipeline.runner --auto --compute=docker  # remote-compute emulation
 ```
 
+The runner runs against the committed `rtm.ttl`; it does NOT need
+Java/obo-robot. Only **rebuilding** the ontology does.
+
 ## Tests
 
 ```bash
-uv run pytest                       # 166 tests
-uv run pytest -m "not live"         # skip Flexo live tests (already auto-skip)
+uv run pytest               # default: skips live + network markers
+uv run pytest -m live       # opt-in: live Flexo MMS round-trip (needs FLEXO_TOKEN)
+uv run pytest -m network    # opt-in: reserved for W3C-vocab fetches
 ```
+
+Marker filtering is set in `pyproject.toml` via `addopts = "-m 'not
+live and not network'"`. `tests/test_flexo_live.py` carries the
+`live` marker; tests there fail loudly when `-m live` is requested
+without credentials rather than silently skipping (skip-on-opt-in
+would hide infra breakage).
 
 ## Ontology rebuild
 
 ```bash
-make ontology                       # Python build (default; no Java needed)
-make ontology-robot                 # ROBOT merge + ELK reason + report
+make ontology          # canonical: Python assembly + ROBOT/ELK verification (requires Java + obo-robot)
+make ontology-python   # no-Java path: Python assembly only, ROBOT verification skipped
+make ontology-robot    # just the ROBOT step (no rtm.ttl rewrite)
 ```
+
+`make ontology` fails fast on missing Java/obo-robot. The no-Java
+escape is the explicit `ontology-python` target — invoking it is an
+intentional opt-out, not a flag. The manifest's `robot_used` field +
+Stage 0 banner record which path produced the artifact. The build
+also enforces a triple-count budget (`TRIPLE_BUDGET=356` in
+`scripts/build_ontology.py`) so the integration ontology can't quietly
+grow novel epistemic vocabulary.
 
 `rtm.ttl` is a built artifact. Edit `rtm-edit.ttl` and rebuild.
 

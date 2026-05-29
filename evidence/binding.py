@@ -16,7 +16,8 @@ from typing import TYPE_CHECKING, Any
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import RDF, RDFS, XSD
 
-from ontology.prefixes import ADCS, PROV, RTM, bind_prefixes
+from ontology.prefixes import ADCS, P_PLAN, PROV, RTM, bind_prefixes
+from traceability.plan_execution import step_iri
 
 if TYPE_CHECKING:
     from compute.base import ExecutionMetadata
@@ -26,6 +27,9 @@ def _bind_execution_metadata(
     graph: Graph,
     activity_uri: URIRef,
     metadata: "ExecutionMetadata | None",
+    image_iri: URIRef | None = None,
+    operating_org_iri: URIRef | None = None,
+    hosting_org_iri: URIRef | None = None,
 ) -> None:
     """Attach execution-context PROV triples to an analysis activity.
 
@@ -52,11 +56,11 @@ def _bind_execution_metadata(
     if metadata is None:
         return
 
-    # Executor agent — a SoftwareAgent representing the runtime
-    # environment that actually ran the analysis.
-    suffix = (metadata.container_id or metadata.hostname or "unknown").replace(":", "-")
-    executor = URIRef(f"urn:adcs:executor:{suffix}")
-    location = URIRef(f"urn:adcs:location:{metadata.location_kind}:{metadata.hostname or 'unknown'}")
+    # Executor + location IRI construction lives on ExecutionMetadata so
+    # WP3 / WP4 can reuse the same shapes when introducing new evidence
+    # types (rtm:DockerImage, three-remote URIs).
+    executor = metadata.executor_uri()
+    location = metadata.location_uri()
 
     graph.add((activity_uri, PROV.atLocation, location))
     graph.add((activity_uri, PROV.wasAssociatedWith, executor))
@@ -79,12 +83,40 @@ def _bind_execution_metadata(
     graph.add((location, RDFS.label,
                Literal(f"{metadata.location_kind}:{metadata.hostname or '?'}")))
 
+    # WP4 c6 — organizational auspices: executor acted on behalf of
+    # the operating org; host is operated by the hosting org.
+    if operating_org_iri is not None:
+        graph.add((executor, PROV.actedOnBehalfOf, operating_org_iri))
+    if hosting_org_iri is not None:
+        graph.add((location, RTM.operatedBy, hosting_org_iri))
+
     if metadata.started_at:
         graph.add((activity_uri, PROV.startedAtTime,
                    Literal(metadata.started_at, datatype=XSD.dateTime)))
     if metadata.ended_at:
         graph.add((activity_uri, PROV.endedAtTime,
                    Literal(metadata.ended_at, datatype=XSD.dateTime)))
+
+    # WP4 c5 — Docker container as a first-class entity distinct from
+    # the host (location) and the executor (agent). Materialization
+    # of the image; one per run.
+    container = metadata.container_uri()
+    if container is not None:
+        graph.add((container, RDF.type, RTM.DockerContainer))
+        graph.add((container, RDF.type, PROV.Entity))
+        graph.add((container, RTM.containerId, Literal(metadata.container_id)))
+        graph.add((activity_uri, PROV.used, container))
+        if image_iri is not None:
+            graph.add((container, PROV.wasDerivedFrom, image_iri))
+        if metadata.started_at:
+            graph.add((container, PROV.startedAtTime,
+                       Literal(metadata.started_at, datatype=XSD.dateTime)))
+        if metadata.ended_at:
+            graph.add((container, PROV.endedAtTime,
+                       Literal(metadata.ended_at, datatype=XSD.dateTime)))
+        # WP4 c6 — container attributed to operating org
+        if operating_org_iri is not None:
+            graph.add((container, PROV.wasAttributedTo, operating_org_iri))
 
 
 def bind_proof_evidence(
@@ -99,6 +131,9 @@ def bind_proof_evidence(
     source_file: str = "",
     git_commit: str = "",
     execution_metadata: "ExecutionMetadata | None" = None,
+    image_iri: URIRef | None = None,
+    operating_org_iri: URIRef | None = None,
+    hosting_org_iri: URIRef | None = None,
 ) -> URIRef:
     """Create an rtm:ProofArtifact node in the graph.
 
@@ -129,11 +164,20 @@ def bind_proof_evidence(
     if git_commit:
         graph.add((ev_uri, RTM.gitCommit, Literal(git_commit)))
 
-    # Activity node
+    # Activity node — typed and linked to its pipeline step so
+    # interrogate.rerun can walk evidence -> activity -> step -> stage.
     graph.add((act_uri, RDF.type, RTM.SymbolicAnalysis))
+    graph.add((act_uri, P_PLAN.correspondsToStep, step_iri("SymbolicAnalysis")))
     graph.add((act_uri, PROV.used, ADCS[requirement_id]))
     graph.add((act_uri, PROV.wasAssociatedWith, ADCS["SymPyEngine"]))
-    _bind_execution_metadata(graph, act_uri, execution_metadata)
+    _bind_execution_metadata(graph, act_uri, execution_metadata, image_iri=image_iri,
+                             operating_org_iri=operating_org_iri,
+                             hosting_org_iri=hosting_org_iri)
+
+    # WP3 §4.4 — Docker-produced evidence derives from a tracked image.
+    # Local-compute runs pass None and skip this edge.
+    if image_iri is not None:
+        graph.add((ev_uri, PROV.wasDerivedFrom, image_iri))
 
     return ev_uri
 
@@ -150,6 +194,9 @@ def bind_simulation_evidence(
     source_file: str = "",
     git_commit: str = "",
     execution_metadata: "ExecutionMetadata | None" = None,
+    image_iri: URIRef | None = None,
+    operating_org_iri: URIRef | None = None,
+    hosting_org_iri: URIRef | None = None,
 ) -> URIRef:
     """Create an rtm:SimulationResult node in the graph.
 
@@ -174,11 +221,19 @@ def bind_simulation_evidence(
     if git_commit:
         graph.add((ev_uri, RTM.gitCommit, Literal(git_commit)))
 
-    # Activity node
+    # Activity node — typed and linked to its pipeline step so
+    # interrogate.rerun can walk evidence -> activity -> step -> stage.
     graph.add((act_uri, RDF.type, RTM.NumericalSimulation))
+    graph.add((act_uri, P_PLAN.correspondsToStep, step_iri("NumericalSimulation")))
     graph.add((act_uri, PROV.used, ADCS[requirement_id]))
     graph.add((act_uri, PROV.wasAssociatedWith, ADCS["ScipyEngine"]))
-    _bind_execution_metadata(graph, act_uri, execution_metadata)
+    _bind_execution_metadata(graph, act_uri, execution_metadata, image_iri=image_iri,
+                             operating_org_iri=operating_org_iri,
+                             hosting_org_iri=hosting_org_iri)
+
+    # WP3 §4.4 — Docker-produced evidence derives from a tracked image.
+    if image_iri is not None:
+        graph.add((ev_uri, PROV.wasDerivedFrom, image_iri))
 
     return ev_uri
 

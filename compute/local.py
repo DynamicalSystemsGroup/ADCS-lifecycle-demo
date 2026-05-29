@@ -23,6 +23,10 @@ from compute.base import ExecutionMetadata
 class LocalCompute:
     name = "local"
 
+    def probe(self) -> None:
+        """LocalCompute is in-process — always available."""
+        return None
+
     def describe(self) -> str:
         return (
             f"Local in-process compute "

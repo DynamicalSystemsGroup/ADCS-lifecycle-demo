@@ -1,14 +1,40 @@
 # ADCS Lifecycle Demo
 
 **Live demo:** <https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/>
+**Architecture:** see [ARCHITECTURE.md](ARCHITECTURE.md) — the three-remote (git + Flexo + local Docker) + fourth-service (CouchDB txnlog) picture.
 
 Bidirectional requirements traceability for a satellite Attitude Determination
 and Control System (ADCS), demonstrating the full lifecycle from SysMLv2
 structural specification through symbolic analysis, numerical simulation, and
 human expert attestation. The RTM is held as an `rdflib.Dataset` of named
-graphs, validated by a SHACL closure-rule suite, audited forward and backward
+graphs, verified by a SHACL closure-rule suite, audited forward and backward
 independently, and exportable to disk, to a Flexo MMS instance, or to bare
 Apache Jena Fuseki.
+
+## Setup
+
+```bash
+# Install deps
+uv sync
+
+# Copy + edit env vars (Flexo token, txnlog opt-in, org auspices)
+cp .env.example .env
+$EDITOR .env
+```
+
+The canonical multi-remote run additionally needs the local txnlog
+store (a CouchDB container) running:
+
+```bash
+tools/start-services.sh    # docker run + db ensure, idempotent
+# ...later
+tools/stop-services.sh     # stop + remove (--purge wipes the volume)
+```
+
+Preflight at the start of every pipeline run probes every configured
+backend (Flexo, Docker daemon, txnlog) and fails fast (exit 2) if
+anything is unreachable. The integration story does not silently
+degrade.
 
 ## Core Principle
 
@@ -28,13 +54,13 @@ integration layer over established standards.
 
 ## Architecture
 
-Integration ontology assembled from W3C and OMG standards plus the openCAESAR
-SysMLv2 OWL rendering:
+Integration ontology assembled from W3C and OMG standards plus the OMG SysMLv2
+OWL rendering:
 
 | Layer        | Vocabulary                           | Role                                                              |
 | ------------ | ------------------------------------ | ----------------------------------------------------------------- |
 | W3C / IETF   | `prov:`, `dcterms:`, `earl:`, `sh:`  | Provenance + assertion + outcome + SHACL closure                  |
-| OMG / SysML  | `sysml:` ↔ `omg-sysml:`              | Structural model + requirements (aliased to openCAESAR via owl:equivalentClass) |
+| OMG / SysML  | `sysml:` ↔ `omg-sysml:`              | Structural model + requirements (aliased to the OMG SysMLv2 OWL rendering via owl:equivalentClass) |
 | Community    | `gsn:`, `p-plan:`                    | Assurance argument structure + declarative process model         |
 | Tool interop | `oslc_rm:`, `oslc_qm:`               | Aliases for DOORS Next / Jama / RQM                              |
 | Local glue   | `rtm:`                               | Convenience subclasses + content-addressing properties only      |
@@ -66,10 +92,54 @@ across the union without `GRAPH` clauses.
 
 ```bash
 uv sync
-uv run python -m pipeline.runner --auto       # scripted attestation
+uv run python -m pipeline.runner --auto       # local + local (fastest path)
 uv run python -m pipeline.runner               # interactive attestation
-uv run pytest -v                                # 166 tests
+uv run pytest -v                                # default: skips live + network markers
 ```
+
+### Canonical multi-remote run (the architecture's full picture)
+
+After completing **Setup** above and exporting `ADCS_TXNLOG_ENABLED=1`
+(plus `FLEXO_TOKEN`), the canonical run exercises all three remotes
++ the txnlog store:
+
+```bash
+tools/start-services.sh
+export ADCS_TXNLOG_ENABLED=1
+uv run python -m pipeline.runner --auto --backend=flexo --compute=docker
+```
+
+The runner's preflight verifies every backend before Stage 0; if any
+remote is unreachable, the run fails fast (exit 2) with a concrete
+cause. The output `rtm.trig` carries the full provenance chain
+documented in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+### Reproducibility verification
+
+`compute.reproduce` rebuilds an image at its recorded git ref and
+digest-compares:
+
+```bash
+uv run python -m compute.reproduce \
+    --image-digest sha256:71a59f23... \
+    --from-trig output/rtm.trig
+```
+
+Exit 0 = digest matches; 1 = mismatch; 2 = prerequisite failure.
+Outcome is also recorded as an `rtm:DigestMatchAssertion` in
+`<adcs:audit>`.
+
+### Tests
+
+```bash
+uv run pytest               # default: skips live + network markers
+uv run pytest -m live       # opt-in: round-trips against a live Flexo MMS (needs FLEXO_TOKEN)
+uv run pytest -m network    # opt-in: reserved for W3C-vocab fetches (no tests today)
+```
+
+Marker filtering is set in `pyproject.toml` via `addopts = "-m 'not live
+and not network'"` so the canonical invocation never hits external
+services. CI opts in explicitly per workflow.
 
 ## Pipeline Stages
 
@@ -79,9 +149,9 @@ uv run pytest -v                                # 166 tests
 [Stage 2]   Symbolic Analysis         — SymPy: inertia, eigenvalues, stability proofs
 [Stage 3]   Numerical Simulation      — scipy: step response + disturbance rejection
 [Stage 4]   Evidence Binding          — emit hashed evidence into <adcs:evidence>
-[Stage 5]   RTM Assembled             — validate evidence completeness
+[Stage 5]   RTM Assembled             — verify evidence completeness
 [Stage 6]   Human Attestation         — emit attestations into <adcs:attestations>
-[Stage 6.5] Validate Closure-Rule Suite — 9 SHACL shapes + runtime re-verification
+[Stage 6.5] Verify Closure-Rule Suite — 9 SHACL shapes + runtime re-verification
 [Stage 7a]  Audit Trace               — forward / backward / bidirectional + coverage matrix
 [Stage 7]   Generate Reports          — persist via backend, write output/audit.{md,csv}
 [Stage 8]   Interrogate               — explain / reproduce / visualize ready
@@ -102,11 +172,27 @@ uv run pytest -v                                # 166 tests
     OK  PROV-O      1146 triples,  7 terms referenced
   SysMLv2 equivalence axioms: 9
   Local rtm: integration glue: 13 subclass + 7 subproperty axioms
-  Validation: Python build (run `make ontology-robot` for ELK + report)
+  Verification: ROBOT merge + ELK reasoning + OBO report PASS
   Loaded into <rtm:ontology>: 317 triples
   Closure-rule suite registered: 13 SHACL shapes
 ─────────────────────────────────────────────────────────────────
 ```
+
+## Pipeline architecture
+
+The orchestrator threads a `PipelineState` object through per-stage
+free functions (`run_stage_<N>_<name>(state) -> <StageResult>` in
+[`pipeline/runner.py`](pipeline/runner.py)). Each stage returns a
+frozen dataclass that the next stage reads via `state.<prior>.<field>`,
+so the runner is the call sequence plus narration — the per-stage
+logic stands alone and is unit-testable. The `activity_to_stage`
+table on `PipelineState` maps `p-plan` step IRI fragments to stage
+numbers; `interrogate.rerun` consumes the same mapping to translate
+closure-rule violations into the stages that must re-run.
+
+All CLIs are Typer apps; `--help` is auto-rendered with rich
+formatting. Tests use `typer.testing.CliRunner`
+([`tests/test_cli.py`](tests/test_cli.py)).
 
 ## Interrogation
 
@@ -137,6 +223,26 @@ REQ-003: "The closed-loop ADCS shall be asymptotically stable..."
     Model adequacy: "Linearized stability analysis via Routh-Hurwitz..."
     Evidence sufficiency: "Routh-Hurwitz proof confirms asymptotic..."
 ```
+
+### Rerun plan from a verification report
+
+When the Stage 6.5 SHACL suite or the runtime re-verification finds a
+mismatch, [`interrogate/rerun.py`](interrogate/rerun.py) walks
+`prov:wasGeneratedBy` -> `p-plan:correspondsToStep` to translate the
+violations into the dedup'd ordered set of pipeline stages that must
+re-run. SHACL violations on structural / human-judgement nodes
+(attestations, etc.) are reported separately — no stage re-run can
+fix them.
+
+```bash
+uv run python -m interrogate.rerun                    # markdown to stdout
+uv run python -m interrogate.rerun --requirement REQ-003
+uv run python -m interrogate.rerun --format json
+```
+
+Exit code 0 = clean, 1 = stages or structural violations present, 2
+= input file not found. The Stage 6.5 banner in the runner also
+prints a short rerun-plan summary when violations are present.
 
 ## Requirements
 
@@ -255,16 +361,57 @@ adcs:SA-REQ-003
     rtm:pythonVersion "3.12.13" .
 ```
 
+### Image as tracked evidence (WP3)
+
+Under `--compute=docker` the demo also promotes the image itself to
+a first-class `rtm:DockerImage` node in `<adcs:evidence>` (not just a
+label on the executor agent). Each Docker-produced evidence node
+declares `prov:wasDerivedFrom <image-iri>`, and a SHACL closure rule
+at Stage 6.5 enforces the link — so the trace can answer "find every
+evidence node produced by image `sha256:…`" instead of only "where
+did this run happen?"
+
+The image node carries six properties:
+
+- `rtm:contentHash` — runtime image digest (`sha256:…`)
+- `rtm:imageLabel` — repo:tag
+- `rtm:baseImageDigest` — `FROM`-image digest resolved at build (may
+  be empty if the base isn't pulled locally; pipeline gracefully degrades)
+- `rtm:dockerfileHash` — SHA-256 of the Dockerfile bytes
+- `rtm:buildContextHash` — SHA-256 over a sorted manifest of build-
+  context file hashes
+- `prov:generatedAtTime` — build timestamp
+
+Reverse lookup helper:
+
+```python
+from rdflib import Dataset
+from traceability.queries import evidence_by_image
+
+ds = Dataset(default_union=True)
+ds.parse("output/rtm.trig", format="trig")
+rows = evidence_by_image(ds, "sha256:92bb8bf18f5f...")
+# -> [{'ev': 'http://example.org/adcs-demo/EV-PROOF-REQ-003',
+#      'type': 'http://example.org/ontology/rtm#ProofArtifact',
+#      'evContentHash': '...', 'modelHash': '...'}, ...]
+```
+
+The notebook Act 9 / 10 narrative (showing the image as a node in
+the rendered trace) + audit-module image surfacing defer to **WP5**
+— WP3 is the backend that makes those narrative passes honest.
+
 ## Toolchain
 
 | What                       | Required?    | Used for                                                 |
 | -------------------------- | ------------ | -------------------------------------------------------- |
 | Python 3.12, uv            | yes          | runtime + tests + ontology build                         |
 | Docker                     | optional     | `--compute=docker` Stage 2/3 emulation                   |
-| OBO ROBOT (Java JAR)       | optional     | `make ontology-robot` (ELK reasoning + OBO hygiene)      |
+| OBO ROBOT (Java JAR)       | required (default) | `make ontology` (canonical: Python assembly + ROBOT/ELK verification). No-Java users invoke `make ontology-python` instead. |
 | `FLEXO_TOKEN` env var      | optional     | `--backend=flexo` live push                              |
 
-`uv run python -m pipeline.runner` works with no optional tools installed.
+`uv run python -m pipeline.runner` works with no optional tools installed —
+the runner runs against the committed `rtm.ttl`. Only **rebuilding** the
+ontology with `make ontology` requires Java + obo-robot.
 
 ## Ontology Authoring
 
@@ -272,14 +419,22 @@ The canonical artifact `ontology/rtm.ttl` is built. Edit
 `ontology/rtm-edit.ttl` and rebuild:
 
 ```bash
-make fetch-imports        # one-time: pull vendored upstream ontologies
-make ontology             # Python-only build (default, no Java needed)
-make ontology-robot       # optional: ROBOT merge + ELK reason + report (needs Java + obo-robot)
+make fetch-imports     # one-time: pull vendored upstream ontologies
+make ontology          # canonical: Python assembly + ROBOT/ELK verification (requires Java + obo-robot)
+make ontology-python   # no-Java path: Python assembly only, ROBOT verification skipped
+make ontology-robot    # just the ROBOT step (merge + reason + report), without rewriting rtm.ttl
 ```
 
-The build validates every upstream term `rtm-edit.ttl` references exists in
-the vendored copy and regenerates `assembly_manifest.json`. The Stage 0 banner
-is data-driven from that manifest.
+`make ontology` fails fast when Java or obo-robot are missing; the message
+points at `make ontology-python` as the explicit no-Java alternative. The
+manifest's `robot_used` flag records which path produced the current
+artifact; Stage 0's banner is data-driven from that flag.
+
+Every build verifies that each upstream term `rtm-edit.ttl` references
+exists in its vendored import, regenerates `assembly_manifest.json`, and
+enforces a triple-count budget (`TRIPLE_BUDGET=356` in
+`scripts/build_ontology.py`) so the integration ontology can't quietly
+grow novel epistemic vocabulary.
 
 ## Key Directories
 
@@ -287,9 +442,9 @@ is data-driven from that manifest.
 - [`structural/`](structural/) — SysMLv2 RDF (satellite.ttl, parameters.ttl)
 - [`analysis/`](analysis/) — SymPy proofs + scipy simulation
 - [`evidence/`](evidence/) — content hashing + RDF binding (with execution provenance)
-- [`traceability/`](traceability/) — RTM assembly, queries, attestation, validation, audit
-- [`pipeline/`](pipeline/) — stage orchestrator + Dataset helpers + plan.ttl + backends
-- [`interrogate/`](interrogate/) — explain / reproduce / visualize
+- [`traceability/`](traceability/) — RTM assembly, queries, attestation, verification, audit
+- [`pipeline/`](pipeline/) — stage orchestrator (PipelineState + per-stage functions), Dataset helpers + `query_named_graph`, plan.ttl, backends
+- [`interrogate/`](interrogate/) — explain / reproduce / visualize / rerun
 - [`compute/`](compute/) — Local + Docker compute backends + Dockerfile
 - [`flexo/`](flexo/) — Flexo MMS provisioning scripts + live integration docs
 - [`scripts/`](scripts/) — `fetch_imports.py` + `build_ontology.py`

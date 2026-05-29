@@ -270,3 +270,72 @@ def test_audit_graph_populated_after_pipeline(nominal_dataset):
     # Confirm a forwardPassed triple is present
     fp_triples = [q for q in audit_g_quads if str(q[1]).endswith("forwardPassed")]
     assert fp_triples, "Expected rtm:forwardPassed in audit graph"
+
+
+# ---------------------------------------------------------------------------
+# WP4 c7 — rtm:ClosureRuleAssertion in <adcs:audit>
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# WP5 — Docker image provenance section in the audit report
+# ---------------------------------------------------------------------------
+
+def test_audit_docker_provenance_empty_for_local_compute(nominal_dataset):
+    """Local-compute runs produce no rtm:DockerImage, so the audit's
+    Docker provenance list is empty + the markdown omits the section."""
+    from traceability.audit import audit, render_report
+    report = audit(nominal_dataset)
+    assert report.docker_provenance == []
+    md = render_report(report, fmt="md")
+    assert "Docker image provenance" not in md
+
+
+def test_audit_docker_provenance_populated_when_image_present(nominal_dataset):
+    """Synthesize an rtm:DockerImage with evidence derivation; audit
+    surfaces it in the report + markdown table."""
+    from rdflib import Literal, URIRef
+    from rdflib.namespace import RDF, XSD as _XSD
+    from ontology.prefixes import G_EVIDENCE, RTM, PROV
+    from traceability.audit import audit, render_report, docker_provenance
+
+    # Clone the fixture to a fresh Dataset then add a Docker image
+    from rdflib import Dataset
+    ds2 = Dataset(default_union=True)
+    for q in nominal_dataset.quads((None, None, None, None)):
+        ds2.add(q)
+    ev_g = ds2.graph(URIRef(G_EVIDENCE))
+    img = URIRef("urn:adcs:docker-image:sha256-test-wp5")
+    ev_g.add((img, RDF.type, RTM.DockerImage))
+    ev_g.add((img, RTM.contentHash, Literal("sha256:test-wp5-digest")))
+    ev_g.add((img, RTM.gitRef, Literal("git+https://github.com/Test/Repo@abc#compute/Dockerfile",
+                                       datatype=_XSD.anyURI)))
+    # Link a synthetic evidence to it so the count is non-zero
+    fake_ev = URIRef("urn:adcs:test/EV-FAKE-WP5")
+    ev_g.add((fake_ev, RDF.type, RTM.ProofArtifact))
+    ev_g.add((fake_ev, PROV.wasDerivedFrom, img))
+
+    rows = docker_provenance(ds2)
+    assert any(r.digest == "sha256:test-wp5-digest" for r in rows)
+
+    report = audit(ds2)
+    md = render_report(report, fmt="md")
+    assert "Docker image provenance" in md
+    assert "sha256:test-wp5-digest"[:24] in md
+
+
+def test_closure_assertion_emitted_into_audit_graph(nominal_dataset):
+    """Stage 6.5 emits exactly one rtm:ClosureRuleAssertion per run."""
+    from ontology.prefixes import EARL, RTM
+    audit_g = nominal_dataset.graph(URIRef(G_AUDIT))
+    assertions = list(audit_g.subjects(RDF.type, RTM.ClosureRuleAssertion))
+    assert assertions, "Expected at least one rtm:ClosureRuleAssertion"
+    # Each assertion is also typed earl:Assertion + prov:Activity
+    a = assertions[0]
+    types = set(audit_g.objects(a, RDF.type))
+    assert EARL.Assertion in types
+    # Outcome must be one of the EARL semantic values
+    outcomes = set(audit_g.objects(a, EARL.outcome))
+    assert outcomes & {EARL.passed, EARL.failed, EARL.cantTell}
+    # Mode is automatic (this is verification, not validation)
+    modes = set(audit_g.objects(a, EARL.mode))
+    assert EARL.automatic in modes

@@ -23,6 +23,7 @@ from pathlib import Path
 import httpx
 from rdflib import Dataset, URIRef
 
+from pipeline.backends.base import BackendUnavailable
 from pipeline.dataset import triples_by_graph
 
 
@@ -45,6 +46,31 @@ class FuskeiBackend:
         if self.user is not None and self.password is not None:
             return (self.user, self.password)
         return None
+
+    def record_uri(self, layer: str) -> URIRef | None:
+        """IRI for the Fuseki graph where this layer's data lives.
+
+        Returns urn:adcs:fuseki:<url-encoded-base>/<layer> as a stable
+        identifier consumers can resolve back to a graph store URL.
+        """
+        from urllib.parse import quote
+        base = quote(self.url, safe="")
+        return URIRef(f"urn:adcs:fuseki:{base}/{layer}")
+
+    def probe(self) -> None:
+        """HEAD the dataset endpoint to verify Fuseki is reachable."""
+        try:
+            with httpx.Client(timeout=10.0, auth=self._auth()) as client:
+                head = client.head(f"{self.url}/data")
+                if head.status_code not in (200, 204, 404):
+                    raise BackendUnavailable(
+                        f"Fuseki HEAD {self.url}/data returned "
+                        f"{head.status_code}: {head.text[:200]}"
+                    )
+        except httpx.HTTPError as exc:
+            raise BackendUnavailable(
+                f"Fuseki at {self.url} is unreachable: {exc}"
+            ) from exc
 
     def persist(self, ds: Dataset, output_dir: Path) -> dict:
         """PUT each non-empty named graph via SPARQL Graph Store Protocol."""

@@ -17,8 +17,8 @@
 # Ontology declaration
 #
 # rtm: is an integration ontology. It assembles established upstream
-# vocabularies (PROV-O, EARL, OntoGSN, P-PLAN, OSLC RM/QM, SysMLv2 via
-# openCAESAR) and contributes only:
+# vocabularies (PROV-O, EARL, OntoGSN, P-PLAN, OSLC RM/QM, the OMG
+# SysMLv2 OWL rendering) and contributes only:
 #   (a) convenience subclasses with no new semantics, used as
 #       SHACL/SPARQL handles;
 #   (b) operational content-addressing properties (hashes, source links);
@@ -33,7 +33,7 @@
 rtm: a owl:Ontology ;
     dcterms:title "RTM Integration Ontology" ;
     dcterms:description """Thin application ontology assembling PROV-O, EARL,
-        OntoGSN, P-PLAN, OSLC RM/QM, and the openCAESAR SysMLv2 OWL rendering.
+        OntoGSN, P-PLAN, OSLC RM/QM, and the OMG SysMLv2 OWL rendering.
         Contributes convenience handles, content-addressing properties, and
         the closure-rule suite. Introduces no novel epistemic vocabulary —
         adequacy and sufficiency are gsn:Assumption and gsn:Justification.""" ;
@@ -46,13 +46,13 @@ rtm: a owl:Ontology ;
                 <http://open-services.net/ns/qm#> .
 
 # =============================================================================
-# SysMLv2 binding — equivalence axioms to openCAESAR's OWL rendering
+# SysMLv2 binding — equivalence axioms to the OMG SysMLv2 OWL rendering
 #
-# Authoritative vocabulary used by JPL/OpenMBEE is openCAESAR's SysMLv2 OWL
+# Authoritative vocabulary is the OMG SysMLv2 OWL rendering
 # (`omg-sysml:`). We keep the local `sysml:` prefix in instance data and
 # publish equivalence axioms so reasoners and SysMLv2-aware tooling treat
 # them interchangeably. The mapping is sourced from
-# `ontology/sysml_term_map.csv` and validated by `make ontology`.
+# `ontology/sysml_term_map.csv` and verified by `make ontology`.
 #
 # Each local term is explicitly typed (owl:Class / owl:ObjectProperty /
 # owl:DatatypeProperty) so that OWL parsers (ROBOT, OWL API) can classify
@@ -148,6 +148,16 @@ rtm:ComputationEngine a owl:Class ;
 rtm:EvidenceMethod a owl:Class ;
     rdfs:label "Evidence Method" ;
     rdfs:comment "Classification of how an evidence artifact was produced (Analysis / Simulation / FormalProof)." .
+
+rtm:DockerImage a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Docker container image" ;
+    rdfs:comment """Content-tracked Docker image. Every analysis activity
+        that ran under --compute=docker has its evidence link back to a
+        DockerImage via prov:wasDerivedFrom. The image's identity is
+        rtm:contentHash (the runtime digest); reproducibility is anchored
+        by rtm:dockerfileHash + rtm:buildContextHash + rtm:baseImageDigest
+        which together pin the build inputs.""" .
 
 # =============================================================================
 # Convenience properties — subPropertyOf standard terms, no new axioms
@@ -259,6 +269,95 @@ rtm:resultSummary a owl:DatatypeProperty ;
     rdfs:domain rtm:Evidence ;
     rdfs:range xsd:string ;
     rdfs:label "result summary" .
+
+# -- rtm:DockerImage properties (WP3) ------------------------------------------
+
+rtm:imageLabel a owl:DatatypeProperty ;
+    rdfs:domain rtm:DockerImage ;
+    rdfs:range xsd:string ;
+    rdfs:label "Image repo/tag (e.g., adcs-compute:latest)" .
+
+rtm:baseImageDigest a owl:DatatypeProperty ;
+    rdfs:domain rtm:DockerImage ;
+    rdfs:range xsd:string ;
+    rdfs:label "Digest of the FROM image resolved at build time" .
+
+rtm:dockerfileHash a owl:DatatypeProperty ;
+    rdfs:domain rtm:DockerImage ;
+    rdfs:range xsd:string ;
+    rdfs:label "SHA-256 of the Dockerfile bytes used at build" .
+
+rtm:buildContextHash a owl:DatatypeProperty ;
+    rdfs:domain rtm:DockerImage ;
+    rdfs:range xsd:string ;
+    rdfs:label "SHA-256 over a sorted manifest of build-context file hashes" .
+
+# -- WP4 three-remote provenance additions -----------------------------------
+#
+# Image / container / host are distinct first-class entities. WP4
+# adds the container entity + its lifecycle properties; rtm:gitRef /
+# rtm:flexoRecord extend rtm:DockerImage (WP3) to cross-link the
+# storage backends; rtm:operatedBy gives prov:Location an
+# auspices-bearing edge.
+
+rtm:DockerContainer a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:label "Docker container" ;
+    rdfs:comment "A transient materialization of an rtm:DockerImage; one per run, identified by the runtime container ID. Distinct from prov:Location (the host machine) and prov:SoftwareAgent (the executor that ran the work)." .
+
+rtm:containerId a owl:DatatypeProperty ;
+    rdfs:domain rtm:DockerContainer ;
+    rdfs:range xsd:string ;
+    rdfs:label "Container ID (runtime)" .
+
+rtm:gitRef a owl:DatatypeProperty ;
+    rdfs:domain rtm:DockerImage ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "git+URI of source at build commit" .
+
+rtm:flexoRecord a owl:ObjectProperty ;
+    rdfs:domain rtm:DockerImage ;
+    rdfs:label "URI into the storage backend (where this image's record lives)" .
+
+rtm:operatedBy a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:wasAttributedTo ;
+    rdfs:domain prov:Location ;
+    rdfs:range prov:Organization ;
+    rdfs:label "host operated by organization" .
+
+# -- WP4 EARL-wrapped automated-verification outcomes ------------------------
+
+rtm:DigestMatchAssertion a owl:Class ;
+    rdfs:subClassOf earl:Assertion , prov:Activity ;
+    rdfs:label "Image-digest reproduction assertion" ;
+    rdfs:comment "Automated outcome of an image-digest reproduction check (compute.reproduce). earl:mode is always earl:automatic." .
+
+rtm:ClosureRuleAssertion a owl:Class ;
+    rdfs:subClassOf earl:Assertion , prov:Activity ;
+    rdfs:label "SHACL closure-rule assertion" ;
+    rdfs:comment "Automated outcome of a SHACL closure-rule check (Stage 6.5). earl:mode is always earl:automatic." .
+
+rtm:violationCount a owl:DatatypeProperty ;
+    rdfs:domain rtm:ClosureRuleAssertion ;
+    rdfs:range xsd:nonNegativeInteger ;
+    rdfs:label "Number of violations summarized by this closure assertion" .
+
+# -- WP4 service-invocation properties (transaction logs as evidence) --------
+#
+# Invocation events are just prov:Activity instances with a transaction
+# ID. The wire-log document IS an rtm:Evidence (reuse existing class)
+# with a documentRef pointing into the txnlog store. No new classes for
+# invocation; only two new properties.
+
+rtm:transactionId a owl:DatatypeProperty ;
+    rdfs:domain prov:Activity ;
+    rdfs:range xsd:string ;
+    rdfs:label "Service-invocation transaction ID" .
+
+rtm:documentRef a owl:DatatypeProperty ;
+    rdfs:domain rtm:Evidence ;
+    rdfs:range xsd:anyURI ;
+    rdfs:label "URI of the evidence document in its backing store" .
 
 # Adequacy and sufficiency are not novel epistemic terms — they map to
 # gsn:Assumption and gsn:Justification (Hawkins-Habli ACP categorization).
