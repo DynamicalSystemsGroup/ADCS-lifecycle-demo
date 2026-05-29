@@ -71,6 +71,39 @@ SYSML_OMG_NS = "http://www.omg.org/spec/SysML/20240501/"
 #     (DockerImageProvenance, DockerContainer, OrganizationAuspices,
 #     TransactionLog). 218 used; 232 headroom for the WP5 narrative pass.
 TRIPLE_BUDGET = 450
+
+
+def _reproducible_build_time() -> str:
+    """Return a build_time that's stable across machines for the same
+    source state. Order of preference:
+
+    1. ``SOURCE_DATE_EPOCH`` env var (Reproducible Builds standard).
+    2. Most-recent git commit time of the build inputs (rtm-edit.ttl,
+       sysml_term_map.csv, this script). Stable across CI + local for
+       a given commit.
+    3. Wall-clock ``datetime.now()`` — the unreproducible fallback,
+       only hit when neither env nor git is available.
+
+    Format is ``YYYY-MM-DDTHH:MM:SSZ`` for human-readability in the
+    rtm.ttl header.
+    """
+    import os
+    epoch = os.environ.get("SOURCE_DATE_EPOCH")
+    if epoch and epoch.isdigit():
+        return datetime.fromtimestamp(int(epoch), tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        import subprocess
+        inputs = ["ontology/rtm-edit.ttl", "ontology/sysml_term_map.csv",
+                  "scripts/build_ontology.py"]
+        proc = subprocess.run(
+            ["git", "log", "-1", "--format=%ct", "--"] + inputs,
+            cwd=str(ROOT), capture_output=True, text=True, timeout=5,
+        )
+        if proc.returncode == 0 and proc.stdout.strip().isdigit():
+            return datetime.fromtimestamp(int(proc.stdout.strip()), tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except (FileNotFoundError, subprocess.SubprocessError):
+        pass
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 TRIPLE_BUDGET_RATIONALE = (
     "Integration ontology parsimony gate. WP4 bumped 380 -> 450 after "
     "adding the three-remote provenance terms (rtm:DockerContainer + "
@@ -250,7 +283,12 @@ def build() -> int:
 
     body_bytes = out_graph.serialize(format="turtle").encode("utf-8")
 
-    build_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Reproducible build_time. Honor SOURCE_DATE_EPOCH (Reproducible
+    # Builds standard) so CI and local committer can produce
+    # byte-identical artifacts. Falls back to the git commit time
+    # of the build inputs (deterministic across machines if git is
+    # available), then to wall-clock time for the bootstrap case.
+    build_time = _reproducible_build_time()
     header = (
         f"# =============================================================================\n"
         f"# AUTO-GENERATED ARTIFACT — DO NOT EDIT DIRECTLY\n"
