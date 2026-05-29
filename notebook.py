@@ -1425,14 +1425,52 @@ def __(v2_rtm, mo):
 
 
 @app.cell(hide_code=True)
+def __(mo):
+    mo.md("""
+    ### Many Authoritative Sources of Truth, one stitched provenance graph
+
+    The RTM you've been browsing is **not** a single authoritative store
+    pretending its claims are first-hand. It's a graph stitched out of
+    many **Authoritative Sources of Truth (ASoTs)**, each holding part
+    of the picture under its own jurisdiction. The demo's contribution
+    is the integration ontology that lets them link without overloading
+    anyone's vocabulary.
+
+    | ASoT | Holds | Trust grounded by |
+    |---|---|---|
+    | **SysMLv2 structural model** (git) | requirements + design elements + satisfy links | `sysml:declaredName`, vendored OMG SysMLv2 OWL equivalences |
+    | **Symbolic oracle** (SymPy in container) | analytical proofs (stability, momentum bounds) | content-addressed `rtm:proofHash` over the proof script |
+    | **Numerical oracle** (scipy in container) | step-response + disturbance-rejection simulations | content-addressed `rtm:contentHash` over (config, summary) |
+    | **Docker image** (built from git Dockerfile) | runtime substrate of the oracles | `rtm:contentHash` (runtime digest) + `rtm:dockerfileHash` + `rtm:buildContextHash` + `rtm:gitRef` |
+    | **Engineer attestation** (human judgement) | adequacy + sufficiency for each requirement | `gsn:Assumption` + `gsn:Justification`, signed via `rtm:attests` |
+    | **Closure-rule check** (SHACL) | every-run conformance to the integration shapes | `rtm:ClosureRuleAssertion` (`earl:Assertion`, `earl:mode earl:automatic`) |
+    | **Audit module** (forward + backward graph traversal) | trace-matrix closure verdicts | computed deterministically; persisted to `<adcs:audit>` |
+
+    Each oracle is **content-addressed at its output** and
+    **provenance-linked at its execution context** — so when the audit
+    asks "how can I trust this evidence?" the answer walks
+    `evidence → wasGeneratedBy → activity → used → container → wasDerivedFrom → image → gitRef`
+    without leaving the graph. The shape catalog (`rtm:ProofArtifact`,
+    `rtm:SimulationResult`, `rtm:DockerImage`, `rtm:DockerContainer`)
+    is the integration ontology's whole inventory — every term is a
+    subclass or property of something upstream (PROV-O, EARL, OntoGSN,
+    SHACL); nothing new on the epistemic axis.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def __(v2_rtm, mo):
-    # WP3 + WP4 — the rtm:DockerImage node as first-class evidence,
-    # cross-linked to its git ref and to the storage backend's record.
-    # In a live `--compute=docker --backend=flexo` run, these triples
-    # are emitted by DockerCompute._emit_image_node + the runner Stage 4.
+    # Synthesize the Docker image record + cross-links a live
+    # --compute=docker --backend=flexo run would emit, so the
+    # downstream evidence_by_image query and the numerical-evidence
+    # provenance render have data to walk.
     from rdflib import Literal as _Lit, URIRef as _URI
     from rdflib.namespace import RDF as _RDF, XSD as _XSD
-    from ontology.prefixes import G_EVIDENCE as _G_EV, PROV as _PROV, RTM as _RTM
+    from ontology.prefixes import (
+        ADCS as _ADCS, G_EVIDENCE as _G_EV,
+        PROV as _PROV, RTM as _RTM,
+    )
 
     _ev_g = v2_rtm.graph(_URI(_G_EV))
     _image = _URI("urn:adcs:docker-image:sha256-92bb8bf18f5f2ba7a6e332e4fe1fa1b12911e9b6c4cddb4b35e1659b01b21d30")
@@ -1448,44 +1486,99 @@ def __(v2_rtm, mo):
     _ev_g.add((_image, _RTM.flexoRecord,
                _URI("urn:adcs:flexo:adcs-demo/lifecycle/evidence")))
 
-    # Link the synthesized v2 evidence to derive from this image,
-    # so the "image → evidence" SPARQL join populates.
-    from ontology.prefixes import ADCS as _ADCS
+    # Container materialization (per-run, content-addressed by container id)
+    _container = _URI("urn:adcs:docker-container:71a59f23f3e9")
+    _ev_g.add((_container, _RDF.type, _RTM.DockerContainer))
+    _ev_g.add((_container, _RDF.type, _PROV.Entity))
+    _ev_g.add((_container, _RTM.containerId, _Lit("71a59f23f3e9")))
+    _ev_g.add((_container, _PROV.wasDerivedFrom, _image))
+
+    # Link every v2 analysis activity to the container (the runtime
+    # it actually executed in) and tag each piece of v2 evidence as
+    # derived from the image (the recipe).
     for _rid in ["REQ-001", "REQ-002", "REQ-003", "REQ-004"]:
+        _ev_g.add((_ADCS[f"SA-{_rid}-v2"], _PROV.used, _container))
+        _ev_g.add((_ADCS[f"NS-{_rid}-v2"], _PROV.used, _container))
         _ev_g.add((_ADCS[f"EV-PROOF-{_rid}-v2"], _PROV.wasDerivedFrom, _image))
         _ev_g.add((_ADCS[f"EV-SIM-{_rid}-v2"], _PROV.wasDerivedFrom, _image))
 
-    # Run the WP3 evidence_by_image join + WP4 trust query against the
-    # newly-augmented dataset to show the result the auditor sees.
+    # Inverse query: from the image, find every evidence node derived from it.
     from traceability.queries import evidence_by_image as _evbyimg
     _rows = _evbyimg(v2_rtm, "sha256:92bb8bf18f5f2ba7a6e332e4fe1fa1b12911e9b6c4cddb4b35e1659b01b21d30")
-    _ev_count = len(_rows)
+    _proof_count = sum(1 for r in _rows if "ProofArtifact" in (r.get("type") or ""))
+    _sim_count = sum(1 for r in _rows if "SimulationResult" in (r.get("type") or ""))
 
     mo.md(
-        "### The Docker image as a tracked node (WP3 + WP4)\n\n"
-        "Beyond the executor-agent label from the cell above, the live "
-        "pipeline emits the image itself as an `rtm:DockerImage` entity "
-        "with content hashes, the git ref it was built from, and a "
-        "cross-link to its storage record in Flexo:\n\n"
+        "### The runtime ASoTs as first-class nodes\n\n"
+        "The symbolic oracle and the numerical oracle both run inside an "
+        "`adcs-compute:latest` container materialized from a Dockerfile "
+        "tracked in git. The container's identity (recipe + runtime + git ref) "
+        "is itself a recorded fact:\n\n"
         "```turtle\n"
         "<urn:adcs:docker-image:sha256-92bb8bf18f5f...>\n"
         "    a rtm:DockerImage, prov:Entity ;\n"
-        "    rtm:contentHash       \"sha256:92bb8bf18f5f...\" ;\n"
+        "    rtm:contentHash       \"sha256:92bb8bf18f5f...\" ;     # runtime digest\n"
         "    rtm:imageLabel        \"adcs-compute:latest\" ;\n"
-        "    rtm:dockerfileHash    \"sha256:dockerfile-bytes-...\" ;\n"
+        "    rtm:dockerfileHash    \"sha256:dockerfile-bytes-...\" ; # the recipe\n"
         "    rtm:buildContextHash  \"sha256:build-context-...\" ;\n"
         "    rtm:gitRef            \"git+https://github.com/.../@HEAD#compute/Dockerfile\"^^xsd:anyURI ;\n"
         "    rtm:flexoRecord       <urn:adcs:flexo:adcs-demo/lifecycle/evidence> .\n\n"
-        "<adcs:EV-PROOF-REQ-003-v2> prov:wasDerivedFrom <urn:adcs:docker-image:sha256-92bb8bf18f5f...> .\n"
+        "<urn:adcs:docker-container:71a59f23f3e9>\n"
+        "    a rtm:DockerContainer, prov:Entity ;\n"
+        "    rtm:containerId        \"71a59f23f3e9\" ;\n"
+        "    prov:wasDerivedFrom    <urn:adcs:docker-image:sha256-92bb...> .  # materialization\n\n"
+        "adcs:NS-REQ-001-v2 prov:used <urn:adcs:docker-container:71a59f23f3e9> .\n"
+        "adcs:EV-SIM-REQ-001-v2 prov:wasDerivedFrom <urn:adcs:docker-image:sha256-92bb...> .\n"
         "```\n\n"
-        f"`evidence_by_image(\"sha256:92bb8bf18f5f...\")` returns **{_ev_count} evidence node(s)** "
-        "derived from this image — the inverse query that the\n"
-        "earlier executor-label model couldn't answer.\n\n"
-        "An auditor can now walk: `evidence → wasDerivedFrom → image → "
-        "gitRef`, and use `compute.reproduce --image-digest sha256:92bb...` "
-        "to rebuild the image at the recorded git ref and digest-compare "
-        "the result. If the rebuilt digest matches, an `rtm:DigestMatchAssertion` "
-        "(earl:passed) lands in `<adcs:audit>`."
+        f"Image → evidence (the inverse query): **{_proof_count} proof artifact(s) + {_sim_count} simulation result(s)** "
+        "derived from this exact image digest.\n\n"
+        "A reviewer can ask:\n\n"
+        "- *what code produced this evidence?* — walk `evidence → wasDerivedFrom → image → gitRef`\n"
+        "- *which container ran it?* — walk `evidence → wasGeneratedBy → activity → used → container`\n"
+        "- *can I reproduce it?* — `compute.reproduce --image-digest sha256:92bb...` clones the recorded git ref, rebuilds the image, and emits an `rtm:DigestMatchAssertion` (`earl:passed` / `earl:failed`) into the audit graph\n\n"
+        "The recipe lives in git; the witness lives in Flexo; the runtime "
+        "materializes locally; the wire-level invocation log can live in a "
+        "fourth-service document store. Each piece is under its own auspices "
+        "(`prov:wasAttributedTo` for operators, `rtm:operatedBy` for hosts) and "
+        "the integration ontology stitches them via standard PROV edges."
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(v2_rtm, mo):
+    # Numerical-evidence provenance rendered as a concrete trace,
+    # not abstract narration. Pick a single EV-SIM-* node and walk
+    # every linked fact — readers see the full chain in one block
+    # rather than having to query for it.
+    from traceability.queries import (
+        technical_provenance as _techprov,
+        render_trust_summary as _render,
+        trust_summary as _trust,
+    )
+
+    _focus = "http://example.org/adcs-demo/EV-SIM-REQ-001-v2"
+    _summary = _trust(v2_rtm, _focus)
+    _txt = _render(_summary)
+
+    mo.md(
+        "### Numerical evidence — the full provenance, end-to-end\n\n"
+        "The simulation evidence node for REQ-001's step-response check "
+        "(`EV-SIM-REQ-001-v2`) carries the chain a reviewer needs to ask "
+        "every \"how can I trust this?\" question.\n\n"
+        f"```text\n{_txt}\n```\n\n"
+        "Read this top-to-bottom and you get: which oracle ran (Scipy "
+        "numerical-simulation engine, executed as the analysis activity); "
+        "which container materialized the oracle (`71a59f23f3e9`); which "
+        "image's recipe produced that container (`sha256:92bb8bf18f5f...`); "
+        "which git commit was the source-of-truth for the recipe; which "
+        "host the container ran on; which organization operated the host; "
+        "and the closure-rule outcome attesting the dataset still conforms "
+        "to its SHACL invariants. **No fact requires trusting a single party** "
+        "— each link is independently auditable against its own ASoT, and a "
+        "reproducer can rebuild the image at the recorded git ref, re-run "
+        "the simulation, and check the numerical output matches "
+        "`rtm:contentHash`."
     )
     return
 
