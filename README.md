@@ -482,6 +482,11 @@ and summarized here so it's easy to pick up:
 - **Continuous re-verification in CI** plus a **live traceability
   dashboard** — both compose with the cryptographic-envelope work.
 
+## Acknowledgments
+
+Thanks to Nick ([@Nick-phl-7](https://github.com/Nick-phl-7)) for feedback and
+guidance in preparation for the JAXA talk.
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
