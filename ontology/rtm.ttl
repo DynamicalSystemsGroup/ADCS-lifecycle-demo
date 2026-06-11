@@ -1,7 +1,7 @@
 # =============================================================================
 # AUTO-GENERATED ARTIFACT — DO NOT EDIT DIRECTLY
 #
-# Built 2026-05-29T03:22:19Z by scripts/build_ontology.py from:
+# Built 2026-06-11T06:58:01Z by scripts/build_ontology.py from:
 #   - ontology/rtm-edit.ttl
 #   - ontology/sysml_term_map.csv (SysMLv2 equivalences)
 #   - ontology/imports/*.ttl (validation only; full MIREOT merge is
