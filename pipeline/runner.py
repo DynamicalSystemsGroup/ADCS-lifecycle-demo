@@ -324,8 +324,11 @@ def run_stage_6_attestation(state: PipelineState) -> AttestationStageResult:
             state.ds, "REQ-001", state.engineer_name,
             auto_attest=True,
             model_adequacy=(
-                "Step-response simulation is adequate for evaluating pointing-"
-                "accuracy settling time at this point in the lifecycle."
+                "Rigid-body attitude dynamics with PD control and linearized "
+                "gravity-gradient disturbance is an adequate representation of "
+                "the GeoSat ADCS for assessing slew settling at this lifecycle "
+                "stage. Flexible-mode and sensor-noise effects are second-order "
+                "for this judgment."
             ),
             evidence_sufficiency=(
                 f"Evidence is sufficient to conclude REQ-001 is NOT yet satisfied: "
