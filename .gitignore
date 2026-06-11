@@ -5,6 +5,12 @@ __pycache__/
 *.swo
 .venv/
 *.egg-info/
+
+# Local secrets — real credentials (e.g. FLEXO_TOKEN for the Starforge
+# remote). Copy .env.example -> .env and fill it in; .env.example stays
+# tracked, .env never does.
+.env
+.env.local
 .pytest_cache/
 .coverage
 output/
