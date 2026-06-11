@@ -129,6 +129,20 @@ Exit 0 = digest matches; 1 = mismatch; 2 = prerequisite failure.
 Outcome is also recorded as an `rtm:DigestMatchAssertion` in
 `<adcs:audit>`.
 
+### Behavior-model oracle
+
+`analysis.oracle` compares a behavior-model output metric (e.g. simulated
+`settling_time_s`) against a requirement's machine-readable acceptance
+criterion and records the outcome as an `rtm:BehaviorOracleAssertion`
+(`earl:mode = earl:automatic`) in `<adcs:audit>`, beside the closure-rule
+and digest-match assertions. This is **verification of a model-level
+claim** ("the metric meets/exceeds the budget, within the model") — it
+never asserts that the physical requirement is satisfied. Only human
+attestation does that, so the oracle links the requirement via
+`rtm:evaluatesAgainst`, never `rtm:attests`. When a requirement has no
+machine-readable criterion (REQ-004), the oracle returns `earl:cantTell`
+rather than fabricating a verdict.
+
 ### Tests
 
 ```bash

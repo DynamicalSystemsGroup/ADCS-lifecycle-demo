@@ -85,9 +85,15 @@ prov:actedOnBehalfOf <operating-org>`. The image carries `rtm:gitRef`
 + `rtm:flexoRecord` for cross-remote linking.
 
 **EARL-wrapped verification outcomes** sit beside human attestation:
-`rtm:ClosureRuleAssertion` (Stage 6.5 SHACL outcome) and
-`rtm:DigestMatchAssertion` (`compute.reproduce` rebuild outcome) are
-both `earl:Assertion` subclasses with `earl:mode = earl:automatic`.
+`rtm:ClosureRuleAssertion` (Stage 6.5 SHACL outcome),
+`rtm:DigestMatchAssertion` (`compute.reproduce` rebuild outcome), and
+`rtm:BehaviorOracleAssertion` (`analysis.oracle` metric-vs-criterion
+outcome) are all `earl:Assertion` subclasses with `earl:mode =
+earl:automatic`. The behavior oracle verifies a *model-level* claim (a
+computed metric against a requirement's machine-readable acceptance
+criterion); it never asserts physical requirement satisfaction — that
+remains human attestation only. Accordingly it links the requirement via
+`rtm:evaluatesAgainst` (subPropertyOf `prov:used`), never `rtm:attests`.
 
 **Preflight gate** probes every configured backend before Stage 0 and
 fails fast on any unreachable remote. Matches WP2's ROBOT-default
@@ -104,12 +110,14 @@ trust this?" — `technical_provenance`, `auspices_chain`,
   `rtm_shapes.ttl` (closure-rule suite), `rtm_individuals.ttl`,
   `sysml_term_map.csv`, `assembly_manifest.json`, `imports/` (vendored upstreams)
 - `structural/` — SysMLv2 RDF model
-- `analysis/` — SymPy symbolic analysis + scipy numerical simulation
+- `analysis/` — SymPy symbolic analysis + scipy numerical simulation +
+  traceable behavior-model oracle (`oracle.py`)
 - `compute/` — `LocalCompute` (in-process) + `DockerCompute` (containerized
   remote-emulation with PROV provenance capture) + `Dockerfile`
 - `evidence/` — content hashing + RDF evidence binding (with execution metadata)
 - `traceability/` — RTM assembly, SPARQL queries, attestation (GSN-based),
-  closure-rule verification (`verification.py`), audit module
+  closure-rule verification (`verification.py`), behavior-oracle assertion
+  emitter (`oracle_assertion.py`), audit module
 - `pipeline/` — stage orchestrator (`PipelineState` + per-stage free
   functions in `runner.py`; `state.py` defines the typed result records),
   `dataset.py` (named-graph helpers incl. `query_named_graph`),
@@ -117,8 +125,8 @@ trust this?" — `technical_provenance`, `auspices_chain`,
 - `flexo/` — Flexo MMS provisioning scripts + integration docs
 - `interrogate/` — explain / reproduce / visualize / rerun
 - `scripts/` — `fetch_imports.py`, `build_ontology.py`
-- `tests/` — 166 tests (alignment, named graphs, shape suite, audit,
-  backends, compute, live Flexo opt-in)
+- `tests/` — 289 tests (alignment, named graphs, shape suite, audit,
+  backends, compute, behavior oracle, live Flexo opt-in)
 
 ## Pipeline (stages 0–8)
 
@@ -176,7 +184,8 @@ strings, RDF property labels, log/banner strings, and commit messages:
 - **Verification** = automated check whose computation result is
   fully specified (SHACL conformance, ROBOT/ELK consistency,
   content-hash matching, completeness checks, HTTP-connectivity
-  probes, triple-count budgets).
+  probes, triple-count budgets, behavior-oracle metric-vs-criterion
+  comparison in `analysis.oracle`).
 - **Validation** = human judgement with expertise, additional context,
   and/or interpretation (engineer attestation, adequacy assumption,
   sufficiency justification).

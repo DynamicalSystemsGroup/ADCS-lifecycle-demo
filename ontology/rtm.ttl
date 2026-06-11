@@ -109,6 +109,13 @@ rtm:documentRef a owl:DatatypeProperty ;
     rdfs:domain rtm:Evidence ;
     rdfs:range xsd:anyURI .
 
+rtm:evaluatesAgainst a owl:ObjectProperty ;
+    rdfs:label "evaluates against" ;
+    rdfs:comment "Links a behavior-oracle assertion to the requirement whose machine-readable acceptance criterion it computed over. Records the input of a verification — NOT rtm:attests, which is reserved for human judgement of satisfaction." ;
+    rdfs:domain rtm:BehaviorOracleAssertion ;
+    rdfs:range sysml:RequirementDefinition ;
+    rdfs:subPropertyOf prov:used .
+
 rtm:evidenceMethod a owl:ObjectProperty ;
     rdfs:label "evidence method" ;
     rdfs:domain rtm:Evidence ;
@@ -158,6 +165,16 @@ rtm:imageLabel a owl:DatatypeProperty ;
     rdfs:domain rtm:DockerImage ;
     rdfs:range xsd:string .
 
+rtm:metricKey a owl:DatatypeProperty ;
+    rdfs:label "model-output metric key compared by the oracle" ;
+    rdfs:domain rtm:BehaviorOracleAssertion ;
+    rdfs:range xsd:string .
+
+rtm:metricValue a owl:DatatypeProperty ;
+    rdfs:label "model-output metric value compared by the oracle" ;
+    rdfs:domain rtm:BehaviorOracleAssertion ;
+    rdfs:range xsd:decimal .
+
 rtm:modelHash a owl:DatatypeProperty ;
     rdfs:label "model hash" ;
     rdfs:comment "SHA-256 hash of the structural model at the time evidence was produced." ;
@@ -185,6 +202,11 @@ rtm:sourceFile a owl:DatatypeProperty ;
     rdfs:label "source file" ;
     rdfs:domain rtm:Evidence ;
     rdfs:range xsd:string .
+
+rtm:thresholdValue a owl:DatatypeProperty ;
+    rdfs:label "model-level acceptance threshold compared by the oracle" ;
+    rdfs:domain rtm:BehaviorOracleAssertion ;
+    rdfs:range xsd:decimal .
 
 rtm:transactionId a owl:DatatypeProperty ;
     rdfs:label "Service-invocation transaction ID" ;
@@ -287,6 +309,12 @@ omg-sysml:declaredName a owl:DatatypeProperty .
 omg-sysml:ownedRelationship a owl:ObjectProperty .
 
 omg-sysml:text a owl:DatatypeProperty .
+
+rtm:BehaviorOracleAssertion a owl:Class ;
+    rdfs:label "Behavior-oracle assertion" ;
+    rdfs:comment "Automated, fully-specified outcome of comparing a behavior-model output metric against a requirement's machine-readable acceptance criterion (analysis.oracle). earl:mode is always earl:automatic. Verifies a model-level claim, never physical requirement satisfaction — that remains the exclusive province of human attestation (rtm:Attestation)." ;
+    rdfs:subClassOf earl:Assertion,
+        prov:Activity .
 
 rtm:Attestation a owl:Class ;
     rdfs:label "Attestation" ;

@@ -2,15 +2,15 @@
   "artifact": {
     "equivalence_axioms": 9,
     "path": "ontology/rtm.ttl",
-    "sha256": "59161fbe4b92b2a9cbe8d90d9caba58afc6de42ce11959ab9784a77d82caf2ff",
-    "subclass_axioms": 19,
-    "subproperty_axioms": 8,
-    "total_triples": 218
+    "sha256": "b772b975f1c0209823d21757fe992bb605e6341c0968e6df0d67a494949e91a1",
+    "subclass_axioms": 21,
+    "subproperty_axioms": 9,
+    "total_triples": 241
   },
   "build_time": "2026-05-29T03:22:19Z",
   "edit_source": {
     "path": "ontology/rtm-edit.ttl",
-    "sha256": "863ee3972aa670c69ad91c5a00e87bbd38b3ca4f956c34832b783785bbd6268b"
+    "sha256": "1ee406e76bec528d3b7923a7da8b31bdb585401578c14d6efc7aa0451012bd86"
   },
   "imports": {
     "EARL": {
@@ -107,7 +107,7 @@
     "sha256": "47c34b99c5a4d0bd9e4e9e0d6f945412eb6bec2f3b18b4d0da702cc4a5f0009f"
   },
   "triple_budget": {
-    "headroom": 232,
+    "headroom": 209,
     "rationale": "Integration ontology parsimony gate. WP4 bumped 380 -> 450 after adding the three-remote provenance terms (rtm:DockerContainer + rtm:gitRef + rtm:flexoRecord + rtm:operatedBy), EARL-wrapped verification outcomes (rtm:DigestMatchAssertion + rtm:ClosureRuleAssertion + rtm:violationCount), service-invocation properties (rtm:transactionId + rtm:documentRef), and 4 new SHACL shapes. See WP4 subplan \u00a74.6 (ontology additions).",
     "value": 450
   }

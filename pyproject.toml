@@ -26,6 +26,9 @@ dev = [
     "marimo>=0.22.5",
     "pytest>=8.0",
     "pytest-cov>=5.0",
+    # jupyterlab drives jaxa_notebook.ipynb (the JAXA-talk walkthrough) and
+    # brings nbformat + nbconvert for headless execution / CI dry-runs.
+    "jupyterlab>=4.0",
 ]
 
 [tool.pytest.ini_options]

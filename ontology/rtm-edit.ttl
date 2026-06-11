@@ -342,6 +342,33 @@ rtm:violationCount a owl:DatatypeProperty ;
     rdfs:range xsd:nonNegativeInteger ;
     rdfs:label "Number of violations summarized by this closure assertion" .
 
+rtm:BehaviorOracleAssertion a owl:Class ;
+    rdfs:subClassOf earl:Assertion , prov:Activity ;
+    rdfs:label "Behavior-oracle assertion" ;
+    rdfs:comment "Automated, fully-specified outcome of comparing a behavior-model output metric against a requirement's machine-readable acceptance criterion (analysis.oracle). earl:mode is always earl:automatic. Verifies a model-level claim, never physical requirement satisfaction — that remains the exclusive province of human attestation (rtm:Attestation)." .
+
+rtm:evaluatesAgainst a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:used ;
+    rdfs:domain rtm:BehaviorOracleAssertion ;
+    rdfs:range sysml:RequirementDefinition ;
+    rdfs:label "evaluates against" ;
+    rdfs:comment "Links a behavior-oracle assertion to the requirement whose machine-readable acceptance criterion it computed over. Records the input of a verification — NOT rtm:attests, which is reserved for human judgement of satisfaction." .
+
+rtm:metricValue a owl:DatatypeProperty ;
+    rdfs:domain rtm:BehaviorOracleAssertion ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "model-output metric value compared by the oracle" .
+
+rtm:thresholdValue a owl:DatatypeProperty ;
+    rdfs:domain rtm:BehaviorOracleAssertion ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "model-level acceptance threshold compared by the oracle" .
+
+rtm:metricKey a owl:DatatypeProperty ;
+    rdfs:domain rtm:BehaviorOracleAssertion ;
+    rdfs:range xsd:string ;
+    rdfs:label "model-output metric key compared by the oracle" .
+
 # -- WP4 service-invocation properties (transaction logs as evidence) --------
 #
 # Invocation events are just prov:Activity instances with a transaction
