@@ -76,13 +76,21 @@ URI scheme (canonical shapes):
 - Executor: `urn:adcs:executor:<id>` (`prov:SoftwareAgent`)
 - Operating org: `urn:adcs:org:local-operator` default (`prov:Organization`)
 - Flexo record: `urn:adcs:flexo:<org>/<repo>/<branch>`
+- Flexo service: `urn:adcs:service:flexo-mms`
 - Txnlog service: `urn:adcs:service:transaction-log-store`
 
 Standard PROV edges link them: `<container> prov:wasDerivedFrom
-<image>`, `<activity> prov:used <container>`, `<host> rtm:operatedBy
-<hosting-org>` (subPropertyOf prov:wasAttributedTo), `<executor>
-prov:actedOnBehalfOf <operating-org>`. The image carries `rtm:gitRef`
-+ `rtm:flexoRecord` for cross-remote linking.
+<image>`, `<activity> prov:used <container>`, `<executor>
+prov:actedOnBehalfOf <operating-org>`. **Auspices are per substrate**:
+each substrate's location/service node carries `rtm:operatedBy`
+(subPropertyOf prov:wasAttributedTo) pointing at its OWN hosting org —
+the compute host gets `ADCS_HOSTING_ORG_*` (defaults to the operating
+org), the Flexo service node gets `ADCS_FLEXO_HOSTING_ORG_*`, the
+txnlog service node gets `ADCS_TXNLOG_HOSTING_ORG_*` (defaults to the
+compute hosting org). `FLEXO_ORG` is the Flexo MMS org slug (REST path
+segment), not an auspices IRI. The image carries `rtm:gitRef` +
+`rtm:flexoRecord` for cross-remote linking; the record links
+`prov:atLocation` to the service node.
 
 **EARL-wrapped verification outcomes** sit beside human attestation:
 `rtm:ClosureRuleAssertion` (Stage 6.5 SHACL outcome),
@@ -99,10 +107,10 @@ remains human attestation only. Accordingly it links the requirement via
 fails fast on any unreachable remote. Matches WP2's ROBOT-default
 discipline — no silent degrade.
 
-**Six trust queries** in `traceability/queries.py` answer "how can I
+**Seven trust queries** in `traceability/queries.py` answer "how can I
 trust this?" — `technical_provenance`, `auspices_chain`,
 `reproducibility_witnesses`, `closure_witnesses`,
-`service_invocations_for`, `trust_summary`.
+`service_invocations_for`, `service_auspices`, `trust_summary`.
 
 ## Key directories
 

@@ -32,6 +32,11 @@ Environment variables (kwargs override env):
   FLEXO_ORG        Org slug                         default: adcs-demo
   FLEXO_REPO       Repo slug                        default: lifecycle
 
+FLEXO_ORG is a REST path segment, NOT an organizational-auspices IRI.
+Who *operates* this Flexo substrate is configured separately via
+ADCS_FLEXO_HOSTING_ORG_* (see compute/organizations.py) and emitted by
+emit_service_node() as <urn:adcs:service:flexo-mms> rtm:operatedBy <org>.
+
 The default URL targets the remote starforge instance, which is the
 collaboration target shared with the team. Set FLEXO_TOKEN to a token
 obtained from a collaborator. For a local Compose-up stack instead,

@@ -45,19 +45,28 @@ Standard PROV edges link them:
 
 ## Organizational auspices
 
-Two orgs per run, modelled with `prov:Organization` (no FOAF, no Org
-Ontology — those stay deferred per CLAUDE.md future-work #2):
+Auspices are **per substrate** — each service/host node carries
+`rtm:operatedBy` the org that actually operates it, modelled with
+`prov:Organization` (no FOAF, no Org Ontology — those stay deferred
+per CLAUDE.md future-work #2):
 
-| Role | Predicate | Subject → Object |
-| --- | --- | --- |
-| Hosting | `rtm:operatedBy` (subPropertyOf prov:wasAttributedTo) | host → org |
-| Operating | `prov:wasAttributedTo` | container → org |
-| Delegation | `prov:actedOnBehalfOf` | executor → org |
+| Substrate | Env vars | Predicate | Subject → Object |
+| --- | --- | --- | --- |
+| Compute (operating) | `ADCS_OPERATING_ORG_*` | `prov:actedOnBehalfOf` | executor → org |
+| Compute (operating) | `ADCS_OPERATING_ORG_*` | `prov:wasAttributedTo` | container → org |
+| Compute (hosting) | `ADCS_HOSTING_ORG_*` | `rtm:operatedBy` (subPropertyOf prov:wasAttributedTo) | compute host → org |
+| Flexo MMS | `ADCS_FLEXO_HOSTING_ORG_*` | `rtm:operatedBy` | `urn:adcs:service:flexo-mms` → org |
+| Txnlog store | `ADCS_TXNLOG_HOSTING_ORG_*` | `rtm:operatedBy` | `urn:adcs:service:transaction-log-store` → org |
 
-Both default to `urn:adcs:org:local-operator` (single-operator demo).
-Set `ADCS_HOSTING_ORG_IRI=urn:adcs:org:planetary-utilities` to
-demonstrate the Starforge future state where PU hosts but the
-operator is a different org.
+Compute operating + hosting default to `urn:adcs:org:local-operator`
+(hosting falls back to operating). Set
+`ADCS_FLEXO_HOSTING_ORG_IRI=urn:adcs:org:planetary-utilities` to record
+that PU operates the Starforge Flexo substrate; the local machine's
+location node keeps the compute-substrate org. Unset Flexo auspices =
+unknown: the service node is emitted without an `rtm:operatedBy` edge.
+The txnlog substrate defaults to the compute-substrate hosting org
+(the demo's CouchDB runs locally). NOTE: `FLEXO_ORG` is the Flexo MMS
+org *slug* (a REST path segment), unrelated to these auspices IRIs.
 
 ## End-to-end provenance chain
 
@@ -90,9 +99,15 @@ A query "how can I trust this evidence?" walks the full chain:
   rtm:buildContextHash     "<hash>"
   rtm:gitRef               <git+https://.../@<sha>#compute/Dockerfile>
   rtm:flexoRecord          <urn:adcs:flexo:.../evidence>
+
+<urn:adcs:flexo:.../evidence>
+  prov:atLocation          <urn:adcs:service:flexo-mms>
+
+<urn:adcs:service:flexo-mms>  (prov:Location)
+  rtm:operatedBy           <flexo-hosting-org>   — who hosts the Flexo
 ```
 
-`traceability/queries.py` exposes six typed trust queries that walk
+`traceability/queries.py` exposes seven typed trust queries that walk
 this graph:
 
 1. `technical_provenance(ds, evidence_iri)` — full chain in one row
@@ -100,7 +115,8 @@ this graph:
 3. `closure_witnesses(ds, graph_iri)` — SHACL closure outcomes
 4. `auspices_chain(ds, evidence_iri)` — operating + hosting orgs
 5. `service_invocations_for(ds)` — wire-level activity rows
-6. `trust_summary(ds, evidence_iri)` — composes 1–5 into `TrustSummary`
+6. `service_auspices(ds)` — per-service `rtm:operatedBy` rows
+7. `trust_summary(ds, evidence_iri)` — composes 1–6 into `TrustSummary`
 
 `render_trust_summary()` produces the text panel for
 `interrogate.explain`.
