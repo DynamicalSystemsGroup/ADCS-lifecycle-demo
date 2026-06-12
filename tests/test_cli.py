@@ -103,3 +103,27 @@ def test_rerun_rejects_unknown_format(tmp_path):
     bogus.write_text("")
     result = runner.invoke(app, ["--input", str(bogus), "--format", "bogus"])
     assert result.exit_code != 0
+
+
+# ---------------------------------------------------------------------------
+# documents.design_description — DDVS-001 document compiler
+# (full build + --check behavior is exercised with a real dataset in
+#  tests/test_design_description.py; here only the CLI shell)
+# ---------------------------------------------------------------------------
+
+def test_design_description_help_lists_known_flags():
+    from documents.design_description import app
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    flat = _flatten_help(result.stdout)
+    for flag in ("--input", "--output", "--requirement", "--check", "--stdout"):
+        assert flag in flat, (
+            f"Missing {flag} in design_description --help:\n{result.stdout}"
+        )
+
+
+def test_design_description_returns_exit_2_when_input_missing(tmp_path):
+    from documents.design_description import app
+    bogus = tmp_path / "does-not-exist.trig"
+    result = runner.invoke(app, ["--input", str(bogus)])
+    assert result.exit_code == 2

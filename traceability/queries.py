@@ -8,11 +8,16 @@ from __future__ import annotations
 
 from rdflib import Graph
 
-from ontology.prefixes import ADCS, EARL, GSN, PROV, RTM, SYSML
+from ontology.prefixes import ADCS, EARL, GSN, PREFIXES, PROV, RTM, SYSML
 
 _INIT_NS = {
     "sysml": SYSML, "rtm": RTM, "prov": PROV, "adcs": ADCS,
     "earl": EARL, "gsn": GSN,
+    # rdflib binds core prefixes (incl. rdfs) by default even on
+    # disk-parsed datasets; listed here so the query module's bindings
+    # are explicit and single-sourced from ontology.prefixes rather
+    # than relying on that default.
+    "rdfs": PREFIXES["rdfs"],
 }
 
 # ---------------------------------------------------------------------------
@@ -25,6 +30,16 @@ SELECT ?req ?name ?text WHERE {
          sysml:declaredName ?name ;
          sysml:text ?text .
     FILTER(STRSTARTS(?name, "REQ-"))
+}
+ORDER BY ?name
+"""
+
+SAT_REQUIREMENTS = """
+SELECT ?req ?name ?text WHERE {
+    ?req a sysml:RequirementDefinition ;
+         sysml:declaredName ?name ;
+         sysml:text ?text .
+    FILTER(STRSTARTS(?name, "SAT-REQ-"))
 }
 ORDER BY ?name
 """
@@ -79,6 +94,23 @@ SELECT ?ev ?type ?hash ?summary WHERE {
 ORDER BY ?ev
 """
 
+# Document-compiler view of all evidence: full detail in one pass,
+# grouped by requirement in Python (documents.design_description).
+EVIDENCE_DETAIL = """
+SELECT ?reqName ?ev ?type ?method ?contentHash ?modelHash ?summary ?genTime WHERE {
+    ?ev a ?type ;
+        rtm:addresses ?req ;
+        rtm:contentHash ?contentHash ;
+        rtm:resultSummary ?summary .
+    OPTIONAL { ?ev prov:generatedAtTime ?genTime }
+    OPTIONAL { ?ev rtm:evidenceMethod ?method }
+    OPTIONAL { ?ev rtm:modelHash ?modelHash }
+    ?req sysml:declaredName ?reqName .
+    FILTER(?type IN (rtm:ProofArtifact, rtm:SimulationResult))
+}
+ORDER BY ?reqName ?ev
+"""
+
 # ---------------------------------------------------------------------------
 # Attestation queries
 # ---------------------------------------------------------------------------
@@ -101,6 +133,43 @@ SELECT ?att ?reqName ?engineer ?adequacy ?sufficiency ?outcome ?mode ?timestamp 
     ?agent rdfs:label ?engineer .
 }
 ORDER BY ?reqName
+"""
+
+# Document-compiler view: ALL_ATTESTATIONS plus the outcome short name,
+# rtm:gitCommit, and the cited evidence set. GROUP_CONCAT order is NOT
+# guaranteed by SPARQL — consumers must split on "|" and sort in Python
+# before rendering (determinism discipline).
+#
+# Known limitation: assumes one value per attestation for timestamp /
+# gitCommit / adequacy / sufficiency. Re-attestation merges new values
+# onto the SAME deterministic ATT-<req> IRI (traceability/attestation.py),
+# so a dataset that accumulates multiple runs cross-products in the
+# GROUP BY and yields duplicate rows. Tracked as a follow-up.
+ATTESTATION_DETAIL = """
+SELECT ?att ?reqName ?engineer ?adequacy ?sufficiency ?outcomeShort ?mode
+       ?timestamp ?gitCommit
+       (GROUP_CONCAT(STR(?ev); separator="|") AS ?evidence) WHERE {
+    ?att a rtm:Attestation ;
+         rtm:attests ?req ;
+         rtm:hasOutcome ?outcome ;
+         prov:wasAssociatedWith ?agent ;
+         prov:generatedAtTime ?timestamp .
+    OPTIONAL { ?att rtm:attestationMode ?mode }
+    OPTIONAL { ?att rtm:gitCommit ?gitCommit }
+    OPTIONAL { ?att rtm:hasEvidence ?ev }
+    ?att gsn:inContextOf ?adequacyNode .
+    ?adequacyNode a gsn:Assumption ;
+                  gsn:statement ?adequacy .
+    ?att gsn:inContextOf ?sufficiencyNode .
+    ?sufficiencyNode a gsn:Justification ;
+                     gsn:statement ?sufficiency .
+    ?req sysml:declaredName ?reqName .
+    ?agent rdfs:label ?engineer .
+    BIND(REPLACE(STR(?outcome), "^.*[#/]", "") AS ?outcomeShort)
+}
+GROUP BY ?att ?reqName ?engineer ?adequacy ?sufficiency ?outcomeShort ?mode
+         ?timestamp ?gitCommit
+ORDER BY ?reqName ?att
 """
 
 ATTESTATION_STATUS = """

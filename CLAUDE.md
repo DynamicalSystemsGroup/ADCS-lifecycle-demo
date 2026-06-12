@@ -124,9 +124,12 @@ trust this?" — `technical_provenance`, `auspices_chain`,
   `stage0_assembly.py`, `plan.ttl`, `backends/` (Local / Flexo / Fuseki)
 - `flexo/` — Flexo MMS provisioning scripts + integration docs
 - `interrogate/` — explain / reproduce / visualize / rerun
+- `documents/` — compiled document views over the dataset
+  (`design_description.py` builds DDVS-001; deterministic, never hand-edited)
 - `scripts/` — `fetch_imports.py`, `build_ontology.py`
-- `tests/` — 289 tests (alignment, named graphs, shape suite, audit,
-  backends, compute, behavior oracle, live Flexo opt-in)
+- `tests/` — 309 tests: 306 in the default run + 3 live-Flexo opt-in
+  (alignment, named graphs, shape suite, audit, backends, compute,
+  behavior oracle, document compiler)
 
 ## Pipeline (stages 0–8)
 
@@ -168,6 +171,13 @@ CLIs today:
 - `interrogate.rerun` — translates a verification report into the
   pipeline stages that must re-run (flags: `--input`,
   `--requirement`, `--format`).
+- `documents.design_description` — compiles DDVS-001, a deterministic
+  Markdown design-description/VCRM view over `output/rtm.trig` (flags:
+  `--input`, `--output`, `--requirement`, `--check`, `--stdout`).
+  Byte-identical rebuilds: document date = `MAX(prov:generatedAtTime)`
+  (never wall clock), fingerprint = sha256 of the raw input file bytes
+  (bnode relabeling rules out re-serialization hashing); `--check` is
+  the drift gate.
 
 `interrogate.explain`, `interrogate.reproduce`, `interrogate.visualize`
 are library-only (no CLI entry points). Tests use

@@ -2,6 +2,7 @@
 
 **Live demo:** <https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/>
 **Architecture:** see [ARCHITECTURE.md](ARCHITECTURE.md) — the three-remote (git + Flexo + local Docker) + fourth-service (CouchDB txnlog) picture.
+**AI-aided engineering loop:** see [ENGINEERING_LOOP.md](ENGINEERING_LOOP.md) — how the LLM agent is constrained by CLIs, p-plan sequencing, and SHACL closure rules, with validation reserved for the accountable engineer.
 
 Bidirectional requirements traceability for a satellite Attitude Determination
 and Control System (ADCS), demonstrating the full lifecycle from SysMLv2
@@ -258,6 +259,28 @@ Exit code 0 = clean, 1 = stages or structural violations present, 2
 = input file not found. The Stage 6.5 banner in the runner also
 prints a short rerun-plan summary when violations are present.
 
+### Compiled design document (a view over the RDF)
+
+[`documents/design_description.py`](documents/design_description.py)
+compiles **DDVS-001 — ADCS Design Description & Verification Status**, a
+classic engineering document rendered deterministically from the persisted
+dataset: derivation and allocation tables, a Verification Cross-Reference
+Matrix, per-requirement evidence + attestation detail with the GSN
+adequacy/sufficiency statements, and a colophon with per-graph triple
+counts and the dataset's SHA-256 fingerprint. The compiler never consults
+the wall clock (the document date is the max `prov:generatedAtTime` in the
+data), so identical input bytes rebuild to byte-identical Markdown.
+
+```bash
+uv run python -m documents.design_description          # → output/design_description.md
+uv run python -m documents.design_description --stdout --requirement REQ-003
+uv run python -m documents.design_description --check   # drift gate: exit 1 if stale
+```
+
+The built document carries an AUTO-GENERATED header — rebuild it, don't
+edit it (same discipline as `ontology/rtm.ttl`). Exit codes: 0 = built /
+up to date, 1 = `--check` drift, 2 = input or checked output missing.
+
 ## Requirements
 
 | ID      | Requirement                                       | Outcome (default run)   |
@@ -459,10 +482,11 @@ grow novel epistemic vocabulary.
 - [`traceability/`](traceability/) — RTM assembly, queries, attestation, verification, audit
 - [`pipeline/`](pipeline/) — stage orchestrator (PipelineState + per-stage functions), Dataset helpers + `query_named_graph`, plan.ttl, backends
 - [`interrogate/`](interrogate/) — explain / reproduce / visualize / rerun
+- [`documents/`](documents/) — compiled document views over the dataset (DDVS-001)
 - [`compute/`](compute/) — Local + Docker compute backends + Dockerfile
 - [`flexo/`](flexo/) — Flexo MMS provisioning scripts + live integration docs
 - [`scripts/`](scripts/) — `fetch_imports.py` + `build_ontology.py`
-- [`tests/`](tests/) — 166 tests across ontology, named graphs, shapes, audit, backends, compute, live Flexo
+- [`tests/`](tests/) — 309 tests (306 default run + 3 live-Flexo opt-in) across ontology, named graphs, shapes, audit, backends, compute, document compiler
 
 ## Future Work
 
