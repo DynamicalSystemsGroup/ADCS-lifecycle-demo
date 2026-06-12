@@ -32,6 +32,11 @@ Environment variables (kwargs override env):
   FLEXO_ORG        Org slug                         default: adcs-demo
   FLEXO_REPO       Repo slug                        default: lifecycle
 
+FLEXO_ORG is a REST path segment, NOT an organizational-auspices IRI.
+Who *operates* this Flexo substrate is configured separately via
+ADCS_FLEXO_HOSTING_ORG_* (see compute/organizations.py) and emitted by
+emit_service_node() as <urn:adcs:service:flexo-mms> rtm:operatedBy <org>.
+
 The default URL targets the remote starforge instance, which is the
 collaboration target shared with the team. Set FLEXO_TOKEN to a token
 obtained from a collaborator. For a local Compose-up stack instead,
@@ -44,10 +49,17 @@ import os
 from pathlib import Path
 
 import httpx
-from rdflib import Dataset, URIRef
+from rdflib import Dataset, Graph, Literal, URIRef
+from rdflib.namespace import RDF, RDFS
 
+from ontology.prefixes import DCTERMS, PROV, RTM
 from pipeline.backends.base import BackendUnavailable
 from pipeline.dataset import triples_by_graph
+
+# Stable service identity for the Flexo MMS substrate — analogous to
+# txnlog's urn:adcs:service:transaction-log-store. Per-service auspices
+# attach here (rtm:operatedBy), never to the compute host's location.
+SERVICE_IRI = URIRef("urn:adcs:service:flexo-mms")
 
 
 # Mapping from named-graph IRI suffix to Flexo branch ID.
@@ -62,6 +74,7 @@ def _branch_id(graph_iri: str, prefix: str = "") -> str:
 
 class FlexoBackend:
     name = "flexo"
+    SERVICE_IRI = SERVICE_IRI
 
     def __init__(
         self,
@@ -143,6 +156,24 @@ class FlexoBackend:
         # for the named graphs the backend persists (see persist()).
         branch = f"{self.branch_prefix}{layer}" if self.branch_prefix else layer
         return URIRef(f"urn:adcs:flexo:{self.org}/{self.repo}/{branch}")
+
+    # --- Service node (per-service auspices) -------------------------------
+
+    def emit_service_node(self, graph: Graph, hosting_org_iri: URIRef | None) -> URIRef:
+        """Emit the Flexo MMS service node, optionally with its auspices.
+
+        Typed prov:Location — matches rtm:operatedBy's declared domain
+        and the txnlog precedent where the service IRI is already a
+        prov:atLocation object. No network I/O.
+        """
+        graph.add((SERVICE_IRI, RDF.type, PROV.Location))
+        graph.add((SERVICE_IRI, RDFS.label, Literal("Flexo MMS")))
+        graph.add((SERVICE_IRI, DCTERMS.description, Literal(
+            f"Flexo MMS Layer 1 at {self.url} (org={self.org}, repo={self.repo})"
+        )))
+        if hosting_org_iri is not None:
+            graph.add((SERVICE_IRI, RTM.operatedBy, hosting_org_iri))
+        return SERVICE_IRI
 
     # --- Auth -------------------------------------------------------------
 

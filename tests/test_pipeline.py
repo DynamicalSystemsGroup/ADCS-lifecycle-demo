@@ -53,6 +53,16 @@ class TestPipelineEndToEnd:
         rtm = run_pipeline(skip_attestation=True)
         assert rtm is not None
 
+    def test_local_backend_emits_no_service_nodes(self):
+        """The nominal local run has no hosted services, so no
+        urn:adcs:service:* subjects appear in the dataset."""
+        rtm = run_pipeline(auto_attest=True)
+        services = {
+            s for s in rtm.subjects(None, None)
+            if str(s).startswith("urn:adcs:service:")
+        }
+        assert services == set()
+
 
 class TestExplain:
     def test_explain_attested_requirement(self):

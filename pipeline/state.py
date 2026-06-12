@@ -97,9 +97,13 @@ class PipelineState:
     skip_attestation: bool = False
     backend_name: str = "local"
     compute_name: str = "local"
-    # WP4 c6 — organizational auspices (operating + hosting orgs)
+    # WP4 c6 — compute-substrate auspices (operating + hosting orgs)
     operating_org_iri: str = "urn:adcs:org:local-operator"
     hosting_org_iri: str = "urn:adcs:org:local-operator"
+    # Per-service auspices: who operates the Flexo / txnlog substrates.
+    # None = unknown (no rtm:operatedBy edge emitted for that service).
+    flexo_hosting_org_iri: str | None = None
+    txnlog_hosting_org_iri: str | None = None
     # WP4 c12 — optional fourth-service txnlog store. None when
     # ADCS_TXNLOG_ENABLED is unset; TransactionLogger no-ops on the
     # wire-log evidence half (activity triples still emitted) when None.

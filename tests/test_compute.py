@@ -116,6 +116,29 @@ class TestContainerEntity:
         # No rtm:DockerContainer triples anywhere
         assert not list(g.subjects(URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), RTM.DockerContainer))
 
+    def test_bind_execution_metadata_org_edges_for_local(self):
+        """Local locations carry the compute-substrate auspices: the
+        location is operated by the hosting org, the executor acts on
+        behalf of the operating org (WP4 c6)."""
+        from rdflib import Graph, URIRef
+        from compute.base import ExecutionMetadata
+        from evidence.binding import _bind_execution_metadata
+        from ontology.prefixes import PROV, RTM
+
+        g = Graph()
+        activity = URIRef("urn:adcs:test/activity-3")
+        operating = URIRef("urn:adcs:org:dynamical-systems-group")
+        hosting = URIRef("urn:adcs:org:dynamical-systems-group")
+        meta = ExecutionMetadata(location_kind="local", hostname="myhost")
+        _bind_execution_metadata(
+            g, activity, meta,
+            operating_org_iri=operating, hosting_org_iri=hosting,
+        )
+        location = meta.location_uri()
+        executor = meta.executor_uri()
+        assert (location, RTM.operatedBy, hosting) in g
+        assert (executor, PROV.actedOnBehalfOf, operating) in g
+
 
 class TestImageNodeEmitsGitRef:
     """WP4 c3 — emit_image_node attaches rtm:gitRef to the rtm:DockerImage."""

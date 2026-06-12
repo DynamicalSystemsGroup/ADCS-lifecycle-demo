@@ -420,6 +420,14 @@ class ServiceInvocationRow:
 
 
 @dataclass(frozen=True)
+class ServiceAuspicesRow:
+    service: str
+    service_label: str | None
+    hosting_org: str
+    hosting_org_label: str | None
+
+
+@dataclass(frozen=True)
 class TrustSummary:
     evidence: str
     technical: TechnicalProvenance | None
@@ -427,23 +435,38 @@ class TrustSummary:
     digest_witnesses: list[DigestWitness] = field(default_factory=list)
     closure_witnesses: list[ClosureWitness] = field(default_factory=list)
     service_invocations: list[ServiceInvocationRow] = field(default_factory=list)
+    service_auspices: list[ServiceAuspicesRow] = field(default_factory=list)
 
 
+# The ?image OPTIONALs nest inside the container block: at top level an
+# unbound ?image would free-match ANY node carrying rtm:contentHash (for
+# local runs an evidence node showed up as the "image"). ?executor is
+# constrained to prov:SoftwareAgent because activities carry a second
+# prov:wasAssociatedWith agent (the rtm:ComputationEngine node).
 _TECHNICAL_PROVENANCE_Q = """
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX rtm:  <http://example.org/ontology/rtm#>
-SELECT ?activity ?container ?containerId ?image ?digest ?gitRef ?host ?hostingOrg ?operatingOrg ?executor WHERE {
+SELECT ?activity ?container ?containerId ?image ?digest ?gitRef ?host ?hostingOrg
+       (COALESCE(?containerOrg, ?execOrg) AS ?operatingOrg) ?executor WHERE {
   ?evidence prov:wasGeneratedBy ?activity .
-  OPTIONAL { ?activity prov:used ?container .
-             ?container a rtm:DockerContainer ;
-                        rtm:containerId ?containerId ;
-                        prov:wasDerivedFrom ?image .
-             OPTIONAL { ?container prov:wasAttributedTo ?operatingOrg . } }
-  OPTIONAL { ?image rtm:contentHash ?digest . }
-  OPTIONAL { ?image rtm:gitRef ?gitRef . }
-  OPTIONAL { ?activity prov:atLocation ?host . OPTIONAL { ?host rtm:operatedBy ?hostingOrg . } }
-  OPTIONAL { ?activity prov:wasAssociatedWith ?executor . }
+  OPTIONAL {
+    ?activity prov:used ?container .
+    ?container a rtm:DockerContainer ;
+               rtm:containerId ?containerId ;
+               prov:wasDerivedFrom ?image .
+    OPTIONAL { ?container prov:wasAttributedTo ?containerOrg . }
+    OPTIONAL { ?image rtm:contentHash ?digest . }
+    OPTIONAL { ?image rtm:gitRef ?gitRef . }
+  }
+  OPTIONAL { ?activity prov:atLocation ?host .
+             OPTIONAL { ?host rtm:operatedBy ?hostingOrg . } }
+  OPTIONAL { ?activity prov:wasAssociatedWith ?executor .
+             ?executor a prov:SoftwareAgent . }
+  OPTIONAL { ?activity prov:wasAssociatedWith ?execAgent .
+             ?execAgent a prov:SoftwareAgent ;
+                        prov:actedOnBehalfOf ?execOrg . }
 }
+ORDER BY ?activity ?container ?executor
 """
 
 
@@ -544,19 +567,29 @@ def closure_witnesses(ds, graph_iri: str) -> list[ClosureWitness]:
     ]
 
 
+# Operating org resolves primarily via executor delegation
+# (prov:actedOnBehalfOf — present for local AND docker runs); container
+# attribution (prov:wasAttributedTo — docker only) is the alternate path.
 _AUSPICES_Q = """
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX rtm:  <http://example.org/ontology/rtm#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-SELECT ?operatingOrg ?operatingOrgLabel ?hostingOrg ?hostingOrgLabel WHERE {
+SELECT (COALESCE(?execOrg, ?containerOrg) AS ?operatingOrg)
+       (COALESCE(?execOrgLabel, ?containerOrgLabel) AS ?operatingOrgLabel)
+       ?hostingOrg ?hostingOrgLabel WHERE {
   ?evidence prov:wasGeneratedBy ?activity .
+  OPTIONAL { ?activity prov:wasAssociatedWith ?executor .
+             ?executor prov:actedOnBehalfOf ?execOrg .
+             OPTIONAL { ?execOrg rdfs:label ?execOrgLabel . } }
   OPTIONAL { ?activity prov:used ?container .
-             ?container prov:wasAttributedTo ?operatingOrg .
-             OPTIONAL { ?operatingOrg rdfs:label ?operatingOrgLabel . } }
+             ?container a rtm:DockerContainer ;
+                        prov:wasAttributedTo ?containerOrg .
+             OPTIONAL { ?containerOrg rdfs:label ?containerOrgLabel . } }
   OPTIONAL { ?activity prov:atLocation ?host .
              ?host rtm:operatedBy ?hostingOrg .
              OPTIONAL { ?hostingOrg rdfs:label ?hostingOrgLabel . } }
 }
+ORDER BY ?operatingOrg ?hostingOrg
 """
 
 
@@ -616,8 +649,37 @@ def service_invocations_for(ds, _activity_iri: str | None = None) -> list[Servic
     ]
 
 
+_SERVICE_AUSPICES_Q = """
+PREFIX rtm:  <http://example.org/ontology/rtm#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?service ?serviceLabel ?hostingOrg ?hostingOrgLabel WHERE {
+  ?service rtm:operatedBy ?hostingOrg .
+  FILTER(STRSTARTS(STR(?service), "urn:adcs:service:"))
+  OPTIONAL { ?service rdfs:label ?serviceLabel . }
+  OPTIONAL { ?hostingOrg rdfs:label ?hostingOrgLabel . }
+}
+ORDER BY ?service
+"""
+
+
+def service_auspices(ds) -> list[ServiceAuspicesRow]:
+    """Per-service hosting auspices: every urn:adcs:service:* node that
+    carries an rtm:operatedBy edge (Flexo MMS, transaction-log store, …).
+    Global, like service_invocations_for — services are run-independent."""
+    rows = list(ds.query(_SERVICE_AUSPICES_Q))
+    return [
+        ServiceAuspicesRow(
+            service=str(r["service"]),
+            service_label=str(r["serviceLabel"]) if r.get("serviceLabel") else None,
+            hosting_org=str(r["hostingOrg"]),
+            hosting_org_label=str(r["hostingOrgLabel"]) if r.get("hostingOrgLabel") else None,
+        )
+        for r in rows
+    ]
+
+
 def trust_summary(ds, evidence_iri: str) -> TrustSummary:
-    """Compose all five trust queries into one record."""
+    """Compose the trust queries into one record."""
     tech = technical_provenance(ds, evidence_iri)
     ausp = auspices_chain(ds, evidence_iri)
     digest_w: list[DigestWitness] = []
@@ -625,6 +687,7 @@ def trust_summary(ds, evidence_iri: str) -> TrustSummary:
         digest_w = reproducibility_witnesses(ds, tech.image)
     closure_w = closure_witnesses(ds, "http://example.org/adcs-demo/graph/audit")
     inv = service_invocations_for(ds)
+    svc_ausp = service_auspices(ds)
     return TrustSummary(
         evidence=evidence_iri,
         technical=tech,
@@ -632,6 +695,7 @@ def trust_summary(ds, evidence_iri: str) -> TrustSummary:
         digest_witnesses=digest_w,
         closure_witnesses=closure_w,
         service_invocations=inv,
+        service_auspices=svc_ausp,
     )
 
 
@@ -656,6 +720,11 @@ def render_trust_summary(summary: TrustSummary) -> str:
         lines.append("Auspices:")
         lines.append(f"  operating:   {a.operating_org_label or a.operating_org or '-'}")
         lines.append(f"  hosting:     {a.hosting_org_label or a.hosting_org or '-'}")
+    if summary.service_auspices:
+        lines.append("Service auspices:")
+        for s in summary.service_auspices:
+            lines.append(f"  {s.service_label or s.service}: "
+                         f"hosted under {s.hosting_org_label or s.hosting_org}")
     if summary.digest_witnesses:
         lines.append(f"Digest-match assertions: {len(summary.digest_witnesses)}")
         for w in summary.digest_witnesses[:3]:

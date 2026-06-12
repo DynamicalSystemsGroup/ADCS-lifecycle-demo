@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from rdflib import Dataset, URIRef
+from rdflib import Dataset, Graph, URIRef
 
 
 class BackendUnavailable(RuntimeError):
@@ -59,6 +59,24 @@ class StoreBackend(Protocol):
         `layer` is a named-graph key from ontology.prefixes.NAMED_GRAPHS
         (e.g. "evidence", "attestations"); the implementation may map
         it to the backend-specific identifier (branch, container, etc.).
+        """
+        ...
+
+    def emit_service_node(self, graph: Graph, hosting_org_iri: URIRef | None) -> URIRef | None:
+        """Emit this backend's service node + per-service auspices edge.
+
+        Hosted services (Flexo MMS, txnlog store) emit a stable
+        urn:adcs:service:* node typed prov:Location, plus
+        `<service> rtm:operatedBy <hosting-org>` when the hosting org
+        is known. Returns the service IRI, or None for backends that
+        are not hosted services:
+
+          - LocalBackend  : returns None (local filesystem)
+          - FlexoBackend  : urn:adcs:service:flexo-mms
+          - FuskeiBackend : returns None (dev-only Fuseki)
+
+        The auspices of the COMPUTE substrate are separate — they
+        attach to the execution location in evidence/binding.py.
         """
         ...
 

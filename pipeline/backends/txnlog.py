@@ -25,8 +25,10 @@ import json
 import os
 
 import httpx
-from rdflib import URIRef
+from rdflib import Graph, Literal, URIRef
+from rdflib.namespace import RDF, RDFS
 
+from ontology.prefixes import DCTERMS, PROV, RTM
 from pipeline.backends.base import BackendUnavailable
 
 SERVICE_IRI = URIRef("urn:adcs:service:transaction-log-store")
@@ -132,6 +134,24 @@ class TxnLogBackend:
             response = client.get(url)
             response.raise_for_status()
             return response.json()
+
+    # --- Service node (per-service auspices) -------------------------------
+
+    def emit_service_node(self, graph: Graph, hosting_org_iri: URIRef | None) -> URIRef:
+        """Emit the txnlog service node, optionally with its auspices.
+
+        Same shape as FlexoBackend.emit_service_node: prov:Location
+        typing (the wire logs already use this IRI as a prov:atLocation
+        object) + rtm:operatedBy when the hosting org is known.
+        """
+        graph.add((SERVICE_IRI, RDF.type, PROV.Location))
+        graph.add((SERVICE_IRI, RDFS.label, Literal("Transaction-log store (CouchDB)")))
+        graph.add((SERVICE_IRI, DCTERMS.description, Literal(
+            f"Transaction-log store at {self.url}/{self.db}"
+        )))
+        if hosting_org_iri is not None:
+            graph.add((SERVICE_IRI, RTM.operatedBy, hosting_org_iri))
+        return SERVICE_IRI
 
     # --- StoreBackend protocol surface ------------------------------------
 

@@ -21,7 +21,7 @@ import os
 from pathlib import Path
 
 import httpx
-from rdflib import Dataset, URIRef
+from rdflib import Dataset, Graph, URIRef
 
 from pipeline.backends.base import BackendUnavailable
 from pipeline.dataset import triples_by_graph
@@ -56,6 +56,10 @@ class FuskeiBackend:
         from urllib.parse import quote
         base = quote(self.url, safe="")
         return URIRef(f"urn:adcs:fuseki:{base}/{layer}")
+
+    def emit_service_node(self, graph: Graph, hosting_org_iri: URIRef | None) -> URIRef | None:
+        """Dev-only Fuseki is not a hosted service in the demo's story."""
+        return None
 
     def probe(self) -> None:
         """HEAD the dataset endpoint to verify Fuseki is reachable."""

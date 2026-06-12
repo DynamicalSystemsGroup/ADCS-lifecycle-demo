@@ -1,24 +1,36 @@
 """Organizational auspices for the three-remote provenance chain.
 
-WP4 §"Organizational auspices" — every run carries two organization
-identities:
+WP4 §"Organizational auspices" — auspices are **per substrate**: each
+service/host carries the auspices of the organization that actually
+operates it, configured by separate env-var groups:
 
-- **operating org**: who runs the container / authors the work
-  (default: urn:adcs:org:local-operator)
-- **hosting org**: who operates the substrate (host machine + Docker
-  daemon). Defaults to the operating org for the single-operator
-  demo; configurable to demonstrate the Starforge future state where
-  Planetary Utilities hosts but the operator is a different org.
+- **operating org** (`ADCS_OPERATING_ORG_*`): who runs the pipeline /
+  authors the work (default: urn:adcs:org:local-operator).
+- **hosting org** (`ADCS_HOSTING_ORG_*`): who operates the **compute
+  substrate** — the machine (and Docker daemon) the analysis ran on.
+  Defaults to the operating org for the single-operator demo.
+- **Flexo hosting org** (`ADCS_FLEXO_HOSTING_ORG_*`): who operates the
+  remote Flexo MMS substrate (e.g. Planetary Utilities for the
+  Starforge instance). Unset = unknown — the service node is still
+  emitted, just without an auspices edge. NOTE: `FLEXO_ORG` is the
+  Flexo MMS org *slug* (a REST path segment like `adcs-demo`), not an
+  auspices IRI; the two are unrelated.
+- **txnlog hosting org** (`ADCS_TXNLOG_HOSTING_ORG_*`): who operates
+  the transaction-log store; defaults to the compute-substrate hosting
+  org (the demo's CouchDB runs on the local machine).
 
-Both IRIs are emitted into <adcs:context> as `prov:Organization`
+All org IRIs are emitted into <adcs:context> as `prov:Organization`
 nodes the first time they're referenced; the IRIs themselves are
 stable, so cross-run references accumulate cleanly.
 
-Edge contract (wired in evidence/binding.py):
+Edge contract (compute edges wired in evidence/binding.py; service
+edges in each backend's emit_service_node):
 
-  <container> prov:wasAttributedTo  <operating-org>
-  <host>      rtm:operatedBy        <hosting-org>
-  <executor>  prov:actedOnBehalfOf  <operating-org>
+  <container>      prov:wasAttributedTo  <operating-org>
+  <compute-host>   rtm:operatedBy        <hosting-org>
+  <executor>       prov:actedOnBehalfOf  <operating-org>
+  <flexo-service>  rtm:operatedBy        <flexo-hosting-org>
+  <txnlog-service> rtm:operatedBy        <txnlog-hosting-org>
 """
 
 from __future__ import annotations
@@ -41,8 +53,16 @@ DEFAULT_OPERATING_ORG_DESCRIPTION = (
 
 
 @dataclass(frozen=True)
+class OrgRef:
+    """One organization: IRI + display strings."""
+    iri: URIRef
+    label: str
+    description: str
+
+
+@dataclass(frozen=True)
 class Auspices:
-    """Operating + hosting organization IRIs + their display strings."""
+    """Compute-substrate operating + hosting organization IRIs."""
     operating_iri: URIRef
     operating_label: str
     operating_description: str
@@ -51,13 +71,48 @@ class Auspices:
     hosting_description: str
 
 
+def _load_org(env_prefix: str) -> OrgRef | None:
+    """Read <prefix>_IRI/_LABEL/_DESCRIPTION; None when the IRI is unset."""
+    iri_str = os.environ.get(f"{env_prefix}_IRI")
+    if iri_str is None:
+        return None
+    return OrgRef(
+        iri=URIRef(iri_str),
+        label=os.environ.get(f"{env_prefix}_LABEL", iri_str),
+        description=os.environ.get(
+            f"{env_prefix}_DESCRIPTION",
+            f"Organization for this run (from {env_prefix}_IRI).",
+        ),
+    )
+
+
+def load_flexo_hosting_org() -> OrgRef | None:
+    """Auspices of the Flexo MMS substrate (ADCS_FLEXO_HOSTING_ORG_*).
+
+    None when unset — the Flexo service node is still emitted, just
+    without an rtm:operatedBy edge (honest "unknown" beats a wrong
+    default). Not to be confused with FLEXO_ORG, the Flexo MMS org
+    slug used in REST paths.
+    """
+    return _load_org("ADCS_FLEXO_HOSTING_ORG")
+
+
+def load_txnlog_hosting_org(fallback: OrgRef) -> OrgRef:
+    """Auspices of the txnlog substrate (ADCS_TXNLOG_HOSTING_ORG_*).
+
+    Defaults to the compute-substrate hosting org — the demo's CouchDB
+    runs on the local machine.
+    """
+    return _load_org("ADCS_TXNLOG_HOSTING_ORG") or fallback
+
+
 def load_auspices() -> Auspices:
-    """Read the four ADCS_*_ORG_* env vars and build an Auspices record.
+    """Read the compute-substrate ADCS_*_ORG_* env vars.
 
     Defaults: operating + hosting both = `urn:adcs:org:local-operator`.
-    When the user sets ADCS_HOSTING_ORG_IRI to a different value (e.g.
-    `urn:adcs:org:planetary-utilities`), the demo's auspices chain
-    splits: operating stays local-operator, hosting flips to PU.
+    ADCS_HOSTING_ORG_IRI only changes who operates the **compute**
+    substrate (the machine the analysis runs on); the Flexo and txnlog
+    substrates have their own loaders above.
     """
     operating_iri = URIRef(
         os.environ.get("ADCS_OPERATING_ORG_IRI", DEFAULT_OPERATING_ORG)
@@ -98,18 +153,24 @@ def load_auspices() -> Auspices:
     )
 
 
-def emit_org_nodes(graph: Graph, auspices: Auspices) -> None:
-    """Emit prov:Organization typing + labels for both org IRIs.
+def emit_org_node(graph: Graph, iri: URIRef, label: str, description: str) -> None:
+    """Emit one prov:Organization node (typing + labels).
 
     Idempotent at the RDF level (re-adding the same triple is a no-op
-    in rdflib). Run once per pipeline run at startup; downstream edges
+    in rdflib).
+    """
+    graph.add((iri, RDF.type, PROV.Organization))
+    graph.add((iri, RDFS.label, Literal(label)))
+    if description:
+        graph.add((iri, DCTERMS.description, Literal(description)))
+
+
+def emit_org_nodes(graph: Graph, auspices: Auspices) -> None:
+    """Emit prov:Organization typing + labels for both compute-substrate
+    org IRIs. Run once per pipeline run at startup; downstream edges
     reference these IRIs without re-emitting the nodes.
     """
-    for iri, label, desc in (
-        (auspices.operating_iri, auspices.operating_label, auspices.operating_description),
-        (auspices.hosting_iri, auspices.hosting_label, auspices.hosting_description),
-    ):
-        graph.add((iri, RDF.type, PROV.Organization))
-        graph.add((iri, RDFS.label, Literal(label)))
-        if desc:
-            graph.add((iri, DCTERMS.description, Literal(desc)))
+    emit_org_node(graph, auspices.operating_iri,
+                  auspices.operating_label, auspices.operating_description)
+    emit_org_node(graph, auspices.hosting_iri,
+                  auspices.hosting_label, auspices.hosting_description)
