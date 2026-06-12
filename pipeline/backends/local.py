@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rdflib import Dataset, URIRef
+from rdflib import Dataset, Graph, URIRef
 
 from pipeline.backends.base import BackendUnavailable
 from pipeline.dataset import export_trig, export_union_turtle, triples_by_graph
@@ -37,6 +37,10 @@ class LocalBackend:
 
     def record_uri(self, layer: str) -> URIRef | None:
         """LocalBackend has no remote IRI; rtm:flexoRecord is omitted."""
+        return None
+
+    def emit_service_node(self, graph: Graph, hosting_org_iri: URIRef | None) -> URIRef | None:
+        """The local filesystem is not a hosted service; no node emitted."""
         return None
 
     def describe(self) -> str:

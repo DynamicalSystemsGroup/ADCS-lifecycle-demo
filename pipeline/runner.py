@@ -191,11 +191,18 @@ def run_stage_4_bind_evidence(state: PipelineState) -> EvidenceBindingResult:
         # WP4 c4 — when a remote-store backend is in use (Flexo / Fuseki),
         # attach rtm:flexoRecord to the image so consumers can find the
         # storage location of this image's record across remotes.
-        from ontology.prefixes import RTM as _RTM
+        from ontology.prefixes import PROV as _PROV, RTM as _RTM
         flexo_record = state.store_backend.record_uri("evidence")
         if flexo_record is not None:
             ev_graph.add((image_iri, _RTM.flexoRecord, flexo_record))
             print(f"  rtm:flexoRecord: {flexo_record}")
+            # Per-service auspices: the record lives at the backend's
+            # service node, which carries its own rtm:operatedBy edge —
+            # evidence → image → flexoRecord → record → atLocation →
+            # service → operatedBy → hosting org.
+            service_iri = getattr(state.store_backend, "SERVICE_IRI", None)
+            if service_iri is not None:
+                ev_graph.add((flexo_record, _PROV.atLocation, service_iri))
 
     # WP4 c6 — pass the per-run org IRIs to binding so executor + container
     # + host carry their organizational auspices.
@@ -526,18 +533,50 @@ def run_pipeline(
         txnlog_store = TxnLogBackend()
     _run_preflight(compute_backend, store_backend, txnlog_store)
 
-    # WP4 c6 — organizational auspices loaded from env (defaults
-    # urn:adcs:org:local-operator for both).
-    from compute.organizations import emit_org_nodes, load_auspices
+    # WP4 c6 — per-substrate organizational auspices loaded from env.
+    # Compute substrate defaults to urn:adcs:org:local-operator for both
+    # operating + hosting; the Flexo / txnlog substrates have their own
+    # hosting orgs (the remote Flexo is hosted by a different org than
+    # the machine the analysis runs on).
+    from compute.organizations import (
+        OrgRef,
+        emit_org_node,
+        emit_org_nodes,
+        load_auspices,
+        load_flexo_hosting_org,
+        load_txnlog_hosting_org,
+    )
     auspices = load_auspices()
+    flexo_org = load_flexo_hosting_org()
+    txnlog_org = None
+    if txnlog_store is not None:
+        txnlog_org = load_txnlog_hosting_org(fallback=OrgRef(
+            iri=auspices.hosting_iri,
+            label=auspices.hosting_label,
+            description=auspices.hosting_description,
+        ))
     print(f"  Operating org: {auspices.operating_iri} ({auspices.operating_label})")
     if str(auspices.hosting_iri) != str(auspices.operating_iri):
         print(f"  Hosting org:   {auspices.hosting_iri} ({auspices.hosting_label})")
+    if flexo_org is not None:
+        print(f"  Flexo hosting org: {flexo_org.iri} ({flexo_org.label})")
+    if txnlog_org is not None:
+        print(f"  Txnlog hosting org: {txnlog_org.iri} ({txnlog_org.label})")
 
     ds = run_stage_0(rebuild=rebuild_ontology)
-    # Emit the org nodes into <adcs:context> so they accumulate across runs
+    # Emit the org + service nodes into <adcs:context> so they accumulate
+    # across runs. Hosted services carry their own rtm:operatedBy edge;
+    # LocalBackend/FuskeiBackend emit no service node.
     from pipeline.dataset import graph_for
-    emit_org_nodes(graph_for(ds, "context"), auspices)
+    ctx_graph = graph_for(ds, "context")
+    emit_org_nodes(ctx_graph, auspices)
+    if flexo_org is not None:
+        emit_org_node(ctx_graph, flexo_org.iri, flexo_org.label, flexo_org.description)
+    store_backend.emit_service_node(
+        ctx_graph, flexo_org.iri if flexo_org is not None else None)
+    if txnlog_store is not None and txnlog_org is not None:
+        emit_org_node(ctx_graph, txnlog_org.iri, txnlog_org.label, txnlog_org.description)
+        txnlog_store.emit_service_node(ctx_graph, txnlog_org.iri)
 
     state = PipelineState(
         ds=ds,
@@ -550,6 +589,8 @@ def run_pipeline(
         compute_name=compute,
         operating_org_iri=str(auspices.operating_iri),
         hosting_org_iri=str(auspices.hosting_iri),
+        flexo_hosting_org_iri=str(flexo_org.iri) if flexo_org is not None else None,
+        txnlog_hosting_org_iri=str(txnlog_org.iri) if txnlog_org is not None else None,
         txnlog_store=txnlog_store,
     )
     state.structural    = run_stage_1_structural(state)

@@ -410,3 +410,68 @@ def test_fuseki_backend_puts_via_graph_store_protocol(pipeline_dataset, monkeypa
     assert all("graph" in r["params"] for r in puts)
     # Content type is text/turtle
     assert all(r["headers"].get("content-type") == "text/turtle" for r in puts)
+
+
+# ---------------------------------------------------------------------------
+# Service nodes + per-service auspices (WP4 follow-up)
+# ---------------------------------------------------------------------------
+
+def test_flexo_backend_service_iri_is_stable():
+    from pipeline.backends.flexo import SERVICE_IRI
+    assert str(SERVICE_IRI) == "urn:adcs:service:flexo-mms"
+    assert FlexoBackend.SERVICE_IRI == SERVICE_IRI
+
+
+def test_flexo_backend_emit_service_node_with_hosting_org():
+    from rdflib import Graph, URIRef
+    from rdflib.namespace import RDF, RDFS
+    from ontology.prefixes import PROV, RTM
+
+    g = Graph()
+    pu = URIRef("urn:adcs:org:planetary-utilities")
+    backend = FlexoBackend(url="http://flexo.test", org="adcs-demo", repo="lifecycle")
+    svc = backend.emit_service_node(g, pu)
+
+    assert svc == FlexoBackend.SERVICE_IRI
+    # prov:Location typing matches rtm:operatedBy's declared domain (and
+    # the txnlog precedent where the service IRI is a prov:atLocation object).
+    assert (svc, RDF.type, PROV.Location) in g
+    assert (svc, RTM.operatedBy, pu) in g
+    labels = list(g.objects(svc, RDFS.label))
+    assert labels and "Flexo MMS" in str(labels[0])
+
+
+def test_flexo_backend_emit_service_node_without_hosting_org():
+    """Unknown auspices: node still emitted, no rtm:operatedBy edge."""
+    from rdflib import Graph
+    from rdflib.namespace import RDF
+    from ontology.prefixes import PROV, RTM
+
+    g = Graph()
+    backend = FlexoBackend(url="http://flexo.test")
+    svc = backend.emit_service_node(g, None)
+    assert (svc, RDF.type, PROV.Location) in g
+    assert not list(g.objects(svc, RTM.operatedBy))
+
+
+def test_txnlog_backend_emit_service_node():
+    from rdflib import Graph, URIRef
+    from rdflib.namespace import RDF
+    from ontology.prefixes import PROV, RTM
+    from pipeline.backends.txnlog import SERVICE_IRI, TxnLogBackend
+
+    g = Graph()
+    org = URIRef("urn:adcs:org:local-operator")
+    backend = TxnLogBackend(url="http://couch.test")
+    svc = backend.emit_service_node(g, org)
+    assert svc == SERVICE_IRI
+    assert (svc, RDF.type, PROV.Location) in g
+    assert (svc, RTM.operatedBy, org) in g
+
+
+def test_local_backend_emit_service_node_returns_none():
+    """The local filesystem is not a hosted service in the demo's story."""
+    from rdflib import Graph
+    g = Graph()
+    assert LocalBackend().emit_service_node(g, None) is None
+    assert len(g) == 0
