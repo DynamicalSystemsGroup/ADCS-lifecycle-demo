@@ -261,6 +261,24 @@ grow novel epistemic vocabulary.
 
 `rtm.ttl` is a built artifact. Edit `rtm-edit.ttl` and rebuild.
 
+**Commit `rtm-edit.ttl` BEFORE you rebuild `rtm.ttl`.** `rtm.ttl`'s `# Built
+<time>` stamp comes from `_reproducible_build_time()`, which reads the git
+commit time of `rtm-edit.ttl`. Rebuilding while that edit is still uncommitted
+stamps the *previous* commit's time, so the committed `rtm.ttl` won't match CI's
+rebuild and the CI `git diff --exit-code -- ontology/rtm.ttl` check fails
+(ROBOT/ELK itself still passes). Order: commit `rtm-edit.ttl` → `make ontology`
+→ commit `rtm.ttl` + `assembly_manifest.json`.
+
+**Local toolchain (macOS):** the brew JDK + obo-robot aren't found by
+`/usr/bin/java` or `/usr/libexec/java_home`, so point `JAVA_HOME` at the
+Homebrew openjdk and put obo-robot on `PATH`:
+
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk PATH="/opt/homebrew/bin:$PATH" make ontology   # Apple Silicon
+```
+
+The `Makefile` now auto-detects `/opt/homebrew` vs `/usr/local` for `JAVA_HOME`.
+
 ## Future work (priority order)
 
 Captured in the plan file at `/Users/z/.claude/plans/i-want-to-look-hidden-balloon.md`:

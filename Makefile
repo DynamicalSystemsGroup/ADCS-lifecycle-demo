@@ -24,7 +24,12 @@
 # ============================================================================
 
 ROBOT ?= obo-robot
-JAVA_HOME ?= /usr/local/opt/openjdk
+# Homebrew openjdk: /opt/homebrew on Apple Silicon, /usr/local on Intel.
+# CI overrides JAVA_HOME explicitly, so this default only matters locally.
+# obo-robot lives next to it (/opt/homebrew/bin or /usr/local/bin) and is
+# picked up from PATH. macOS's /usr/bin/java + /usr/libexec/java_home do NOT
+# see the brew JDK, so JAVA_HOME must point at it directly.
+JAVA_HOME ?= $(shell [ -d /opt/homebrew/opt/openjdk ] && echo /opt/homebrew/opt/openjdk || echo /usr/local/opt/openjdk)
 
 .PHONY: help fetch-imports ontology ontology-python ontology-robot _robot-preflight _ontology-python-stamp validate-imports clean-imports flexo-up flexo-init flexo-down
 
