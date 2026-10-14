@@ -44,11 +44,6 @@ def test_pointing_error_deg_starts_at_the_slew(runs):
     assert err[0] == pytest.approx(10.0, rel=2e-3)
 
 
-def test_settling_time_matches_the_simulation_summary(runs):
-    p, _, sim = runs[(4.0, 30.0)]
-    assert F.settling_time_s(sim, BAND) == sim.summary()["settling_time_s"]
-
-
 def test_commanded_torque_exceeds_the_clip_and_delivered_does_not(runs):
     p, _, sim = runs[(4.0, 30.0)]
     cmd = F.commanded_torque(sim, 4.0, 30.0)
@@ -64,7 +59,10 @@ def test_settling_figure(runs, case):
     assert isinstance(fig, Figure)
     labels = " | ".join(t.get_text() for t in _texts(fig))
     assert f"SymPy: {t_sym:.0f} s" in labels
-    assert f"simulation: {F.settling_time_s(sim, BAND):.0f} s" in labels
+    t_sim = sim.summary()["settling_time_s"]  # the one settling definition: the evidence value
+    assert f"simulation: {t_sim:.0f} s" in labels
+    dot = [l for l in fig.axes[0].get_lines() if l.get_marker() == "o"][0]
+    assert dot.get_xdata()[0] == pytest.approx(t_sim)
     assert f"{LIMIT_S:g} s limit" in labels
     _assert_screen_legible(fig)
 
@@ -87,6 +85,13 @@ def test_neighbour_strip():
     _assert_screen_legible(fig)
 
 
+def test_neighbour_strip_tints_the_over_limit_region():
+    fig = F.neighbour_strip([("a", 80.0, 60.0, True), ("b", 90.0, 130.0, False)], LIMIT_S)
+    span = [p for p in fig.axes[0].patches if p.get_alpha()]
+    assert len(span) == 1
+    assert span[0].get_x() == pytest.approx(LIMIT_S) and span[0].get_width() > 0
+
+
 def test_neighbour_strip_on_real_neighbours():
     rows = []
     for kp, kd in [(4, 30), (4, 25), (6, 25), (3, 30), (4, 40)]:
@@ -104,6 +109,26 @@ def test_torque_figure(runs, case):
     delivered = max(l.get_ydata().max() for l in fig.axes[0].get_lines() if l.get_label() == "delivered (clipped)")
     assert delivered <= p["maxTorque"] + 1e-12
     _assert_screen_legible(fig)
+
+
+def test_torque_flat_top_is_drawn_over_the_limit_line_and_annotated(runs):
+    p, _, sim = runs[(4.0, 30.0)]
+    fig = F.torque_figure(sim, 4.0, 30.0, p["maxTorque"])
+    ax = fig.axes[0]
+    limit_line = [l for l in ax.get_lines() if l.get_linestyle() == "--" and set(l.get_ydata()) == {p["maxTorque"]}][0]
+    delivered = [l for l in ax.get_lines() if l.get_label() == "delivered (clipped)"][0]
+    commanded = [l for l in ax.get_lines() if l.get_label() == "commanded by the control law"][0]
+    assert limit_line.get_zorder() < delivered.get_zorder()
+    assert delivered.get_linewidth() > commanded.get_linewidth() and delivered.get_linewidth() > limit_line.get_linewidth()
+    labels = " | ".join(t.get_text() for t in _texts(fig))
+    assert "clipped, " in labels and "commanded peak 0.174" in labels
+
+
+def test_torque_figure_without_saturation_has_no_clipped_label(runs):
+    p, _, sim = runs[(1.0, 10.0)]
+    cmd = np.max(np.abs(F.commanded_torque(sim, 1.0, 10.0)))
+    fig = F.torque_figure(sim, 1.0, 10.0, p["maxTorque"])
+    assert ("clipped, " in " | ".join(t.get_text() for t in _texts(fig))) == (cmd > p["maxTorque"])
 
 
 def test_pill_kinds_and_escaping():

@@ -9,9 +9,9 @@ import pytest
 from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
-from sysml.lanes import lanes_mermaid
+from sysml.lanes import lanes_mermaid, sandwich_mermaid, two_store_mermaid
 from sysml.model import (DEFAULT_ADEQUACY, DEMO_ENGINEER, assemble, attestation_block, evidence_block, load_structure,
-                         status_block, to_elements)
+                         status_block, symbolic_settling, to_elements)
 
 pytestmark = pytest.mark.filterwarnings("ignore")
 
@@ -20,8 +20,9 @@ def _evidence(design, kp, kd):
     params = dict(load_params(), Kp=kp, Kd=kd)
     sim = run_step_response(params)
     summary = sim.summary()
+    t_est, est_hash = symbolic_settling(params)
     return evidence_block(design, params, summary, hash_simulation(sim.config.to_dict(), summary),
-                          DEFAULT_ADEQUACY, DEMO_ENGINEER)
+                          DEFAULT_ADEQUACY, DEMO_ENGINEER, t_est, est_hash)
 
 
 @pytest.fixture(scope="module")
@@ -33,6 +34,8 @@ def states():
         "c1": lanes_mermaid(to_elements(assemble(s, ev1, attestation_block(
             "initial", False, DEMO_ENGINEER, "done", "Too slow.", "vc001_initial")))),
         "c2": lanes_mermaid(to_elements(assemble(s, ev2, status_block("req001")))),
+        "b6": lanes_mermaid(to_elements(assemble(s, ev2, status_block(
+            "req001", "tbc", DEMO_ENGINEER, "Margin recorded; not yet judged.")))),
         "c3": lanes_mermaid(to_elements(assemble(s, ev2, attestation_block(
             "tuned", True, DEMO_ENGINEER, "done", "Inside the limit.", "vc001_tuned")))),
     }
@@ -77,17 +80,49 @@ def test_negated_claim_is_styled_distinctly(states):
     assert "not satisfy" not in c3.split("classDef")[0]
 
 
-def test_pending_marker_is_dashed_amber_tbc(states):
-    m = states["c2"]
-    assert "tbc<br/>" in _lane(m, "A")
-    assert re.search(r"class \w+ pending", m)
-    assert re.search(r"classDef pending .*stroke:#d97706.*stroke-dasharray", m)
-    assert "satisfy" not in m.split("classDef")[0].replace("tbc", "")
+def _classdef(m, name):
+    return re.search(rf"classDef {name} (.*)", m).group(1)
+
+
+def _node_class(m, label_part):
+    """The class of the node whose label contains `label_part`."""
+    nid = re.search(rf'(\w+)\(?\[?"[^"\n]*{re.escape(label_part)}', m).group(1)
+    return re.search(rf"class {nid} (\w+)", m).group(1)
+
+
+def test_pending_unnamed_is_dashed_grey_no_one_has_judged(states):
+    m = states["c2"]  # status tbc, no originator
+    assert "tbc · no one has judged" in _lane(m, "A")
+    assert _node_class(m, "tbc · no one has judged") == "pending"
+    assert "stroke-dasharray" in _classdef(m, "pending") and "#d97706" not in _classdef(m, "pending")
+    assert "satisfy" not in m.split("classDef")[0]
+
+
+def test_pending_named_is_dashed_amber_by_name(states):
+    m = states["b6"]  # status tbc, originator named (the B6 case)
+    assert f"tbc · by {DEMO_ENGINEER}" in _lane(m, "A")
+    assert "no one has judged" not in m
+    assert _node_class(m, "tbc · by") == "pendingNamed"
+    cd = _classdef(m, "pendingNamed")
+    assert "stroke:#d97706" in cd and "stroke-dasharray" in cd and "fill:#ffffff" in cd
+
+
+def test_done_named_is_solid_amber(states):
+    m = states["c3"]
+    assert _node_class(m, "status=done") == "human"
+    cd = _classdef(m, "human")
+    assert "stroke:#d97706" in cd and "stroke-dasharray" not in cd
+    assert "tbc" not in m
+
+
+def test_pending_is_decided_by_status_not_by_missing_name(states):
+    # done with no one named is not pending; tbc with a name is
+    assert "tbc · by" not in states["c3"] and "tbc · by" in states["b6"]
 
 
 def test_attested_states_have_no_pending_marker(states):
     for k in ("c1", "c3"):
-        assert "tbc<br/>" not in states[k]
+        assert "tbc" not in states[k]
 
 
 def test_human_nodes_are_amber_and_in_the_attestation_lane(states):
@@ -97,3 +132,66 @@ def test_human_nodes_are_amber_and_in_the_attestation_lane(states):
     assert "Rationale (sufficiency)" in lane and "Rationale (adequacy)" in lane
     assert len(re.findall(r"class \w+ human", m)) == 5  # satisfy; its StatusInfo and Rationale; the adequacy StatusInfo and Rationale
     assert re.search(r"classDef human .*stroke:#d97706", m)
+
+
+def test_requirements_are_prescribed_neutral_not_blue(states):
+    m = states["c2"]
+    assert _node_class(m, "req001") == "req"
+    cd = _classdef(m, "req")
+    assert "stroke:#111111" in cd and "stroke-width:3px" in cd and "#2166ac" not in cd and "#e8f0fe" not in cd
+    assert re.search(r'\(\["<b>req001</b>', m)  # stadium shape sets it apart
+
+
+def test_blue_only_for_machine_output(states):
+    m = states["c3"]
+    blue_classes = {n for n in re.findall(r"classDef (\w+) ", m) if "#2166ac" in _classdef(m, n)}
+    assert blue_classes == {"machine"}
+    assert {_node_class(m, "ToolExecution"), _node_class(m, "tuned</b> : ADCS")} == {"machine"}
+
+
+def test_both_tool_executions_are_in_the_evidence_lane(states):
+    lane = _lane(states["c2"], "E")
+    assert "scipy solve_ivp" in lane and "SymPy linear analysis" in lane
+    assert lane.count("ToolExecution") == 2
+
+
+def test_rationale_unattributed_is_neutral_attributed_is_amber(states):
+    # C2: the adequacy Rationale is about a design with a named StatusInfo -> amber
+    assert _node_class(states["c2"], "Rationale (adequacy)") == "human"
+    # B6: a Rationale about req001 with a named tbc StatusInfo -> amber, and not labelled adequacy
+    assert _node_class(states["b6"], "Rationale<br/>") == "human"
+
+
+def test_unattributed_rationale_is_neutral():
+    s = load_structure()
+    text = assemble(s, "    metadata : ModelingMetadata::Rationale about req001 {\n        text = \"anon\";\n    }\n")
+    m = lanes_mermaid(to_elements(text))
+    assert _node_class(m, "Rationale<br/>") == "neutral"
+    assert "#d97706" not in _classdef(m, "neutral")
+
+
+def test_no_edge_points_at_an_undrawn_node(states):
+    for m in states.values():
+        defined = set(re.findall(r'^\s+(\w+)(?:\(\[|\[|\{\{)', m, re.M))
+        for a, b in re.findall(r"^\s+(\w+) (?:-\.|==|--)[^\n]*?(?:->|=>) (\w+)$", m, re.M):
+            assert a in defined and b in defined, (a, b)
+
+
+def test_two_store_mermaid_names_both_stores_and_the_tag():
+    m = two_store_mermaid()
+    assert m.startswith("flowchart")
+    for part in ("GIT · source", ".sysml", "analysis code", "notebook", "OpenSysML", "evaluates",
+                 "FLEXO · model", "model elements", "git-&lt;sha&gt;", "reads diffs", "query the model"):
+        assert part in m
+    assert "G --> X --> F" in m
+
+
+def test_sandwich_mermaid_stacks_three_labels():
+    m = sandwich_mermaid(["top <b>layer</b>", "middle", 'bottom "x"'])
+    assert m.startswith("flowchart TB")
+    assert "L0 --- L1 --- L2" in m
+    assert 'L0["top <b>layer</b>"]' in m and 'L1["middle"]' in m and "bottom 'x'" in m
+    with pytest.raises(ValueError):
+        sandwich_mermaid(["a", "b"])
+    with pytest.raises(ValueError):
+        sandwich_mermaid(["a", "", "c"])

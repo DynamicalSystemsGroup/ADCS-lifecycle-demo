@@ -4,6 +4,10 @@
 (generated from scipy) and attestation (written only by a human) are three subgraphs. Amber marks
 what a person wrote; a `not satisfy` claim and a pending marker are drawn differently from a
 `satisfy`. Verdicts are deliberately absent: they are verification output, not part of the lanes.
+
+Colour: amber = a person said it; blue = the machine computed it (ToolExecution and the design
+part holding its computed values); neutral grey = prescribed or unattributed. A StatusInfo is
+pending when its status is `tbc`: dashed amber if a person is named on it, dashed grey if not.
 """
 
 from __future__ import annotations
@@ -70,7 +74,7 @@ def lanes_mermaid(elements: list[dict]) -> str:
             named_about |= {a["@id"] for a in e.get("annotatedElement", [])}
 
     lane = {"S": [], "E": [], "A": []}
-    edges, cls = [], {}
+    edges, cls, about_edges = [], {}, []
     for e in top:
         i, t = e["@id"], e["@type"]
         n = _nid(i)
@@ -78,7 +82,7 @@ def lanes_mermaid(elements: list[dict]) -> str:
             lane["S"].append(f'{n}["<b>{name(i)}</b><br/>part def"]')
             cls[n] = "struct"
         elif t == "RequirementUsage":
-            lane["S"].append(f'{n}["<b>{name(i)}</b><br/>requirement"]')
+            lane["S"].append(f'{n}(["<b>{name(i)}</b><br/>requirement"])')  # stadium: prescribed, set apart by shape
             cls[n] = "req"
         elif t == "PartUsage":
             lane["E"].append(f'{n}["<b>{name(i)}</b> : ADCS"]')
@@ -100,24 +104,42 @@ def lanes_mermaid(elements: list[dict]) -> str:
             about = [a["@id"] for a in e.get("annotatedElement", []) if a["@id"] in s]
             txt = _strings(i, s, [])
             if kind == "ToolExecution":
-                lane["E"].append(f'{n}["ToolExecution<br/>{_clip(txt[0] if txt else "", 30)}"]')
+                tool = (txt[0] if txt else "").split(" (")[0]  # "scipy solve_ivp (analysis/...)" -> "scipy solve_ivp"
+                lane["E"].append(f'{n}["ToolExecution<br/>{_clip(tool, 30)}"]')
                 cls[n] = "machine"
             elif kind == "StatusInfo":
                 status = _status(i, s) or "?"
-                if txt:
-                    lane["A"].append(f'{n}["StatusInfo<br/>status={status}<br/>by {_clip(txt[0], 24)}"]')
+                who = _clip(txt[0], 24) if txt else None
+                if status == "tbc":  # pending is a status, not an absence; the colour says whether a person is named
+                    lane["A"].append(f'{n}["tbc · by {who}"]' if who else f'{n}["tbc · no one has judged"]')
+                    cls[n] = "pendingNamed" if who else "pending"
+                elif who:
+                    lane["A"].append(f'{n}["StatusInfo<br/>status={status}<br/>by {who}"]')
                     cls[n] = "human"
-                else:  # no person has acted: the pending marker
-                    lane["A"].append(f'{n}["tbc<br/><i>no one has judged</i>"]')
-                    cls[n] = "pending"
+                else:
+                    lane["A"].append(f'{n}["StatusInfo<br/>status={status}<br/><i>no originator</i>"]')
+                    cls[n] = "neutral"
             elif kind == "Rationale":
-                role = "sufficiency" if set(about) & satisfies else "adequacy"
-                lane["A"].append(f'{n}["Rationale ({role})<br/><i>{_clip(txt[0] if txt else "", 40)}</i>"]')
-                cls[n] = "human" if set(about) & named_about else "machine"
+                kinds = {s[a]["@type"] for a in about}
+                role = ("sufficiency" if set(about) & satisfies else
+                        "adequacy" if "PartUsage" in kinds else None)
+                head = f"Rationale ({role})" if role else "Rationale"
+                lane["A"].append(f'{n}["{head}<br/><i>{_clip(txt[0] if txt else "", 40)}</i>"]')
+                cls[n] = "human" if set(about) & named_about else "neutral"  # unattributed: nobody's words
             else:
                 continue
-            for a in about:
-                edges.append(f"{n} -. about .-> {_nid(a)}")
+            about_edges += [(n, a) for a in about]
+
+    drawn = {x.split("[")[0].split("(")[0].split("{")[0] for k in lane for x in lane[k]}
+
+    def target(a):  # an annotated attribute is not a node: attach the edge to the nearest drawn owner
+        while a and _nid(a) not in drawn:
+            a = (s.get(a, {}).get("owner") or {}).get("@id")
+        return a
+
+    for n, a in about_edges:
+        if (t := target(a)):
+            edges.append(f"{n} -. about .-> {_nid(t)}")
 
     out = ["flowchart LR"]
     for k, title in (("S", _STRUCTURE_TITLE), ("E", _EVIDENCE_TITLE), ("A", _ATTESTATION_TITLE)):
@@ -128,13 +150,70 @@ def lanes_mermaid(elements: list[dict]) -> str:
     out += ["  " + x for x in edges]
     h, m, p = PALETTE["human"], PALETTE["machine"], PALETTE["prescribed"]
     out += [
-        f"  classDef req fill:#e8f0fe,stroke:{m},stroke-width:2px",
+        # prescribed: neutral grey fill, the neutral stroke, thick, and a different shape (stadium)
+        f"  classDef req fill:#f1f3f4,stroke:{p},stroke-width:3px",
         "  classDef struct fill:#f1f3f4,stroke:#5f6368",
-        "  classDef machine fill:#f1f3f4,stroke:#5f6368,stroke-dasharray:4 3",
+        "  classDef neutral fill:#ffffff,stroke:#9ca3af",
+        # blue only for machine output
+        f"  classDef machine fill:#e8f0fe,stroke:{m},stroke-width:2px",
         f"  classDef human fill:#fff4d6,stroke:{h},stroke-width:4px",
         # a negated claim is still a person's act (amber), but filled solid and struck through
         f"  classDef negated fill:#fbd38d,stroke:{h},stroke-width:4px,color:{p},text-decoration:line-through",
-        f"  classDef pending fill:#ffffff,stroke:{h},stroke-width:3px,stroke-dasharray:6 4",
+        # pending (status tbc): dashed. Amber when a person is named on it, grey when no one is.
+        f"  classDef pendingNamed fill:#ffffff,stroke:{h},stroke-width:3px,stroke-dasharray:6 4",
+        "  classDef pending fill:#ffffff,stroke:#6b7280,stroke-width:3px,stroke-dasharray:6 4",
     ]
     out += [f"  class {k} {c}" for k, c in cls.items()]
+    return "\n".join(out)
+
+
+# ---------- generated diagrams for slides without a figure (DL-24) ----------
+
+def _label(text: str) -> str:
+    return " ".join(str(text).split()).replace('"', "'")
+
+
+def two_store_mermaid() -> str:
+    """S4: Git holds the source, OpenSysML evaluates it, Flexo holds the evaluated model with
+    each commit tagged by the Git SHA. Who reads each store is drawn under it."""
+    m, p = PALETTE["machine"], PALETTE["prescribed"]
+    return "\n".join([
+        "flowchart LR",
+        '  subgraph G["GIT · source"]',
+        "    direction TB",
+        '    g1["<b>.sysml</b> text"]',
+        '    g2["analysis code"]',
+        '    g3["notebook"]',
+        "  end",
+        '  X{{"<b>OpenSysML</b><br/>evaluates"}}',
+        '  subgraph F["FLEXO · model"]',
+        "    direction TB",
+        '    f1["model elements"]',
+        '    f2["commits tagged <b>git-&lt;sha&gt;</b>"]',
+        "  end",
+        '  rg["engineer: reads diffs and history"]',
+        '  rf["reviewer and tools: query the model, find the Git commit by its tag"]',
+        "  G --> X --> F",
+        "  rg -.-> G",
+        "  rf -.-> F",
+        "  F -. same commit .-> G",
+        f"  classDef src fill:#f1f3f4,stroke:{p},stroke-width:3px",
+        f"  classDef machine fill:#e8f0fe,stroke:{m},stroke-width:2px",
+        "  classDef reader fill:#ffffff,stroke:#9ca3af",
+        "  class g1,g2,g3 src",
+        "  class X,f1,f2 machine",
+        "  class rg,rf reader",
+    ])
+
+
+def sandwich_mermaid(layers) -> str:
+    """S7: three stacked layers, top to bottom, labels passed in."""
+    layers = [_label(x) for x in layers]
+    if len(layers) != 3 or not all(layers):
+        raise ValueError(f"sandwich_mermaid takes exactly three non-empty labels, got {layers!r}")
+    p = PALETTE["prescribed"]
+    out = ["flowchart TB"]
+    out += [f'  L{i}["{x}"]' for i, x in enumerate(layers)]
+    out += ["  L0 --- L1 --- L2", f"  classDef layer fill:#f1f3f4,stroke:{p},stroke-width:3px",
+            "  class L0,L1,L2 layer"]
     return "\n".join(out)
