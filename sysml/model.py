@@ -24,7 +24,18 @@ STRUCTURE_PATH = Path(__file__).with_name("satellite.sysml")
 # security boundary: copied from sysmlv2-testing (same trust model as git authorship).
 NOT_A_HUMAN = frozenset({"svt", "svt-cli", "cli", "claude", "llm", "ai", "agent", "bot", "assistant"})
 
+# The demo uses only two statuses: "tbc" (pending, the human has not yet decided) and
+# "done" (attested). The rest of StatusKind (for example inwork, closed) is not used, so
+# anything else is refused rather than silently recorded.
 _STATUS = {"tbc", "done"}
+_IDENT = re.compile(r"^[A-Za-z_]\w*$")
+
+# The human's draft adequacy judgement, for the notebook to pre-fill. It is not a finding.
+DEFAULT_ADEQUACY = (
+    "The simulation clips control torque at the actuator limit, so peak torque cannot exceed "
+    "the limit in this model; whether operating at saturation is acceptable is not answered "
+    "by this model."
+)
 
 
 def _q(text: str) -> str:
@@ -32,15 +43,22 @@ def _q(text: str) -> str:
     return text.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
 
 
-def evidence_block(design: str, params: dict, summary: dict, sim_hash: str) -> str:
+def _ident(kind: str, value: str) -> str:
+    if not isinstance(value, str) or not _IDENT.fullmatch(value):
+        raise ValueError(f"{kind} {value!r} is not a SysML identifier (^[A-Za-z_]\\w*$)")
+    return value
+
+
+def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adequacy: str) -> str:
     """The generated block for one design. `params` has Kp, Kd, maxTorque;
-    `summary` is SimResult.summary(); `sim_hash` comes from evidence.hashing.hash_simulation."""
-    adequacy = (
-        f"Adequacy assumption: the rigid-body PD step-response model (analysis/numerical.py) is "
-        f"taken as adequate for settling time at Kp={params['Kp']}, Kd={params['Kd']}. "
-        f"Reaction-wheel torque is clipped at {params['maxTorque']} N*m, so peak torque cannot exceed the limit in this model."
-    )
+    `summary` is SimResult.summary(); `sim_hash` comes from evidence.hashing.hash_simulation.
+
+    `adequacy` is the Rationale text: a person's judgement (validation) that the model is
+    adequate for this use, carried with the evidence. The caller supplies it; this function
+    makes no judgement of its own."""
+    _ident("design", design)
     return f"""\
+    // ----- Rationale below is a person's adequacy judgement, carried with the evidence -----
     part {design} : ADCS {{
         attribute :>> Kp = {float(params['Kp'])!r};
         attribute :>> Kd = {float(params['Kd'])!r};
@@ -62,8 +80,10 @@ def evidence_block(design: str, params: dict, summary: dict, sim_hash: str) -> s
 
 def attestation_block(design: str, satisfied: bool, originator: str, status: str,
                       sufficiency: str, verification: str) -> str:
-    """The human's claim (ACE-01 form) with StatusInfo and the sufficiency Rationale.
+    """The human's claim (usage-subsetting form, which OpenSysML 0.10.0 evaluates and which traces to req001) with StatusInfo and the sufficiency Rationale.
     Refuses an empty originator or one in NOT_A_HUMAN."""
+    _ident("design", design)
+    _ident("verification", verification)
     who = originator.strip()
     if not who or who.lower() in NOT_A_HUMAN:
         raise ValueError(f"originator {originator!r} is not a named human")

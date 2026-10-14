@@ -211,7 +211,7 @@ def build_rows(model, idx: Index, ev: dict[str, float]) -> list[dict]:
             "same for a holding and a violated constraint. "
             + ("The tuned design's peak torque equals the limit because `analysis/numerical.py` clips torque "
                f"(`np.clip`) at the actuator limit (equal: {ev['__GOOD_PT__'] == ev['__LIMIT__']}), so the "
-               "`<=` holds at saturation as a model artefact (ACE-04)." if subj == "tuned" else
+               "`<=` holds at saturation as a model artefact." if subj == "tuned" else
                "This subject is hand-built for the probe: the simulation cannot produce it, since it clips torque. "
                "The direct evaluation turns False while the case verdict does not change."))
 
@@ -219,9 +219,9 @@ def build_rows(model, idx: Index, ev: dict[str, float]) -> list[dict]:
     forms = (
         ("def-typed named satisfy `satisfy requirement attTuned : SettlingReq by tuned;`",
          "attTuned", "attTuned", "Typed by the requirement def, so it never mentions the `req001` usage."),
-        ("usage-subsetting named satisfy `satisfy requirement subTuned :> req001 by tuned;` (ACE-01 choice)",
+        ("usage-subsetting named satisfy `satisfy requirement subTuned :> req001 by tuned;` (the form chosen for the demo)",
          "subTuned", "subTuned", "Names the claim, traces to the `req001` usage and is evaluated; this is why "
-         "ACE-01 chose it as the attestation form. The verdict label drops the name."),
+         "it was chosen as the attestation form. The verdict label drops the name."),
         ("reference-subsetting named satisfy `satisfy requirement refTuned ::> req001 by tuned;`",
          "refTuned", "refTuned", "Parses and is exported; compare its evaluation with the `:>` form."),
     )

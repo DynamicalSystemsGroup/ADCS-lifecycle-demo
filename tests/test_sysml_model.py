@@ -10,7 +10,7 @@ from rdflib import Graph
 from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
-from sysml.model import (NOT_A_HUMAN, assemble, attestation_block, evaluate,
+from sysml.model import (DEFAULT_ADEQUACY, NOT_A_HUMAN, assemble, attestation_block, evaluate,
                          evidence_block, load_structure)
 
 pytestmark = pytest.mark.filterwarnings("ignore")
@@ -25,7 +25,8 @@ def _evidence(design: str, kp: float, kd: float) -> str:
     params = dict(load_params(), Kp=kp, Kd=kd)
     sim = run_step_response(params)
     summary = sim.summary()
-    return evidence_block(design, params, summary, hash_simulation(sim.config.to_dict(), summary))
+    return evidence_block(design, params, summary, hash_simulation(sim.config.to_dict(), summary),
+                          DEFAULT_ADEQUACY)
 
 
 @pytest.fixture(scope="module")
@@ -39,8 +40,8 @@ def both(structure) -> dict:
 
 
 def test_structure_alone_loads_clean(structure):
-    out = evaluate(structure)
-    assert [d for d in out["diagnostics"] if d.startswith("error")] == []
+    out = evaluate(structure)  # strict load: raises if the structure does not load
+    assert out["diagnostics"] == []
 
 
 def test_requirement_text_matches_rdf(structure):
@@ -114,3 +115,34 @@ def test_structure_has_no_designs_or_attestations(structure):
 
 def test_pending_status_tbc_loads(structure):
     assert _claim(structure, False, status="tbc")["holds"] is True
+
+
+@pytest.mark.parametrize("bad", ["", "1v", "v 1", "v1;", "v1\n", "a-b", "v1 } part x"])
+def test_bad_identifiers_refused(bad):
+    params = dict(load_params(), Kp=1.0, Kd=10.0)
+    sim = run_step_response(params)
+    with pytest.raises(ValueError):
+        evidence_block(bad, params, sim.summary(), "0" * 64, "x")
+    with pytest.raises(ValueError):
+        attestation_block(bad, False, "A. Engineer", "tbc", "x", "vc001_v1")
+    with pytest.raises(ValueError):
+        attestation_block("v1", False, "A. Engineer", "tbc", "x", bad)
+
+
+def test_unused_status_refused():
+    with pytest.raises(ValueError):
+        attestation_block("v1", False, "A. Engineer", "inwork", "x", "vc001_v1")
+
+
+def test_v2_peak_torque_is_clipped_at_limit():
+    params = dict(load_params(), Kp=4.0, Kd=30.0)
+    summary = run_step_response(params).summary()
+    assert summary["peak_control_torque"] == params["maxTorque"]
+
+
+def test_adequacy_text_is_caller_supplied():
+    params = dict(load_params(), Kp=1.0, Kd=10.0)
+    summary = run_step_response(params).summary()
+    block = evidence_block("v1", params, summary, "0" * 64, "My own judgement.")
+    assert "My own judgement." in block
+    assert "adequate" not in block.replace("adequacy judgement", "")

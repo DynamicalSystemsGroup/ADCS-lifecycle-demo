@@ -45,7 +45,8 @@ package GeoSatADCS {
         return verdict : VerdictKind = PassIf(req001(adcs));
     }
 
-    // REQ-004: no verdict binding, by design (ACE-04). The result is inconclusive.
+    // REQ-004: no verdict binding, by design, so the result is inconclusive.
+    // No automated verdict is declared: the model cannot say whether operating at saturation is acceptable.
     verification def DisturbanceVerification {
         subject adcs : ADCS;
         objective { verify req004; }
