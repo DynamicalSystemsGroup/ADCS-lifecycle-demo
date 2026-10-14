@@ -413,7 +413,7 @@ def _(DEFAULT_ADEQUACY, DEMO_ENGINEER, mo):
     name_in = mo.ui.text(value=DEMO_ENGINEER, label="Engineer name", full_width=True)
     adequacy = mo.ui.text_area(
         value=DEFAULT_ADEQUACY,
-        label="Model adequacy: the human's draft, carried with the evidence as a Rationale",
+        label="Model adequacy: the person's judgement, recorded with the evidence (Rationale + StatusInfo)",
         full_width=True,
         rows=3,
     )
@@ -491,7 +491,7 @@ def _(counter_button, mo, seed_label):
             "One step-response simulation. Enough to say the requirement is not met; "
             "not enough to say it would be met on the real satellite."
         ),
-        label="Evidence sufficiency (a justification): the human's draft",
+        label="Evidence sufficiency (a justification): the person's judgement",
         full_width=True,
         rows=3,
     )
@@ -703,7 +703,7 @@ def _(counter_button, mo, name_in, seed_label):
             "One step-response simulation within the stated model. Enough for me to "
             "attest that the settling-time requirement is met; adequacy is recorded separately."
         ),
-        label="Evidence sufficiency (a justification): the human's draft",
+        label="Evidence sufficiency (a justification): the person's judgement",
         full_width=True,
         rows=3,
     )
