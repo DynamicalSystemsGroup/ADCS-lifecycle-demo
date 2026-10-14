@@ -11,7 +11,9 @@ Verdicts and `holds` are verification (automated). The attestation is the human'
 
 from __future__ import annotations
 
+import json
 import re
+from collections import Counter
 from pathlib import Path
 
 import opensysml
@@ -103,6 +105,30 @@ def attestation_block(design: str, satisfied: bool, originator: str, status: str
 """
 
 
+def status_block(target: str, status: str = "tbc", originator: str | None = None,
+                 rationale: str | None = None) -> str:
+    """A StatusInfo (and, for a person, a Rationale) about `target`, with no `satisfy`.
+
+    With no originator this records "no person has acted yet": status is validated, nothing
+    is invented, and no Rationale is written (a Rationale is a person's judgement). With an
+    originator, the name must pass the NOT_A_HUMAN guard and the Rationale, if given, is
+    emitted. A rationale given without an originator is dropped, never attributed."""
+    _ident("target", target)
+    if status not in _STATUS:
+        raise ValueError(f"status must be one of {sorted(_STATUS)}, got {status!r}")
+    out = f"    metadata : ModelingMetadata::StatusInfo about {target} {{\n"
+    if originator is not None:
+        who = originator.strip()
+        if not who or who.lower() in NOT_A_HUMAN:
+            raise ValueError(f"originator {originator!r} is not a named human")
+        out += f'        originator = "{_q(who)}";\n'
+    out += f"        status = StatusKind::{status};\n    }}\n"
+    if originator is not None and rationale is not None:
+        out += (f"    metadata : ModelingMetadata::Rationale about {target} {{\n"
+                f'        text = "{_q(rationale)}";\n    }}\n')
+    return out
+
+
 def _banner(label: str, owner: str) -> str:
     return f"    // ===== {label} block ({owner}) =====\n"
 
@@ -123,6 +149,155 @@ def assemble(structure: str, evidence: str = "", attestation: str = "") -> str:
 
 def load_structure() -> str:
     return STRUCTURE_PATH.read_text()
+
+
+def to_elements(text: str) -> list[dict]:
+    """The model's API elements (OpenSysML `to_api_json`), the snapshot published to Flexo.
+    The export also lists the standard-library definitions the model references."""
+    conn = opensysml.connect(version=VERSION)
+    try:
+        return json.loads(conn.load_from_content(text, strict=True).to_api_json().content)
+    finally:
+        conn.close()
+
+
+# ---- element-level diff of two snapshots, grouped ---------------------------------------
+# Keys that only point upward; following them would reach the whole model from any element.
+_UP = {"owner", "owningNamespace", "owningRelationship", "owningMembership", "owningFeatureMembership"}
+# Package keys that change when members change (membership lists and source positions).
+_PKG_MEMBER_KEYS = {"ownedRelationship", "ownedMember", "ownedMembership"}
+_PENDING_LIB = ("ModelingMetadata::StatusKind::tbc", "ModelingMetadata::StatusInfo::originator")
+
+
+def _refs(e: dict):
+    """Ids this element points at, ignoring links to its owner."""
+    def walk(v):
+        if isinstance(v, dict):
+            if "@id" in v:
+                yield v["@id"]
+        elif isinstance(v, list):
+            for x in v:
+                yield from walk(x)
+    for k, v in e.items():
+        if k not in _UP:
+            yield from walk(v)
+
+
+def _owner(e: dict):
+    return (e.get("owner") or {}).get("@id")
+
+
+def _in_model(i: str, snap: dict) -> bool:
+    for _ in range(200):
+        if i == PACKAGE:
+            return True
+        if i not in snap or _owner(snap[i]) is None:
+            return False
+        i = _owner(snap[i])
+    return False
+
+
+def _top(i: str, snap: dict) -> str:
+    """The element directly under the package that holds `i` (a membership resolves to its
+    member); for a standard-library element, the root of its owner chain."""
+    for _ in range(200):
+        o = _owner(snap[i])
+        if o is None or o == PACKAGE or o not in snap:
+            break
+        i = o
+    if snap[i]["@type"] == "OwningMembership" and snap[i].get("memberElement", {}).get("@id") in snap:
+        i = snap[i]["memberElement"]["@id"]
+    return i
+
+
+def _label(i: str, snap: dict) -> str:
+    e = snap[i]
+    return f"{e['@type']} {e.get('declaredName') or e.get('name') or e.get('qualifiedName') or i}"
+
+
+def _lib_reach(roots, snap: dict) -> set:
+    """Library (non-model) elements reachable by following references from `roots`,
+    transitively through library elements only."""
+    seen, todo = set(), [r for r in roots]
+    while todo:
+        for t in _refs(snap[todo.pop()]):
+            if t in snap and t not in seen and not _in_model(t, snap):
+                seen.add(t)
+                todo.append(t)
+    return seen
+
+
+def group_diff(old, new) -> dict:
+    """Group the element diff between two snapshots (lists of API elements, or dicts keyed by
+    @id) for the step "human attests after the evidence changed". Everything is computed from
+    @type, ownership, references and qualified names. Groups:
+
+      att       elements added under a top-level `satisfy`, or under top-level metadata that
+                is only about an added `satisfy` (att_roots counts those top-level elements)
+      pending   removed top-level StatusInfo about req001 with status tbc and no originator
+                (pending elements = what it owns; pending_library = library definitions only
+                it referenced, such as the `tbc` literal)
+      pkg       members the package gained, when they are exactly the att top-level elements
+                and the only member lost is a pending marker
+      lib       added library elements reachable by reference from the att elements
+      other     everything else, rolled up by top-level owner: {"added Type name": count}
+
+    Empty `other` means nothing outside the four named groups changed."""
+    old = {e["@id"]: e for e in (old.values() if isinstance(old, dict) else old)}
+    new = {e["@id"]: e for e in (new.values() if isinstance(new, dict) else new)}
+    added, removed = new.keys() - old.keys(), old.keys() - new.keys()
+    changed = [i for i in old.keys() & new.keys() if old[i] != new[i]]
+
+    # attestation: added top-level satisfy, or metadata whose every target is an added satisfy
+    tops = {_top(i, new) for i in added if _in_model(i, new)}
+    satisfy = {t for t in tops if t in added and new[t]["@type"] == "SatisfyRequirementUsage"}
+    att_tops = set(satisfy)
+    for t in tops:
+        targets = [x["@id"] for x in new[t].get("annotatedElement", [])]
+        if t in added and new[t]["@type"] == "MetadataUsage" and targets and set(targets) <= satisfy:
+            att_tops.add(t)
+    att = {i for i in added if _in_model(i, new) and _top(i, new) in att_tops}
+    reach = _lib_reach(att, new)
+
+    # pending marker: computed from the old snapshot, never named by hand
+    pend_tops, pend_lib = set(), set()
+    for t in {_top(i, old) for i in removed if _in_model(i, old)}:
+        e = old[t]
+        sub = {i for i in old if _in_model(i, old) and _top(i, old) == t}
+        lib = _lib_reach(sub, old)
+        names = {old[i].get("qualifiedName") for i in lib}
+        types = {old[x["@id"]].get("qualifiedName") for x in e.get("type", []) if x["@id"] in old}
+        about = {old[x["@id"]].get("qualifiedName") for x in e.get("annotatedElement", []) if x["@id"] in old}
+        if (e["@type"] == "MetadataUsage" and sub <= removed and types == {"ModelingMetadata::StatusInfo"}
+                and about == {f"{PACKAGE}::req001"} and _PENDING_LIB[0] in names
+                and _PENDING_LIB[1] not in names):
+            pend_tops.add(t)
+            pend_lib |= lib & removed
+
+    out = {"att": len(att), "att_roots": Counter(new[t]["@type"] for t in att_tops),
+           "pending": len(pend_tops),
+           "pending_elements": len({i for i in removed if _in_model(i, old) and _top(i, old) in pend_tops}),
+           "pending_library": len(pend_lib), "pkg": 0, "lib": len(reach & added), "other": Counter()}
+    named = att | (reach & added) | pend_lib | {i for i in removed if _in_model(i, old) and _top(i, old) in pend_tops}
+
+    for i in sorted(added - named):
+        out["other"][f"added {_label(_top(i, new), new)}"] += 1
+    for i in sorted(removed - named):
+        out["other"][f"removed {_label(_top(i, old), old)}"] += 1
+    for i in sorted(changed):
+        if i == PACKAGE:
+            gained = {m["@id"] for m in new[i].get("ownedRelationship", [])} - {
+                m["@id"] for m in old[i].get("ownedRelationship", [])}
+            lost = {m["@id"] for m in old[i].get("ownedRelationship", [])} - {
+                m["@id"] for m in new[i].get("ownedRelationship", [])}
+            member = lambda ids, snap: {_top(m, snap) for m in ids if m in snap}  # noqa: E731
+            other_keys = {k for k in new[i].keys() | old[i].keys() if new[i].get(k) != old[i].get(k)}
+            if (member(gained, new) == att_tops and member(lost, old) == pend_tops
+                    and all(k in _PKG_MEMBER_KEYS or k.startswith("sysx:") for k in other_keys)):
+                out["pkg"] = len(gained)
+                continue
+        out["other"][f"changed {_label(_top(i, new) if i != PACKAGE else i, new)}"] += 1
+    return out
 
 
 def evaluate(text: str) -> dict:

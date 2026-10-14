@@ -156,6 +156,16 @@ Marker filtering is set in `pyproject.toml` via `addopts = "-m 'not live
 and not network'"` so the canonical invocation never hits external
 services. CI opts in explicitly per workflow.
 
+## Run the SysML demo
+
+```bash
+uv sync
+uv run marimo run sysml_notebook.py                     # live: the speaker clicks Attest
+SYSML_DEMO_PRESEED=1 uv run marimo export html sysml_notebook.py -o output/sysml-talk-fallback.html
+```
+
+Git versions the `.sysml` source and shows text diffs; Flexo (set `FLEXO_V2_URL`, see `sysml/FLEXO_LOCAL.md`) versions the model elements, each commit tagged with the Git SHA. Without a reachable Flexo the notebook runs in Git-only mode.
+
 ## Pipeline Stages
 
 ```
