@@ -1,0 +1,94 @@
+# OpenSysML 0.10.0 probe: findings
+
+## In plain language
+
+1. We ran a small SysML v2 model through OpenSysML 0.10.0 to see which standard-library constructs it understands for: requirement, evidence, automated verdict, human attestation.
+2. Works: a verification case returns a `pass` or `fail` verdict, and a human-authored `satisfy` can carry `StatusInfo` (status) and `Rationale` (reasoning).
+3. Works with a catch: a case with no verdict binding returns `inconclusive`, which means "nobody declared a verdict", not "close call".
+4. Does not work: two of the four `satisfy` forms (def-typed, reference-subsetting `::>`) load but cannot be evaluated by the tool.
+5. WP2 should use the usage-subsetting named satisfy `satisfy requirement att :> req001 by tuned;` (ACE-01), with a `PassIf(req001(adcs))` verdict, and read results through `to_api_json()`.
+
+## Glossary
+
+- **verdict**: the `VerdictKind` value (`pass`, `fail`, `inconclusive`, `error`) that a `verification def` returns. It exists only if the case binds one with `return verdict = ...`.
+- **holds**: the true/false answer when the tool evaluates a requirement's constraint, or a `satisfy` claim, against a concrete part.
+- **satisfy**: the SysML statement "this part satisfies this requirement". Here it is the human's claim, written in the model.
+- **metadata about**: `metadata m : SomeType about x { ... }` attaches typed data (status, rationale, tool name) to element `x` without changing `x`.
+
+## Terms
+
+Per FOUNDATIONS §2: the human-authored `satisfy` plus `StatusInfo` is the attestation (validation). An evaluated `holds` is verification of that claim, not the attestation. A verdict from `run_analysis` is verification too.
+
+Reproduce with `uv run python sysml/probe/run_probe.py` (add `--markdown` to regenerate the table below, which is its output byte for byte). Model: [`probe.sysml`](probe.sysml). Every value in the table was produced by that run. The scipy numbers are computed by `analysis.numerical`, written into the model and read back through OpenSysML. The parses column is true when the load has no diagnostics and the element is in the `to_api_json()` export; the evaluates column comes from the `holds`, `error` and `kind` values returned.
+
+## Summary for the model author (WP2)
+
+- Verdicts work. `run_analysis('Pkg::caseUsage').verifications[0].kind` returns `fail` / `pass` for the two candidates, in both the explicit-inequality and the single-source form. The single-source form is preferred: it reads `req001` itself.
+- Three forms of named satisfy are probed (plus the unnamed one), each by its own name:
+  - def-typed named satisfy (`satisfy requirement a : ReqDef by part;`): parses, is exported, takes metadata, cannot be evaluated (`no requirement to satisfy`).
+  - usage-subsetting named satisfy (`:>`): parses, keeps a name, takes metadata and evaluates.
+  - reference-subsetting named satisfy (`::>`): parses, is exported, cannot be evaluated.
+  - All are legal SysML v2; none is "the" form. See the ACE-01 decision below.
+- `StatusInfo`, `Rationale` and `ToolExecution` all load, attach (to a satisfy, a part, a feature chain) and read back through `to_api_json()`.
+- A verification with no `return` binding is `inconclusive` whether the constraint holds or is violated (see the REQ-004 rows).
+- `model.query()` on 0.10.0 sees satisfy and metadata elements (0.9.0 did not, per toaster D-001/D-015). The two exports disagree on the type of the anonymous requirement inside a `verify` (see last row).
+
+## ACE-01 decision
+
+`:>` (usage-subsetting named satisfy) is the chosen attestation form. It evaluates, and it traces to the `req001` usage, whereas the def-typed form never mentions `req001`. The `::>` and def-typed forms are not evaluated by OpenSysML 0.10.0 (rows below). An evaluated `holds` is verification of the human's claim; the attestation is the `StatusInfo` the human writes.
+
+## Findings
+
+| construct | parses y/n | evaluates y/n (value) | raw output excerpt | notes |
+|---|---|---|---|---|
+| evidence computed by `analysis.numerical.run_step_response` (Kp=1,Kd=10 and Kp=4,Kd=30) | n/a | n/a | weak settling 310.63 s, tuned settling 77.97 s; peak torque weak 0.0436, tuned 0.1000 N*m; limit 0.1000 N*m | Values are computed on every run, written into `probe.sysml` and read back below. The run stops with exit 1 if settling or torque numbers drift from the expected ones. |
+| import VerificationCases, ModelingMetadata, AnalysisTooling | y | n/a | diagnostics: 0 | Package-level `private import X::*;` for all three libraries resolves in a single-file load. |
+| requirement def with `require constraint { adcs.settlingTime <= 120 [s] }`, usage `req001` | y | y (weak: fails; tuned: holds) | ✗ requirement ProbePkg::req001 fails (on ProbePkg::weak ID: 1): condition evaluated to false: adcs.settlingTime <= 120 [s] — witnessed by run | Unit form `120 [s]` works. `model.verify_requirement(id, subject=part)` evaluates a usage against a concrete part. Bare `adcs` needs `subject=`. |
+| candidate parts with `settlingTime` bound to scipy values (Kp=1,Kd=10) and (Kp=4,Kd=30) | y | y (310.63 s, 77.97 s) | model.eval -> Quantity, magnitude type Fraction, as decimals 310.6262 and 77.9662 | Round-trip equals scipy exactly: weak True, tuned True. `Quantity.magnitude` is a `Fraction`; cast with float(). `eval` of a bare name (ExecutionError) fails unless the package is imported; use qualified names. |
+| verification def, explicit inequality `PassIf(adcs.settlingTime <= 120 [s])`, `objective { verify req001; }`, `return verdict : VerdictKind` | y | y (weak: fail; tuned: pass) | kinds weak='fail', tuned='pass'; outputs.verdict = VerdictKind::fail / VerdictKind::pass | The inequality is typed a second time inside the case, so the verdict does not read `req001`; the two can drift apart. Run as a def with `subject=` (weak) gives the same kind: fail. |
+| verification def, single source `PassIf(req001(adcs))`, `objective { verify req001; }`, `return verdict : VerdictKind` | y | y (weak: fail; tuned: pass) | kinds weak='fail', tuned='pass'; model.eval('req001(weak)') -> False, req001(tuned) -> True (bool) | The verdict is computed from `req001` itself (one source of truth). Same kinds as the explicit form (as a def with `subject=`, weak: fail). `model.eval` of the requirement gives the same truth value outside the case, which is the verdict fallback. |
+| the `objective { verify req001; }` verdict on its own | n/a | n (value: states no condition to check) | ? objective obj (on ProbePkg::weak ID: 1): states no condition to check — witnessed by run | The objective states no condition to check, so the case's `VerdictKind` comes only from the `return` binding, not from the verified requirement. |
+| REQ-004 style: `peakTorque <= torqueLimit`, verification with no verdict binding, tuned design (peak torque equals the limit) | y | n (kind=inconclusive); req004(tuned) = True | kind='inconclusive' detail='the case body bound no VerdictKind value'; outputs={}; verify_requirement holds; peakTorque 0.1000 vs limit 0.1000 N*m | `inconclusive` means no `VerdictKind` was bound by the case, not a measured borderline; it is the same for a holding and a violated constraint. The tuned design's peak torque equals the limit because `analysis/numerical.py` clips torque (`np.clip`) at the actuator limit (equal: True), so the `<=` holds at saturation as a model artefact (ACE-04). |
+| REQ-004 style: `peakTorque <= torqueLimit`, verification with no verdict binding, synthetic subject whose peak torque exceeds the limit | y | n (kind=inconclusive); req004(over) = False | kind='inconclusive' detail='the case body bound no VerdictKind value'; outputs={}; verify_requirement fails; peakTorque 0.1500 vs limit 0.1000 N*m | `inconclusive` means no `VerdictKind` was bound by the case, not a measured borderline; it is the same for a holding and a violated constraint. This subject is hand-built for the probe: the simulation cannot produce it, since it clips torque. The direct evaluation turns False while the case verdict does not change. |
+| def-typed named satisfy `satisfy requirement attTuned : SettlingReq by tuned;` | y | n (holds=False); error: satisfy attTuned by tuned: no requirement to satisfy | satisfy attTuned by tuned: no requirement to satisfy | Typed by the requirement def, so it never mentions the `req001` usage. Evaluator: error, no verdict. |
+| usage-subsetting named satisfy `satisfy requirement subTuned :> req001 by tuned;` (ACE-01 choice) | y | y (holds=True) | satisfy req001 by tuned: holds | Names the claim, traces to the `req001` usage and is evaluated; this is why ACE-01 chose it as the attestation form. The verdict label drops the name. Evaluator: returned a verdict. |
+| reference-subsetting named satisfy `satisfy requirement refTuned ::> req001 by tuned;` | y | n (holds=False); error: satisfy refTuned by tuned: no requirement to satisfy | satisfy refTuned by tuned: no requirement to satisfy | Parses and is exported; compare its evaluation with the `:>` form. Evaluator: error, no verdict. |
+| unnamed satisfy `satisfy req001 by tuned;` | y | y (holds=True) | satisfy req001 by tuned: holds | Evaluates like the usage-subsetting form but has no name, so StatusInfo and Rationale have nothing to hang on except by position. Scoped here via an enclosing package, since an anonymous element has no usable `symbol_id`. |
+| `not satisfy requirement attWeakNot : SettlingReq by weak;` (def-typed) | y | n (holds=False); error: not satisfy attWeakNot by weak: no requirement to satisfy | not satisfy attWeakNot by weak: no requirement to satisfy | isNegated=True in to_api_json, so the claim is representable. Same evaluation failure as the positive def-typed form. |
+| `not satisfy requirement subWeakNot :> req001 by weak;` (usage-subsetting) | y | y (holds=True) | not satisfy req001 by weak: holds | isNegated=True in to_api_json, so the claim is representable. A correct negative claim (weak does fail req001) evaluates to holds=True. |
+| `metadata statWeak : ModelingMetadata::StatusInfo about attWeak { originator; status = StatusKind::done; }` | y | n/a (data, read back from to_api_json) | {"type": ["ModelingMetadata::StatusInfo"], "about": ["ProbePkg::attWeak"], "originator": "probe", "status": "ModelingMetadata::StatusKind::done"} | Attaches to a def-typed named satisfy. Values read back: originator='probe', status='ModelingMetadata::StatusKind::done'. Also attaches to subTuned (['ProbePkg::subTuned']) and to the design part (statDesign about ['ProbePkg::tuned'], status='ModelingMetadata::StatusKind::tbc'). Enum values come back as the literal's qualified name. |
+| `metadata ratTuned : ModelingMetadata::Rationale about attTuned { text; explanation = tunedExplicit; }` | y | n/a (data) | {"type": ["ModelingMetadata::Rationale"], "about": ["ProbePkg::attTuned"], "text": "Model adequate for step response; evidence sufficient.", "explanation": "ProbePkg::tunedExplicit"} | `explanation` is a ref to the verification usage and reads back as `ProbePkg::tunedExplicit`. Same on a design part (`ratDesign` about ['ProbePkg::tuned']). |
+| `metadata execWeak : AnalysisTooling::ToolExecution about weak { toolName; uri; }` | y | n/a (data) | {"type": ["AnalysisTooling::ToolExecution"], "about": ["ProbePkg::weak"], "toolName": "scipy.integrate.solve_ivp", "uri": "urn:probe:tool:scipy"} | Attaches to a part. Fields present on read-back: ['toolName', 'uri']; the library defines no version, digest or time (a gap for evidence provenance). |
+| `metadata execChain : AnalysisTooling::ToolExecution about tuned::settlingTime` (feature chain) | y | n/a (data) | {"type": ["AnalysisTooling::ToolExecution"], "about": ["ProbePkg::tuned::@0"], "toolName": "scipy.integrate.solve_ivp", "uri": "urn:probe:tool:scipy"} | The chain resolves to `ProbePkg::tuned::@0`, the anonymous redefining attribute that carries the value, not the inherited ADCS::settlingTime declaration. |
+| `model.verify_satisfaction()` on a deliberately contradicting `satisfy requirement subWeakContra :> req001 by weak;` | y | y (holds=False) | satisfy req001 by weak: adcs.settlingTime <= 120 [s] | A false claim loads without a diagnostic (as toaster D-021 recorded for 0.9.0) and verify_satisfaction evaluates it to holds=False with the failing condition text. Whole-model call returns 11 verdicts: 3 are errors from objectives with no subject ('no value for feature adcs') and 4 are 'no requirement to satisfy' (def-typed and reference-subsetting named satisfies); scope with `symbol_id`. |
+| `to_api_json()`: satisfy, verify and metadata elements | y | n/a | SatisfyRequirementUsage=8; RequirementVerificationMembership=3; VerificationCaseUsage=6; VerificationCaseDefinition=3; MetadataUsage=7; RequirementUsage=8; RequirementDefinition=2 | satisfy = SatisfyRequirementUsage (isNegated true for `not satisfy`). `verify` is RequirementVerificationMembership owning an unnamed RequirementUsage. metadata = MetadataUsage with annotatedElement. Metadata field values are ReferenceUsage -> FeatureValue -> LiteralString or FeatureReferenceExpression.referent. |
+| (extra) `model.query()` visibility of satisfy / metadata / verification usages | n/a | n/a | named: {'RequirementUsage': 2, 'VerificationCaseUsage': 6, 'SatisfyRequirementUsage': 7, 'MetadataUsage': 7}; anonymous: {'RequirementUsage': 3, 'SatisfyRequirementUsage': 4} | On 0.10.0 model.query() returns every named satisfy and metadata usage, and also the anonymous ones inside verification defs (toaster D-001/D-015 recorded the opposite on 0.9.0). Mismatch: the anonymous `...::@1::@0` elements are SatisfyRequirementUsage in query() but ['RequirementUsage'] in to_api_json(). |
+
+Notes on the table:
+
+- Unit form: `120 [s]` works; so does `[N * m]` for torque.
+- Subjects: `verify_requirement`, `verify_constraint` and `run_analysis` on a verification *def* need `subject=<part>`; a verification *usage* with `subject = part;` needs none.
+- `eval` needs qualified names (`ProbePkg::weak.settlingTime`) unless the package is imported; the error message says so.
+- Numbers: `Quantity.magnitude` is a `Fraction`; cast with `float()`. The table shows decimals.
+- `verify_satisfaction()` with no argument also returns one error verdict per `verify` objective inside a verification def (`no value for feature adcs`): those objectives have no subject bound. Pass `symbol_id` to scope to one claim. An anonymous satisfy has no usable `symbol_id`, so the probe wraps it in a package and scopes to that.
+- REQ-004 (ACE-04): the `over` subject is hand-built because the simulation cannot produce a peak above the limit. The tuned design's peak equals the limit because `analysis/numerical.py` clips torque with `np.clip`; that is a model-adequacy question for the human (a `Rationale`), not evidence of satisfaction.
+
+## Fallbacks
+
+- **Verdict fallback: does not apply.** A `VerdictKind` comes back from the verification case (`fail` for the Kp=1, Kd=10 candidate, `pass` for Kp=4, Kd=30). No need to evaluate `req001(design)` via `model.eval` outside the case. If it were needed, `model.eval('ProbePkg::req001(ProbePkg::weak)')` returns a plain `bool` (single-source row); label it "computed outside the verification case".
+- **Named-satisfy fallback: does not apply under ACE-01.** The `:>` form evaluates and carries `StatusInfo` and `Rationale`. If the demo ever had to use the def-typed or `::>` form, `StatusInfo` and `Rationale` can be attached to the design part instead (`statDesign`, `ratDesign` in the metadata rows load and read back), but the claim would then not be evaluated.
+
+## Draft upstream issues
+
+Drafts only; not filed. Citations are to the standard-library files (local copy of the SysML-v2-Release `sysml.library`, paths relative to it) and to observed behavior. No specification clause numbers are cited, because the specification text was not available to check; the one clause number below is marked unverified.
+
+1. **Def-typed and reference-subsetting named satisfy are not evaluated.** OpenSysML 0.10.0 loads `satisfy requirement x : ReqDef by part;` and `satisfy requirement x ::> req001 by part;` with no diagnostic and exports them as `SatisfyRequirementUsage`, but `Model.verify_satisfaction()` returns `no requirement to satisfy` (holds=False, an error rather than a verdict). The `:> req001` form and the unnamed `satisfy req001 by part;` evaluate (table rows). Library context: `Systems Library/Requirements.sysml` lines 173-183 define `satisfiedRequirementChecks` / `notSatisfiedRequirementChecks` as the checks for requirements asserted satisfied or not. Clause: SysML v2 7.19 satisfy requirement usage (unverified). Ask: evaluate the other forms against the subsetted or typed requirement with the subject bound, or emit a diagnostic at load.
+2. **A `verify` objective contributes no verdict.** `Systems Library/VerificationCases.sysml` lines 13-35 declare `return verdict : VerdictKind`, an `objective obj` with `requirementVerifications`, and a `requirementVerifications` ref, but no rule rolls the checks up into `verdict`; `PassIf` is at lines 70-79 and `VerdictKind` at lines 58-68. Observed: the objective's own verdict reads `states no condition to check`, and a case with no `return` binding is `inconclusive` even when the verified requirement fails direct evaluation (REQ-004 `over` row). Ask: document this, or derive a default verdict from the verified requirements.
+3. **`verify_satisfaction()` returns an error per `verify` objective.** Same file, lines 22-35. Whole-model calls return `no value for feature adcs` for each verification def's objective, which has no subject bound; callers must filter by `symbol_id`. Ask: skip definitions' objectives, or mark them not applicable.
+4. **`model.query()` and `to_api_json()` disagree on the anonymous requirement inside `verify`.** The same element is `SatisfyRequirementUsage` in one and `RequirementUsage` in the other (last table row).
+5. **`AnalysisTooling::ToolExecution` carries only `toolName` and `uri`.** `Domain Libraries/Analysis/AnalysisTooling.sysml` lines 10-18: two `String` attributes, no version, digest or time. Evidence provenance beyond a tool name needs prose or commit metadata. A library gap for the standards body, not a client bug.
+6. **The Flexo SysML v2 service does not persist commit descriptions.** Recorded in ACE-02: the Git SHA link is carried as a commit tag `git-<sha>` instead. Not exercised by this probe; listed so the gap list is complete.
+
+## Machine side effect
+
+`opensysml.connect(version='v0.10.0')` replaces the cached `~/.opensysml/bin/sysml-grpc` binary (and `sysml-grpc.json`, which now records `v0.10.0`). Toaster, which uses 0.9.0, will therefore re-download its binary on its next run. The `v0.10.0` download is digest-pinned in the client (`opensysml/binary.py` pinned-digest table); an unpinned release is refused unless explicitly allowed.
