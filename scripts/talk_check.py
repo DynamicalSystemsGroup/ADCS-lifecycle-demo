@@ -10,6 +10,7 @@ Checks (statuses: passed | failed | open):
 
   facts     every fact a module cites exists and has a source
   beats     every demo beat a module cites exists as a marker in the notebook
+  slides    every module without demo beats has a SLIDE:Sx marker in the notebook
   handoff   each module's ``hands_off`` equals the next module's ``receives``
   minutes   module minutes sum to at most the budget
   public    no non-public fact (id or claim) appears in a tracked repo file
@@ -32,6 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FACT_ID = re.compile(r"\bF-\d{2,3}\b")
 BEAT_ID = re.compile(r"\bB\d+\b")
 BEAT_MARKER = re.compile(r"BEAT:(B\d+)")
+SLIDE_MARKER = re.compile(r"SLIDE:(S\d+)")
 
 app = typer.Typer(add_completion=False, help=__doc__.splitlines()[0])
 
@@ -141,6 +143,16 @@ def check_beats(modules: list[Module], notebook: Path) -> Result:
     return Result("beats", "failed" if missing else "passed", missing)
 
 
+def check_slides(modules: list[Module], notebook: Path) -> Result:
+    """Each module is one slide (SLIDE:Sx) unless it is the demo, whose slides are its beats."""
+    if not notebook.exists():
+        return Result("slides", "open", [f"notebook not found: {notebook.name}"])
+    present = set(SLIDE_MARKER.findall(notebook.read_text()))
+    missing = [f"{m.id}: no SLIDE:{m.id} marker in {notebook.name}"
+               for m in modules if not m.cited_beats() and m.id not in present]
+    return Result("slides", "failed" if missing else "passed", missing)
+
+
 def check_handoff(modules: list[Module]) -> Result:
     res = Result("handoff", "passed")
     for prev, nxt in zip(modules, modules[1:]):
@@ -193,12 +205,13 @@ def run_checks(private: Path, notebook: Path, budget: float, root: Path = ROOT) 
     mod_dir, facts_path = talk / "modules", talk / "facts.md"
     if not mod_dir.is_dir() or not facts_path.exists():
         why = f"private talk directory not found under {private}"
-        return [Result(c, "open", [why]) for c in ("facts", "beats", "handoff", "minutes", "public")]
+        return [Result(c, "open", [why]) for c in ("facts", "beats", "slides", "handoff", "minutes", "public")]
     modules = sorted((parse_module(p) for p in mod_dir.glob("S*.md")), key=lambda m: int(m.id[1:]))
     facts = parse_facts(facts_path)
     return [
         check_facts(modules, facts),
         check_beats(modules, notebook),
+        check_slides(modules, notebook),
         check_handoff(modules),
         check_minutes(modules, budget),
         check_public(facts, root),
@@ -208,7 +221,7 @@ def run_checks(private: Path, notebook: Path, budget: float, root: Path = ROOT) 
 @app.command()
 def main(
     private: Path = typer.Option(ROOT / "private", help="Private context directory."),
-    notebook: Path = typer.Option(ROOT / "sysml_notebook.py", help="Demo notebook with BEAT:Bn markers."),
+    notebook: Path = typer.Option(ROOT / "talk.py", help="Talk notebook with SLIDE:Sx and BEAT:Bn markers."),
     budget: float = typer.Option(50.0, help="Talk minutes budget, excluding Q&A."),
 ) -> None:
     """Run every check; exit 1 if any check failed (open is not a failure)."""

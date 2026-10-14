@@ -46,10 +46,10 @@ def _status(results, name):
 
 def test_clean_skeleton_passes(talk: Path, tmp_path: Path) -> None:
     nb = tmp_path / "nb.py"
-    nb.write_text("# BEAT:B1\n")
+    nb.write_text("# BEAT:B1 SLIDE:S0 SLIDE:S2\n")
     results = talk_check.run_checks(talk, nb, 50, root=tmp_path)
     assert {r.check: r.status for r in results} == {
-        "facts": "passed", "beats": "passed", "handoff": "passed",
+        "facts": "passed", "beats": "passed", "slides": "passed", "handoff": "passed",
         "minutes": "passed", "public": "passed",
     }
 
@@ -92,3 +92,10 @@ def test_non_public_fact_in_tracked_file_fails(talk: Path, tmp_path: Path) -> No
 def test_missing_private_dir_is_all_open(tmp_path: Path) -> None:
     results = talk_check.run_checks(tmp_path / "nope", tmp_path / "nb.py", 50, root=tmp_path)
     assert {r.status for r in results} == {"open"}
+
+
+def test_missing_slide_marker_flags_only_that_module(talk: Path, tmp_path: Path) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text("# BEAT:B1 SLIDE:S0\n")  # S1 is covered by its beat; S2 has no marker
+    res = _status(talk_check.run_checks(talk, nb, 50, root=tmp_path), "slides")
+    assert res.status == "failed" and res.details == ["S2: no SLIDE:S2 marker in nb.py"]
