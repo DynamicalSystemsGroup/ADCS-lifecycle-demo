@@ -17,7 +17,7 @@
 
 ## Terms
 
-Per FOUNDATIONS §2: the human-authored `satisfy` plus `StatusInfo` is the attestation (validation). An evaluated `holds` is verification of that claim, not the attestation. A verdict from `run_analysis` is verification too.
+The human-authored `satisfy` plus `StatusInfo` is the attestation (validation). An evaluated `holds` is verification of that claim, not the attestation. A verdict from `run_analysis` is verification too.
 
 Reproduce with `uv run python sysml/probe/run_probe.py` (add `--markdown` to regenerate the table below, which is its output byte for byte). Model: [`probe.sysml`](probe.sysml). Every value in the table was produced by that run. The scipy numbers are computed by `analysis.numerical`, written into the model and read back through OpenSysML. The parses column is true when the load has no diagnostics and the element is in the `to_api_json()` export; the evaluates column comes from the `holds`, `error` and `kind` values returned.
 
