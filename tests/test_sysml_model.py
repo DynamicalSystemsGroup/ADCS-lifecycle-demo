@@ -11,7 +11,7 @@ from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
 from sysml.model import (DEFAULT_ADEQUACY, DEMO_ENGINEER, PACKAGE, NOT_A_HUMAN, assemble, attestation_block, evaluate,
-                         evidence_block, group_diff, load_structure, status_block, to_elements)
+                         evidence_block, group_diff, load_structure, status_block, symbolic_settling, to_elements)
 
 pytestmark = pytest.mark.filterwarnings("ignore")
 ROOT_TTL = "structural/satellite.ttl"
@@ -25,8 +25,9 @@ def _evidence(design: str, kp: float, kd: float) -> str:
     params = dict(load_params(), Kp=kp, Kd=kd)
     sim = run_step_response(params)
     summary = sim.summary()
+    t, est_hash = symbolic_settling(params)
     return evidence_block(design, params, summary, hash_simulation(sim.config.to_dict(), summary),
-                          DEFAULT_ADEQUACY, DEMO_ENGINEER)
+                          DEFAULT_ADEQUACY, DEMO_ENGINEER, t, est_hash)
 
 
 @pytest.fixture(scope="module")
@@ -122,7 +123,7 @@ def test_bad_identifiers_refused(bad):
     params = dict(load_params(), Kp=1.0, Kd=10.0)
     sim = run_step_response(params)
     with pytest.raises(ValueError):
-        evidence_block(bad, params, sim.summary(), "0" * 64, "x", "A. Engineer")
+        evidence_block(bad, params, sim.summary(), "0" * 64, "x", "A. Engineer", 1.0, "0" * 64)
     with pytest.raises(ValueError):
         attestation_block(bad, False, "A. Engineer", "tbc", "x", "vc001_v1")
     with pytest.raises(ValueError):
@@ -143,7 +144,7 @@ def test_v2_peak_torque_is_clipped_at_limit():
 def test_adequacy_text_is_caller_supplied():
     params = dict(load_params(), Kp=1.0, Kd=10.0)
     summary = run_step_response(params).summary()
-    block = evidence_block("v1", params, summary, "0" * 64, "My own judgement.", "A. Engineer")
+    block = evidence_block("v1", params, summary, "0" * 64, "My own judgement.", "A. Engineer", 1.0, "0" * 64)
     assert "My own judgement." in block
     assert "adequate" not in block.replace("adequacy judgement", "")
 
@@ -151,7 +152,7 @@ def test_adequacy_text_is_caller_supplied():
 def test_adequacy_statusinfo_carries_originator(structure):
     params = dict(load_params(), Kp=1.0, Kd=10.0)
     summary = run_step_response(params).summary()
-    block = evidence_block("v1", params, summary, "0" * 64, "x", DEMO_ENGINEER)
+    block = evidence_block("v1", params, summary, "0" * 64, "x", DEMO_ENGINEER, 1.0, "0" * 64)
     assert DEMO_ENGINEER == "Michael Zargham"
     assert ("metadata : ModelingMetadata::StatusInfo about v1 {\n"
             f'        originator = "{DEMO_ENGINEER}";\n'
@@ -168,7 +169,63 @@ def test_adequacy_by_non_human_refused(who):
     params = dict(load_params(), Kp=1.0, Kd=10.0)
     summary = run_step_response(params).summary()
     with pytest.raises(ValueError):
-        evidence_block("v1", params, summary, "0" * 64, "x", who)
+        evidence_block("v1", params, summary, "0" * 64, "x", who, 1.0, "0" * 64)
+
+
+# ----- second evidence source: the linear (SymPy) settling estimate -----
+
+def test_evidence_block_has_estimate_and_two_tool_executions():
+    block = _evidence("v1", 1.0, 10.0)
+    assert "attribute :>> settlingTimeEstimate =" in block
+    assert block.count("metadata : AnalysisTooling::ToolExecution") == 2
+    assert "about v1::settlingTime {" in block and "about v1::settlingTimeEstimate {" in block
+    assert "SymPy linear analysis (analysis/symbolic.py)" in block
+    assert "metadata def" not in block
+
+
+def test_estimate_loads_clean_and_verdicts_unchanged(structure):
+    out = evaluate(assemble(structure, _evidence("v1", 1.0, 10.0) + _evidence("v2", 4.0, 30.0)))
+    assert out["diagnostics"] == []
+    assert out["verdicts"] == {"vc001_v1": "fail", "vc004_v1": "inconclusive",
+                               "vc001_v2": "pass", "vc004_v2": "inconclusive"}
+
+
+def test_tool_executions_annotate_the_value_bearing_redefinitions(structure):
+    els = {e["@id"]: e for e in to_elements(assemble(structure, _evidence("v2", 4.0, 30.0)))}
+    tools = [e for e in els.values() if e["@type"] == "MetadataUsage" and any(
+        els.get(t["@id"], {}).get("qualifiedName") == "AnalysisTooling::ToolExecution"
+        for t in e.get("type", []))]
+    assert len(tools) == 2
+    for t in tools:
+        (target,) = [els[a["@id"]] for a in t["annotatedElement"]]
+        assert target["@type"] == "AttributeUsage" and target["owner"]["@id"] == "GeoSatADCS__v2"
+        assert any(r["@id"].endswith("_pvalue_om") for r in target["ownedRelationship"])  # it carries the value
+
+
+def test_symbolic_settling_is_computed_and_hashed():
+    params = dict(load_params(), Kp=4.0, Kd=30.0)
+    t, h = symbolic_settling(params)
+    assert t > 0 and re.fullmatch(r"[0-9a-f]{64}", h)
+    assert symbolic_settling(params) == (t, h)
+    assert symbolic_settling(dict(params, Kd=10.0))[1] != h
+    assert repr(t) in _evidence("v2", 4.0, 30.0)
+
+
+def test_adequacy_default_is_marked_draft():
+    assert DEFAULT_ADEQUACY.startswith("[DRAFT — pending Michael's approval]")
+    assert "the linear estimate and the simulation" in DEFAULT_ADEQUACY.lower()
+    assert not re.search(r"\d", DEFAULT_ADEQUACY)
+
+
+def test_group_diff_c2_to_c3_has_nothing_in_other(structure):
+    """In-process, on real exported elements: pending marker (C2) replaced by the attestation (C3)."""
+    ev = _evidence("v1", 1.0, 10.0)
+    att = attestation_block("v1", False, DEMO_ENGINEER, "done", "Evidence is sufficient.", "vc001_v1")
+    c2 = to_elements(assemble(structure, ev, status_block("req001")))
+    c3 = to_elements(assemble(structure, ev, att))
+    g = group_diff(c2, c3)
+    assert not g["other"], dict(g["other"])
+    assert g["att"] > 0 and g["pending"] == 1 and g["pkg"] > 0
 
 
 # ----- status_block and to_elements -----

@@ -18,6 +18,9 @@ from pathlib import Path
 
 import opensysml
 
+from analysis.symbolic import run_symbolic_analysis
+from evidence.hashing import hash_simulation
+
 VERSION = "v0.10.0"
 PACKAGE = "GeoSatADCS"
 STRUCTURE_PATH = Path(__file__).with_name("satellite.sysml")
@@ -36,11 +39,12 @@ DEMO_ENGINEER = "Michael Zargham"
 _STATUS = {"tbc", "done"}
 _IDENT = re.compile(r"^[A-Za-z_]\w*$")
 
-# The human's draft adequacy judgement, for the notebook to pre-fill. It is not a finding.
+# DRAFT placeholder for the notebook to pre-fill. It is not a finding and not the person's
+# judgement: the wording is drafted separately and approved by the person before use.
 DEFAULT_ADEQUACY = (
-    "The simulation clips control torque at the actuator limit, so peak torque cannot exceed "
-    "the limit in this model; whether operating at saturation is acceptable is not answered "
-    "by this model."
+    "[DRAFT — pending Michael's approval] The linear estimate and the simulation are "
+    "models of the pointing loop; whether they are adequate for this requirement is the "
+    "engineer's judgement."
 )
 
 
@@ -55,10 +59,18 @@ def _ident(kind: str, value: str) -> str:
     return value
 
 
+def symbolic_settling(params: dict) -> tuple[float, str]:
+    """The linear (SymPy) settling estimate and its evidence hash, both computed here."""
+    t = float(run_symbolic_analysis(params).pointing_budget["settling_time_s"])
+    return t, hash_simulation({"method": "sympy", "Kp": params["Kp"], "Kd": params["Kd"]},
+                              {"settling_time_s": t})
+
+
 def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adequacy: str,
-                   adequacy_by: str) -> str:
+                   adequacy_by: str, t_estimate_s: float, est_hash: str) -> str:
     """The generated block for one design. `params` has Kp, Kd, maxTorque;
     `summary` is SimResult.summary(); `sim_hash` comes from evidence.hashing.hash_simulation.
+    `t_estimate_s` and `est_hash` come from `symbolic_settling`: a second, independent estimate.
 
     `adequacy` is the Rationale text: a person's judgement (validation) that the model is
     adequate for this use, carried with the evidence. The caller supplies it; this function
@@ -75,12 +87,17 @@ def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adeq
         attribute :>> Kp = {float(params['Kp'])!r};
         attribute :>> Kd = {float(params['Kd'])!r};
         attribute :>> settlingTime = {float(summary['settling_time_s'])!r} [s];
+        attribute :>> settlingTimeEstimate = {float(t_estimate_s)!r} [s];
         attribute :>> peakTorque = {float(summary['peak_control_torque'])!r} [N*m];
         attribute :>> torqueLimit = {float(params['maxTorque'])!r} [N*m];
     }}
-    metadata : AnalysisTooling::ToolExecution about {design} {{
+    metadata : AnalysisTooling::ToolExecution about {design}::settlingTime {{
         toolName = "scipy solve_ivp (analysis/numerical.py)";
         uri = "sha256:{sim_hash}";
+    }}
+    metadata : AnalysisTooling::ToolExecution about {design}::settlingTimeEstimate {{
+        toolName = "SymPy linear analysis (analysis/symbolic.py)";
+        uri = "sha256:{est_hash}";
     }}
     metadata : ModelingMetadata::Rationale about {design} {{
         text = "{_q(adequacy)}";
