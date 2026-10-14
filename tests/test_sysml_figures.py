@@ -55,7 +55,8 @@ def test_commanded_torque_exceeds_the_clip_and_delivered_does_not(runs):
 @pytest.mark.parametrize("case", [(1.0, 10.0), (4.0, 30.0)])
 def test_settling_figure(runs, case):
     p, t_sym, sim = runs[case]
-    fig = F.settling_figure(sim, t_sym, LIMIT_S, BAND, title=f"Kp={case[0]:g}, Kd={case[1]:g}")
+    fig = F.settling_figure(sim, t_sym, LIMIT_S, title=f"Kp={case[0]:g}, Kd={case[1]:g}",
+                           caption="must stay inside the band")
     assert isinstance(fig, Figure)
     labels = " | ".join(t.get_text() for t in _texts(fig))
     assert f"SymPy: {t_sym:.0f} s" in labels
@@ -64,6 +65,9 @@ def test_settling_figure(runs, case):
     dot = [l for l in fig.axes[0].get_lines() if l.get_marker() == "o"][0]
     assert dot.get_xdata()[0] == pytest.approx(t_sim)
     assert f"{LIMIT_S:g} s limit" in labels
+    band = 0.01 * F.pointing_error_deg(sim)[0]
+    assert f"{band:.2g}° (1% of initial error)" in labels and "must stay inside the band" in labels
+    assert any(abs(l.get_ydata()[0] - band) < 1e-12 for l in fig.axes[0].get_lines() if len(set(l.get_ydata())) == 1)
     _assert_screen_legible(fig)
 
 

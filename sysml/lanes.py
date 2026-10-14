@@ -16,8 +16,8 @@ from sysml.figures import PALETTE
 from sysml.model import PACKAGE
 
 _STRUCTURE_TITLE = "STRUCTURE · in Git"
-_EVIDENCE_TITLE = "EVIDENCE · from scipy"
-_ATTESTATION_TITLE = "ATTESTATION · human-written"
+_EVIDENCE_TITLE = "EVIDENCE · computed (scipy, SymPy)"
+_ATTESTATION_TITLE = "ATTESTATION · a person's judgement, or its absence"
 
 
 def _nid(i: str) -> str:
@@ -93,7 +93,8 @@ def lanes_mermaid(elements: list[dict]) -> str:
         elif t == "SatisfyRequirementUsage":
             neg = bool(e.get("isNegated"))
             word = "not satisfy" if neg else "satisfy"
-            lane["A"].append(f'{n}{{{{"<b>{word}</b><br/>{name(i)}"}}}}')
+            head = "NOT satisfied" if neg else word
+            lane["A"].append(f'{n}{{{{"<b>{head}</b><br/>{name(i)}"}}}}')
             cls[n] = "negated" if neg else "human"
             if e.get("subsets"):
                 edges.append(f"{n} {'-. ' + word + ' .->' if neg else '== ' + word + ' ==>'} {_nid(e['subsets']['@id'])}")
@@ -157,8 +158,8 @@ def lanes_mermaid(elements: list[dict]) -> str:
         # blue only for machine output
         f"  classDef machine fill:#e8f0fe,stroke:{m},stroke-width:2px",
         f"  classDef human fill:#fff4d6,stroke:{h},stroke-width:4px",
-        # a negated claim is still a person's act (amber), but filled solid and struck through
-        f"  classDef negated fill:#fbd38d,stroke:{h},stroke-width:4px,color:{p},text-decoration:line-through",
+        # a negated claim is still a person's act (amber), but filled solid, label prefixed NOT satisfied
+        f"  classDef negated fill:#fbd38d,stroke:{h},stroke-width:4px,color:{p}",
         # pending (status tbc): dashed. Amber when a person is named on it, grey when no one is.
         f"  classDef pendingNamed fill:#ffffff,stroke:{h},stroke-width:3px,stroke-dasharray:6 4",
         "  classDef pending fill:#ffffff,stroke:#6b7280,stroke-width:3px,stroke-dasharray:6 4",
@@ -178,30 +179,25 @@ def two_store_mermaid() -> str:
     each commit tagged by the Git SHA. Who reads each store is drawn under it."""
     m, p = PALETTE["machine"], PALETTE["prescribed"]
     return "\n".join([
+        "%%{init: {'themeVariables': {'fontSize': '20px'}}}%%",
         "flowchart LR",
         '  subgraph G["GIT · source"]',
-        "    direction TB",
-        '    g1["<b>.sysml</b> text"]',
-        '    g2["analysis code"]',
-        '    g3["notebook"]',
+        '    g1["<b>.sysml</b> text<br/>analysis code<br/>notebook"]',
         "  end",
         '  X{{"<b>OpenSysML</b><br/>evaluates"}}',
         '  subgraph F["FLEXO · model"]',
-        "    direction TB",
-        '    f1["model elements"]',
-        '    f2["commits tagged <b>git-&lt;sha&gt;</b>"]',
+        '    f1["model elements<br/>commits tagged with the Git SHA<br/><b>git-&lt;sha&gt;</b>"]',
         "  end",
         '  rg["engineer: reads diffs and history"]',
         '  rf["reviewer and tools: query the model, find the Git commit by its tag"]',
         "  G --> X --> F",
         "  rg -.-> G",
         "  rf -.-> F",
-        "  F -. same commit .-> G",
         f"  classDef src fill:#f1f3f4,stroke:{p},stroke-width:3px",
         f"  classDef machine fill:#e8f0fe,stroke:{m},stroke-width:2px",
         "  classDef reader fill:#ffffff,stroke:#9ca3af",
-        "  class g1,g2,g3 src",
-        "  class X,f1,f2 machine",
+        "  class g1 src",
+        "  class X,f1 machine",
         "  class rg,rf reader",
     ])
 

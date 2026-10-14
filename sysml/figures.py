@@ -83,10 +83,12 @@ def _error_axes(ax, errs, t_limit, band_deg):
     ax.set_ylim(band_deg / 100, top * 2)
 
 
-def settling_figure(sim, t_sym: float, t_limit: float = 120, band_deg: float = 0.1,
-                    title: str = "Pointing error after the slew") -> Figure:
+def settling_figure(sim, t_sym: float, t_limit: float = 120,
+                    title: str = "Pointing error after the slew", caption: str | None = None) -> Figure:
     """Simulated pointing error (log scale) with the band, the requirement line, the simulated
-    settling point (dot) and the SymPy estimate (dashed tick). No decay envelope.
+    settling point (dot) and the SymPy estimate (dashed tick). No decay envelope. The band is
+    1% of the initial error, drawn where `sim.summary()` measures settling. `caption` is an
+    optional one-line note under the axis.
 
     There is one settling definition: the dot is `sim.summary()["settling_time_s"]`, the value
     recorded as evidence (last time the error exceeds 1% of the initial error; that is
@@ -96,11 +98,13 @@ def settling_figure(sim, t_sym: float, t_limit: float = 120, band_deg: float = 0
         fig = _new((11, 5.4))
         ax = fig.subplots()
         err = pointing_error_deg(sim)
+        band_deg = 0.01 * float(err[0])
         ax.plot(sim.t, err, color=PALETTE["machine"], label="simulation")
         _error_axes(ax, [err], t_limit, band_deg)
         xmax = max(float(sim.t[-1]), t_sym * 1.05)
         ax.set_xlim(0, xmax)
-        ax.text(xmax * 0.015, band_deg * 1.15, f"{band_deg:g}° band", ha="left", va="bottom", color=_MUTED)
+        ax.text(xmax * 0.015, band_deg * 1.15, f"{band_deg:.2g}° (1% of initial error)", ha="left", va="bottom",
+                color=_MUTED, bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.9), zorder=1.5)
         ax.text(t_limit + xmax * 0.01, ax.get_ylim()[1] / 1.5, f"{t_limit:g} s limit", ha="left", va="top",
                 color=PALETTE["prescribed"])
         ax.plot([t_sym, t_sym], [band_deg / 2.5, band_deg * 2.5], color=PALETTE["machine"], ls="--", lw=2.5)
@@ -121,6 +125,8 @@ def settling_figure(sim, t_sym: float, t_limit: float = 120, band_deg: float = 0
                     textcoords="offset points", ha=sim_ha, va=sim_va, color=PALETTE["machine"],
                     fontweight="bold", bbox=box)
         ax.set_title(title, loc="left")
+        if caption:
+            fig.supxlabel(caption, fontsize=MIN_FONT_PT)
         return _finish(fig)
 
 

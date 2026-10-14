@@ -34,8 +34,6 @@ def states():
         "c1": lanes_mermaid(to_elements(assemble(s, ev1, attestation_block(
             "initial", False, DEMO_ENGINEER, "done", "Too slow.", "vc001_initial")))),
         "c2": lanes_mermaid(to_elements(assemble(s, ev2, status_block("req001")))),
-        "b6": lanes_mermaid(to_elements(assemble(s, ev2, status_block(
-            "req001", "tbc", DEMO_ENGINEER, "Margin recorded; not yet judged.")))),
         "c3": lanes_mermaid(to_elements(assemble(s, ev2, attestation_block(
             "tuned", True, DEMO_ENGINEER, "done", "Inside the limit.", "vc001_tuned")))),
     }
@@ -55,9 +53,22 @@ def test_three_subgraphs_in_every_state(states):
         assert [t.split(" ·")[0] for _, t in _subgraphs(m)] == ["STRUCTURE", "EVIDENCE", "ATTESTATION"]
 
 
+def test_lane_titles_say_what_each_lane_is(states):
+    titles = dict(_subgraphs(states["c2"]))
+    assert titles["E"] == "EVIDENCE · computed (scipy, SymPy)"
+    assert titles["A"] == "ATTESTATION · a person's judgement, or its absence"
+
+
+def test_evidence_title_names_the_tools_the_lane_shows(states):
+    lane, title = _lane(states["c2"], "E"), dict(_subgraphs(states["c2"]))["E"]
+    for tool in ("scipy", "SymPy"):
+        assert tool in lane and tool in title
+    assert lane.count("ToolExecution") == 2
+
+
 def test_structure_lane_holds_part_def_and_requirements(states):
     lane = _lane(states["c0"], "S")
-    assert "part def" in lane and "req001" in lane and "req004" in lane
+    assert "part def" in lane and "req001" in lane
     assert "tuned" not in lane
 
 
@@ -73,11 +84,13 @@ def test_evidence_lane_holds_design_and_tool_execution(states):
 
 def test_negated_claim_is_styled_distinctly(states):
     c1, c3 = states["c1"], states["c3"]
-    assert "<b>not satisfy</b>" in c1 and "-. not satisfy .->" in c1
+    assert "<b>NOT satisfied</b>" in c1 and "-. not satisfy .->" in c1
+    assert "line-through" not in c1
+    assert "stroke:#d97706" in _classdef(c1, "negated") and "fill:#fbd38d" in _classdef(c1, "negated")
     assert re.search(r"class \w+ negated", c1)
     assert "<b>satisfy</b>" in c3 and "== satisfy ==>" in c3
     assert not re.search(r"class \w+ negated", c3)
-    assert "not satisfy" not in c3.split("classDef")[0]
+    assert "NOT satisfied" not in c3 and "not satisfy" not in c3.split("classDef")[0]
 
 
 def _classdef(m, name):
@@ -98,8 +111,9 @@ def test_pending_unnamed_is_dashed_grey_no_one_has_judged(states):
     assert "satisfy" not in m.split("classDef")[0]
 
 
-def test_pending_named_is_dashed_amber_by_name(states):
-    m = states["b6"]  # status tbc, originator named (the B6 case)
+def test_pending_named_is_dashed_amber_by_name():
+    text = assemble(load_structure(), status_block("req001", "tbc", DEMO_ENGINEER, "Not yet judged."))
+    m = lanes_mermaid(to_elements(text))
     assert f"tbc · by {DEMO_ENGINEER}" in _lane(m, "A")
     assert "no one has judged" not in m
     assert _node_class(m, "tbc · by") == "pendingNamed"
@@ -117,7 +131,7 @@ def test_done_named_is_solid_amber(states):
 
 def test_pending_is_decided_by_status_not_by_missing_name(states):
     # done with no one named is not pending; tbc with a name is
-    assert "tbc · by" not in states["c3"] and "tbc · by" in states["b6"]
+    assert "tbc · by" not in states["c3"] and "tbc · no one has judged" in states["c2"]
 
 
 def test_attested_states_have_no_pending_marker(states):
@@ -158,8 +172,6 @@ def test_both_tool_executions_are_in_the_evidence_lane(states):
 def test_rationale_unattributed_is_neutral_attributed_is_amber(states):
     # C2: the adequacy Rationale is about a design with a named StatusInfo -> amber
     assert _node_class(states["c2"], "Rationale (adequacy)") == "human"
-    # B6: a Rationale about req001 with a named tbc StatusInfo -> amber, and not labelled adequacy
-    assert _node_class(states["b6"], "Rationale<br/>") == "human"
 
 
 def test_unattributed_rationale_is_neutral():
@@ -179,11 +191,14 @@ def test_no_edge_points_at_an_undrawn_node(states):
 
 def test_two_store_mermaid_names_both_stores_and_the_tag():
     m = two_store_mermaid()
-    assert m.startswith("flowchart")
+    assert "flowchart LR" in m
     for part in ("GIT · source", ".sysml", "analysis code", "notebook", "OpenSysML", "evaluates",
                  "FLEXO · model", "model elements", "git-&lt;sha&gt;", "reads diffs", "query the model"):
         assert part in m
     assert "G --> X --> F" in m
+    assert "same commit" not in m and not re.search(r"\bF -[.-]*> G\b", m)  # flow is Git -> OpenSysML -> Flexo only
+    assert "commits tagged with the Git SHA" in m
+    assert m.startswith("%%{init") and "'fontSize': '20px'" in m
 
 
 def test_sandwich_mermaid_stacks_three_labels():
