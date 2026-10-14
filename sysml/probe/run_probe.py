@@ -280,7 +280,7 @@ def build_rows(model, idx: Index, ev: dict[str, float]) -> list[dict]:
     nreq = sum(1 for v in allv if "no requirement to satisfy" in (v.error or ""))
     row("`model.verify_satisfaction()` on a deliberately contradicting `satisfy requirement subWeakContra :> req001 by weak;`",
         yn(present("subWeakContra", kind="SatisfyRequirementUsage")), sat_cell(okc, errc), msgc,
-        f"A false claim loads without a diagnostic (as toaster D-021 recorded for 0.9.0) and "
+        f"A false claim loads without a diagnostic (as an earlier OpenSysML 0.9.0 study recorded) and "
         f"verify_satisfaction evaluates it to holds=False with the failing condition text. Whole-model call "
         f"returns {len(allv)} verdicts: {len(noise)} are errors from objectives with no subject "
         f"('no value for feature adcs') and {nreq} are 'no requirement to satisfy' (def-typed and "
@@ -309,7 +309,7 @@ def build_rows(model, idx: Index, ev: dict[str, float]) -> list[dict]:
     row("(extra) `model.query()` visibility of satisfy / metadata / verification usages",
         "n/a", "n/a", f"named: {dict(named)}; anonymous: {dict(anon)}",
         "On 0.10.0 model.query() returns every named satisfy and metadata usage, and also the anonymous "
-        "ones inside verification defs (toaster D-001/D-015 recorded the opposite on 0.9.0). Mismatch: the "
+        "ones inside verification defs (an earlier OpenSysML 0.9.0 study recorded the opposite). Mismatch: the "
         f"anonymous `...::@1::@0` elements are SatisfyRequirementUsage in query() but {sorted(json_types)} in "
         "to_api_json().")
     return rows

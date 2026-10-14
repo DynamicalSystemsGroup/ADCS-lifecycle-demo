@@ -6,7 +6,7 @@
 2. Works: a verification case returns a `pass` or `fail` verdict, and a human-authored `satisfy` can carry `StatusInfo` (status) and `Rationale` (reasoning).
 3. Works with a catch: a case with no verdict binding returns `inconclusive`, which means "nobody declared a verdict", not "close call".
 4. Does not work: two of the four `satisfy` forms (def-typed, reference-subsetting `::>`) load but cannot be evaluated by the tool.
-5. WP2 should use the usage-subsetting named satisfy `satisfy requirement att :> req001 by tuned;` (chosen because OpenSysML 0.10.0 evaluates it and it traces to the req001 usage), with a `PassIf(req001(adcs))` verdict, and read results through `to_api_json()`.
+5. The model should use the usage-subsetting named satisfy `satisfy requirement att :> req001 by tuned;` (chosen because OpenSysML 0.10.0 evaluates it and it traces to the req001 usage), with a `PassIf(req001(adcs))` verdict, and read results through `to_api_json()`.
 
 ## Glossary
 
@@ -17,11 +17,11 @@
 
 ## Terms
 
-Per FOUNDATIONS §2: the human-authored `satisfy` plus `StatusInfo` is the attestation (validation). An evaluated `holds` is verification of that claim, not the attestation. A verdict from `run_analysis` is verification too.
+The human-authored `satisfy` plus `StatusInfo` is the attestation (validation). An evaluated `holds` is verification of that claim, not the attestation. A verdict from `run_analysis` is verification too.
 
 Reproduce with `uv run python sysml/probe/run_probe.py` (add `--markdown` to regenerate the table below, which is its output byte for byte). Model: [`probe.sysml`](probe.sysml). Every value in the table was produced by that run. The scipy numbers are computed by `analysis.numerical`, written into the model and read back through OpenSysML. The parses column is true when the load has no diagnostics and the element is in the `to_api_json()` export; the evaluates column comes from the `holds`, `error` and `kind` values returned.
 
-## Summary for the model author (WP2)
+## Summary for the model author
 
 - Verdicts work. `run_analysis('Pkg::caseUsage').verifications[0].kind` returns `fail` / `pass` for the two candidates, in both the explicit-inequality and the single-source form. The single-source form is preferred: it reads `req001` itself.
 - Three forms of named satisfy are probed (plus the unnamed one), each by its own name:
@@ -31,7 +31,7 @@ Reproduce with `uv run python sysml/probe/run_probe.py` (add `--markdown` to reg
   - All are legal SysML v2; none is "the" form. See the attestation-form decision below.
 - `StatusInfo`, `Rationale` and `ToolExecution` all load, attach (to a satisfy, a part, a feature chain) and read back through `to_api_json()`.
 - A verification with no `return` binding is `inconclusive` whether the constraint holds or is violated (see the REQ-004 rows).
-- `model.query()` on 0.10.0 sees satisfy and metadata elements (0.9.0 did not, per toaster D-001/D-015). The two exports disagree on the type of the anonymous requirement inside a `verify` (see last row).
+- `model.query()` on 0.10.0 sees satisfy and metadata elements (0.9.0 did not, per an earlier OpenSysML 0.9.0 study). The two exports disagree on the type of the anonymous requirement inside a `verify` (see last row).
 
 ## Attestation-form decision
 
@@ -60,9 +60,9 @@ Reproduce with `uv run python sysml/probe/run_probe.py` (add `--markdown` to reg
 | `metadata ratTuned : ModelingMetadata::Rationale about attTuned { text; explanation = tunedExplicit; }` | y | n/a (data) | {"type": ["ModelingMetadata::Rationale"], "about": ["ProbePkg::attTuned"], "text": "Model adequate for step response; evidence sufficient.", "explanation": "ProbePkg::tunedExplicit"} | `explanation` is a ref to the verification usage and reads back as `ProbePkg::tunedExplicit`. Same on a design part (`ratDesign` about ['ProbePkg::tuned']). |
 | `metadata execWeak : AnalysisTooling::ToolExecution about weak { toolName; uri; }` | y | n/a (data) | {"type": ["AnalysisTooling::ToolExecution"], "about": ["ProbePkg::weak"], "toolName": "scipy.integrate.solve_ivp", "uri": "urn:probe:tool:scipy"} | Attaches to a part. Fields present on read-back: ['toolName', 'uri']; the library defines no version, digest or time (a gap for evidence provenance). |
 | `metadata execChain : AnalysisTooling::ToolExecution about tuned::settlingTime` (feature chain) | y | n/a (data) | {"type": ["AnalysisTooling::ToolExecution"], "about": ["ProbePkg::tuned::@0"], "toolName": "scipy.integrate.solve_ivp", "uri": "urn:probe:tool:scipy"} | The chain resolves to `ProbePkg::tuned::@0`, the anonymous redefining attribute that carries the value, not the inherited ADCS::settlingTime declaration. |
-| `model.verify_satisfaction()` on a deliberately contradicting `satisfy requirement subWeakContra :> req001 by weak;` | y | y (holds=False) | satisfy req001 by weak: adcs.settlingTime <= 120 [s] | A false claim loads without a diagnostic (as toaster D-021 recorded for 0.9.0) and verify_satisfaction evaluates it to holds=False with the failing condition text. Whole-model call returns 11 verdicts: 3 are errors from objectives with no subject ('no value for feature adcs') and 4 are 'no requirement to satisfy' (def-typed and reference-subsetting named satisfies); scope with `symbol_id`. |
+| `model.verify_satisfaction()` on a deliberately contradicting `satisfy requirement subWeakContra :> req001 by weak;` | y | y (holds=False) | satisfy req001 by weak: adcs.settlingTime <= 120 [s] | A false claim loads without a diagnostic (as an earlier OpenSysML 0.9.0 study recorded) and verify_satisfaction evaluates it to holds=False with the failing condition text. Whole-model call returns 11 verdicts: 3 are errors from objectives with no subject ('no value for feature adcs') and 4 are 'no requirement to satisfy' (def-typed and reference-subsetting named satisfies); scope with `symbol_id`. |
 | `to_api_json()`: satisfy, verify and metadata elements | y | n/a | SatisfyRequirementUsage=8; RequirementVerificationMembership=3; VerificationCaseUsage=6; VerificationCaseDefinition=3; MetadataUsage=7; RequirementUsage=8; RequirementDefinition=2 | satisfy = SatisfyRequirementUsage (isNegated true for `not satisfy`). `verify` is RequirementVerificationMembership owning an unnamed RequirementUsage. metadata = MetadataUsage with annotatedElement. Metadata field values are ReferenceUsage -> FeatureValue -> LiteralString or FeatureReferenceExpression.referent. |
-| (extra) `model.query()` visibility of satisfy / metadata / verification usages | n/a | n/a | named: {'RequirementUsage': 2, 'VerificationCaseUsage': 6, 'SatisfyRequirementUsage': 7, 'MetadataUsage': 7}; anonymous: {'RequirementUsage': 3, 'SatisfyRequirementUsage': 4} | On 0.10.0 model.query() returns every named satisfy and metadata usage, and also the anonymous ones inside verification defs (toaster D-001/D-015 recorded the opposite on 0.9.0). Mismatch: the anonymous `...::@1::@0` elements are SatisfyRequirementUsage in query() but ['RequirementUsage'] in to_api_json(). |
+| (extra) `model.query()` visibility of satisfy / metadata / verification usages | n/a | n/a | named: {'RequirementUsage': 2, 'VerificationCaseUsage': 6, 'SatisfyRequirementUsage': 7, 'MetadataUsage': 7}; anonymous: {'RequirementUsage': 3, 'SatisfyRequirementUsage': 4} | On 0.10.0 model.query() returns every named satisfy and metadata usage, and also the anonymous ones inside verification defs (an earlier OpenSysML 0.9.0 study recorded the opposite). Mismatch: the anonymous `...::@1::@0` elements are SatisfyRequirementUsage in query() but ['RequirementUsage'] in to_api_json(). |
 
 Notes on the table:
 
@@ -91,4 +91,4 @@ Drafts only; not filed. Citations are to the standard-library files (local copy 
 
 ## Machine side effect
 
-`opensysml.connect(version='v0.10.0')` replaces the cached `~/.opensysml/bin/sysml-grpc` binary (and `sysml-grpc.json`, which now records `v0.10.0`). Toaster, which uses 0.9.0, will therefore re-download its binary on its next run. The `v0.10.0` download is digest-pinned in the client (`opensysml/binary.py` pinned-digest table); an unpinned release is refused unless explicitly allowed.
+`opensysml.connect(version='v0.10.0')` replaces the cached `~/.opensysml/bin/sysml-grpc` binary (and `sysml-grpc.json`, which now records `v0.10.0`). Any other project pinned to 0.9.0 will therefore re-download its binary on its next run. The `v0.10.0` download is digest-pinned in the client (`opensysml/binary.py` pinned-digest table); an unpinned release is refused unless explicitly allowed.

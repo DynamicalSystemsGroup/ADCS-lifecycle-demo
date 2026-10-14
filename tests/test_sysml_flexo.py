@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from sysml.flexo_v2 import FlexoV2, NoChangeError, diff
-from sysml.git_source import head_sha, text_diff
+from sysml.git_source import head_sha, is_dirty, text_diff
 
 # ---------- offline: diff ----------
 
@@ -66,6 +66,25 @@ def test_head_sha(tmp_path):
     expected = subprocess.run(["git", "-C", str(tmp_path), "rev-parse", "HEAD"],
                               check=True, capture_output=True, text=True).stdout.strip()
     assert sha == expected and len(sha) == 40
+
+
+def test_is_dirty(tmp_path):
+    def git(*a):
+        subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t",
+                        "-c", "commit.gpgsign=false", *a], check=True, capture_output=True)
+    git("init", "-q")
+    (tmp_path / "sysml").mkdir()
+    (tmp_path / "sysml" / "m.sysml").write_text("a")
+    (tmp_path / "other.txt").write_text("x")
+    git("add", ".")
+    git("commit", "-q", "-m", "c")
+    assert not is_dirty(str(tmp_path))
+    (tmp_path / "other.txt").write_text("changed")  # outside the source files
+    assert not is_dirty(str(tmp_path))
+    (tmp_path / "sysml" / "m.sysml").write_text("b")
+    assert is_dirty(str(tmp_path))
+    git("commit", "-q", "-am", "d")
+    assert not is_dirty(str(tmp_path))
 
 
 # ---------- live: C1 -> C2 -> C3 round trip ----------
