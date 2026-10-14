@@ -45,12 +45,16 @@ def _():
         status_block,
         to_elements,
     )
+    from sysml.model import _in_model as in_model, _lib_reach as lib_reach, _top as top_of  # display only: the names behind the counts
 
     return (
         DEFAULT_ADEQUACY,
         FlexoV2,
         NoChangeError,
         PACKAGE,
+        in_model,
+        lib_reach,
+        top_of,
         assemble,
         attestation_block,
         evaluate,
@@ -101,9 +105,20 @@ def _(head_sha, httpx, mo, os):
             kind="warn",
         )
 
+    # One flag, one set of names for the later two states, used by headings, diff titles and the
+    # speaker line alike. Live: Flexo commits C2 and C3. Otherwise (Git-only or export): snapshots.
+    SHORT = {2: "C2", 3: "C3"} if FLEXO_PUBLISH else {2: "snapshot 2", 3: "snapshot 3"}
+    LONG = (
+        {2: "C2", 3: "C3 (Flexo commits)"}
+        if FLEXO_PUBLISH
+        else {2: "snapshot 2 (after retune)", 3: "snapshot 3 (after attestation)"}
+    )
+
     def sfx(n: int) -> str:
         """Heading suffix. A commit is promised only when publishing is live."""
-        return f" (Flexo commit C{n})" if FLEXO_PUBLISH else " (Git-only: no Flexo commit)"
+        if FLEXO_PUBLISH:
+            return f" (Flexo commit C{n})"
+        return f" ({LONG[n]}; no Flexo commit)" if n in LONG else " (Git-only: no Flexo commit)"
 
     if not FLEXO_UP:
         banner = mo.callout(
@@ -126,7 +141,7 @@ def _(head_sha, httpx, mo, os):
             mo.md(f"Flexo is reachable. Source Git SHA: `{GIT_SHA[:12]}`."), kind="success"
         )
     banner
-    return FLEXO_PUBLISH, GIT_SHA, PRESEED, SEED_NAME, seed_label, sfx
+    return FLEXO_PUBLISH, GIT_SHA, LONG, PRESEED, SEED_NAME, SHORT, seed_label, sfx
 
 
 @app.cell(hide_code=True)
@@ -136,6 +151,9 @@ def _(
     GIT_SHA,
     NoChangeError,
     PRESEED,
+    in_model,
+    lib_reach,
+    top_of,
     html,
     httpx,
     mo,
@@ -189,8 +207,26 @@ def _(
 
     def diff_view(patch: str):
         """A unified diff with removed and added lines tinted."""
+        # Display only: drop blank context lines at the edges of each hunk and blank lines at the
+        # ends of the patch. The model text and every +/- line are untouched.
+        lines, hunk = [], None
+        for line in patch.splitlines() + ["@@ end"]:
+            if line.startswith("@@"):
+                if hunk is not None:
+                    while hunk and not hunk[0].strip():
+                        hunk.pop(0)
+                    while hunk and not hunk[-1].strip():
+                        hunk.pop()
+                    lines += hunk
+                hunk = []
+                lines.append(line)
+            elif hunk is None:
+                lines.append(line)
+            else:
+                hunk.append(line)
+        lines.pop()  # the sentinel
         rows = []
-        for line in patch.splitlines():
+        for line in lines:
             bg = ("rgba(220,60,60,.18)" if line.startswith("-") and not line.startswith("---")
                   else "rgba(60,170,80,.18)" if line.startswith("+") and not line.startswith("+++")
                   else "transparent")
@@ -200,21 +236,69 @@ def _(
     def tag_of(commit_id: str) -> str:
         return f"git-{flexo.git_sha(project['id'], commit_id)}"
 
-    def groups_view(g: dict, c_from: str, c_to: str, how: str):
-        """The four approved groups, live counts only. The closing line is shown only when
-        nothing falls outside them."""
-        roots = ", ".join(f"{t} x{n}" for t, n in sorted(g["att_roots"].items())) or "none"
-        lib_note = (f" + {g['pending_library']} library definition only it referenced"
-                    if g["pending_library"] else "")
+    def group_names(old_els, new_els, g: dict) -> dict:
+        """Names behind the counts, computed from the two snapshots and checked against the
+        counts group_diff returned. A list is left empty when it does not reconcile."""
+        old = {e["@id"]: e for e in old_els}
+        new = {e["@id"]: e for e in new_els}
+        added = new.keys() - old.keys()
+        meta = sorted(
+            new[x["@id"]]["qualifiedName"].split("::")[-1]
+            for i in added
+            if in_model(i, new) and top_of(i, new) == i and new[i]["@type"] == "MetadataUsage"
+            for x in new[i].get("type", [])
+            if x["@id"] in new
+        )
+        lib = sorted(
+            new[i]["qualifiedName"]
+            for i in lib_reach({i for i in added if in_model(i, new)}, new) & added
+        )
+        return {
+            "meta": meta if len(meta) == g["att_roots"].get("MetadataUsage", 0) else [],
+            "lib": lib if len(lib) == g["lib"] else [],
+        }
+
+    def groups_view(g: dict, names: dict, from_label: str, to_label: str, to_short: str, how: str):
+        """The four approved groups as readable lines (live counts, names computed), the exact
+        group labels in a caption, and one gloss. The closing line is shown only when nothing
+        falls outside the groups."""
+        roots = g["att_roots"]
+        kinds = {"SatisfyRequirementUsage": "satisfy claim", "MetadataUsage": "metadata"}
+        pieces = []
+        for t, n in sorted(roots.items(), key=lambda kv: (kv[0] != "SatisfyRequirementUsage", kv[0])):
+            label = kinds.get(t, t)
+            if t == "MetadataUsage" and names["meta"]:
+                label += ": " + ", ".join(names["meta"])
+            pieces.append(f"{n} {label}")
+        att_line = (
+            f"Attestation added: {sum(roots.values())} new elements ({' + '.join(pieces)}), "
+            f"with {g['att'] - sum(roots.values())} owned sub-elements"
+        )
+        lib_extra = (
+            f" + {g['pending_library']} library definition only it referenced"
+            if g["pending_library"] else ""
+        )
+        pend_line = f"Pending marker removed: {g['pending']} (superseded by the attestation)"
+        pend_sub = f"{g['pending_elements']} elements{lib_extra}"
+        pkg_line = (
+            f"Package now contains the attestation (+{g['pkg']} members)"
+            if g["pkg"] else "Package: no attestation members gained"
+        )
+        lib_names = f" (names: {', '.join(f'`{n}`' for n in names['lib'])})" if names["lib"] else ""
+        lib_line = f"Standard-library definitions the attestation uses: {g['lib']}{lib_names}"
         parts = [
             mo.md(
-                f"**Element diff {c_from} to {c_to}** ({how}), grouped by what each element is\n\n"
-                f"- attestation elements added: {g['att']} (top-level: {roots})\n"
-                f"- pending marker removed (superseded by the attestation): {g['pending']}"
-                f" ({g['pending_elements']} elements{lib_note})\n"
-                f"- owning package changed (gained the attestation members): "
-                f"{1 if g['pkg'] else 0} (+{g['pkg']} members)\n"
-                f"- standard-library definitions reachable from the attestation elements: {g['lib']}"
+                f"**Element diff {from_label} to {to_label}** ({how}), grouped by what each element is\n\n"
+                f"- {att_line}\n"
+                f"- {pend_line}  \n  <small>{pend_sub}</small>\n"
+                f"- {pkg_line}\n"
+                f"- {lib_line}\n\n"
+                "Counts include owned sub-elements, because SysML v2 exports every feature and "
+                "membership as its own element.\n\n"
+                "<small>Group labels: attestation elements added; pending marker removed "
+                "(superseded by the attestation); owning package changed (gained the attestation "
+                "members); standard-library definitions reachable from the attestation "
+                "elements.</small>"
             )
         ]
         if g["other"]:
@@ -233,7 +317,7 @@ def _(
         elif g["att"]:
             parts.append(
                 mo.md(
-                    f"Everything new in {c_to} is the human's attestation and what it "
+                    f"Everything new in {to_short} is the human's attestation and what it "
                     "references; the pending marker it supersedes is removed; no evidence or "
                     "design element changed."
                 )
@@ -245,6 +329,7 @@ def _(
         diff_view,
         flexo,
         frozen,
+        group_names,
         groups_view,
         once,
         project,
@@ -544,11 +629,11 @@ def _(
 def _(diff_view, get_c1, mo, model_b4, text_diff):
     _c1 = get_c1()
     if _c1 is None or "error" in _c1:
-        _out = mo.md("*The text diff from the C1 model appears after the attestation in B3.*")
+        _out = mo.md("*The text diff from the B3 model appears after the attestation in B3.*")
     else:
         _out = mo.vstack(
             [
-                mo.md("Git text diff, C1 model to this model. The `not satisfy` line is gone:"),
+                mo.md("Git text diff, B3 model to this model. The `not satisfy` line is gone:"),
                 diff_view(text_diff(_c1["text"], model_b4)),
             ]
         )
@@ -620,6 +705,7 @@ def _(
     flexo,
     get_c2,
     group_diff,
+    group_names,
     mo,
     model_b4,
     name_in,
@@ -647,9 +733,10 @@ def _(
             _old = to_elements(model_b4)
             _new = to_elements(_text)
             _how = "computed in-process from the two model snapshots; nothing published"
+        _g = group_diff(_old, _new)
         set_c3(
             {"who": name_in.value.strip(), "att": _att, "text": _text, "commit": _commit,
-             "note": _note, "groups": group_diff(_old, _new), "how": _how}
+             "note": _note, "groups": _g, "names": group_names(_old, _new, _g), "how": _how}
         )
     except ValueError as _e:
         set_c3({"error": str(_e)})
@@ -657,7 +744,7 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(diff_view, get_c1, get_c2, get_c3, groups_view, mo, model_b4, tag_of, text_diff):
+def _(LONG, SHORT, diff_view, get_c1, get_c2, get_c3, groups_view, mo, model_b4, tag_of, text_diff):
     _c3 = get_c3()
     if _c3 is None:
         _out = mo.md("*Status is pending (`tbc`): no attestation written yet.*")
@@ -694,7 +781,7 @@ def _(diff_view, get_c1, get_c2, get_c3, groups_view, mo, model_b4, tag_of, text
                 mo.md("Git text diff of this change (B4 model to B5 model):"),
                 diff_view(text_diff(model_b4, _c3["text"])),
             ]
-        _parts.append(groups_view(_c3["groups"], "C2", "C3", _c3["how"]))
+        _parts.append(groups_view(_c3["groups"], _c3["names"], LONG[2], LONG[3], SHORT[3], _c3["how"]))
         if _c3["note"]:
             _parts.append(mo.callout(mo.md(_c3["note"]), kind="warn"))
         _out = mo.vstack(_parts)
