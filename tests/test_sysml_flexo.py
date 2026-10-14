@@ -6,9 +6,10 @@ from __future__ import annotations
 import subprocess
 import uuid
 
+import httpx
 import pytest
 
-from sysml.flexo_v2 import FlexoV2, diff
+from sysml.flexo_v2 import FlexoV2, NoChangeError, diff
 from sysml.git_source import head_sha, text_diff
 
 # ---------- offline: diff ----------
@@ -28,13 +29,20 @@ def test_diff_identical_is_empty():
     assert diff(a, dict(a)) == {"added": [], "removed": [], "changed": []}
 
 
-def test_diff_ignores_ref_array_order():
+def test_diff_compares_raw_values_so_reorder_is_a_change():
     r = lambda *ids: [{"@id": i} for i in ids]
     a = {"1": el("1", "A", ownedMember=r("x", "y", "z"))}
     b = {"1": el("1", "A", ownedMember=r("z", "x", "y"))}
-    assert diff(a, b)["changed"] == []
-    c = {"1": el("1", "A", ownedMember=r("x", "y"))}
-    assert diff(a, c)["changed"] == ["1"]
+    assert diff(a, b)["changed"] == ["1"]
+
+
+def test_publish_identical_snapshot_raises_no_change():
+    def handler(request):
+        return httpx.Response(404)
+    flexo = FlexoV2("http://x")
+    flexo._http = httpx.Client(base_url="http://x", transport=httpx.MockTransport(handler))
+    with pytest.raises(NoChangeError, match="snapshot identical to head"):
+        flexo.publish("p", [el("1", "A")], "m", "0" * 40)
 
 
 # ---------- offline: git_source ----------
@@ -49,20 +57,22 @@ def test_text_diff():
 def test_head_sha(tmp_path):
     def git(*a):
         subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t",
-                        *a], check=True, capture_output=True)
+                        "-c", "commit.gpgsign=false", *a], check=True, capture_output=True)
     git("init", "-q")
     (tmp_path / "f").write_text("x")
     git("add", "f")
     git("commit", "-q", "-m", "c")
     sha = head_sha(str(tmp_path))
-    assert len(sha) == 40 and int(sha, 16) >= 0
+    expected = subprocess.run(["git", "-C", str(tmp_path), "rev-parse", "HEAD"],
+                              check=True, capture_output=True, text=True).stdout.strip()
+    assert sha == expected and len(sha) == 40
 
 
 # ---------- live: C1 -> C2 -> C3 round trip ----------
 
 @pytest.mark.live
 def test_c1_c2_c3_round_trip():
-    flexo = FlexoV2("http://localhost:8083")
+    flexo = FlexoV2()
     name = f"wp3-test-{uuid.uuid4().hex[:8]}"
     pid = flexo.ensure_project(name)
     assert flexo.ensure_project(name) == pid  # idempotent
@@ -106,4 +116,4 @@ def test_c1_c2_c3_round_trip():
         assert diff(snaps[1], flexo.elements(pid, commits[1])) == {
             "added": [], "removed": [], "changed": []}
     finally:
-        flexo._http.delete(f"/projects/{pid}")
+        flexo.delete_project(pid)

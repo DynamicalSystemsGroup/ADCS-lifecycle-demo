@@ -5,12 +5,15 @@ Env: FLEXO_V2_URL (default http://localhost:8083), FLEXO_V2_TOKEN (optional bear
 
 from __future__ import annotations
 
-import json
 import os
 
 import httpx
 
 TAG_PREFIX = "git-"
+
+
+class NoChangeError(Exception):
+    """The snapshot is identical to the branch head, so Flexo creates no commit."""
 
 
 class FlexoV2:
@@ -35,16 +38,20 @@ class FlexoV2:
     def publish(self, project_id: str, elements: list[dict], message: str, git_sha: str) -> str:
         """Commit `elements` as the complete model (?replace=true); return the commit id.
 
-        The Git SHA goes in the commit description (`"<message> [git:<sha>]"`) and in a
-        tag `git-<sha>` on the commit. The tag is the reliable carrier: the stack's
-        commit description is dropped (see FLEXO_LOCAL.md).
+        Each Flexo commit is tagged with the Git SHA (tag `git-<sha>`). Raises NoChangeError
+        when the snapshot is identical to the head (the service answers 404, no commit).
         """
         change = [{"@type": "DataVersion", "identity": {"@id": e["@id"]}, "payload": e}
                   for e in elements]
-        commit = self._json(
-            "POST", f"/projects/{project_id}/commits", params={"replace": "true"},
-            json={"@type": "Commit", "description": f"{message} [git:{git_sha}]", "change": change},
+        # `message` is sent as the commit description; the stack does not store it (FLEXO_LOCAL.md).
+        r = self._http.post(
+            f"/projects/{project_id}/commits", params={"replace": "true"},
+            json={"@type": "Commit", "description": message, "change": change},
         )
+        if r.status_code == 404:
+            raise NoChangeError("snapshot identical to head")
+        r.raise_for_status()
+        commit = r.json()
         self._json("POST", f"/projects/{project_id}/tags", json={
             "@type": "Tag", "name": f"{TAG_PREFIX}{git_sha}", "taggedCommit": {"@id": commit["@id"]},
         })
@@ -56,31 +63,22 @@ class FlexoV2:
         return {e["@id"]: e for e in rows}
 
     def git_sha(self, project_id: str, commit_id: str) -> str | None:
-        """Git SHA recorded for a commit: from its description if present, else its tag."""
-        c = self._json("GET", f"/projects/{project_id}/commits/{commit_id}")
-        d = c.get("description") or ""
-        if "[git:" in d:
-            return d.rsplit("[git:", 1)[1].rstrip("]")
+        """Git SHA a commit is tagged with (`git-<sha>`), or None."""
         for t in self._json("GET", f"/projects/{project_id}/tags"):
             if t["taggedCommit"]["@id"] == commit_id and t["name"].startswith(TAG_PREFIX):
                 return t["name"][len(TAG_PREFIX):]
         return None
 
-
-def _norm(v):
-    """Canonical form: the store keeps multi-valued properties as RDF sets, so list
-    order (and duplicates) are not meaningful. Sort lists, recursively."""
-    if isinstance(v, dict):
-        return {k: _norm(x) for k, x in v.items()}
-    if isinstance(v, list):
-        return sorted({json.dumps(_norm(x), sort_keys=True) for x in v})
-    return v
+    def delete_project(self, project_id: str) -> None:
+        """Delete a project (raises on HTTP error)."""
+        self._http.delete(f"/projects/{project_id}").raise_for_status()
 
 
 def diff(a: dict[str, dict], b: dict[str, dict]) -> dict[str, list[str]]:
-    """Element-level diff of two snapshots keyed by @id."""
+    """Element-level diff of two snapshots keyed by @id. Values are compared raw: SysML v2
+    features such as ownedRelationship are ordered, so a reorder is a real change."""
     return {
         "added": sorted(b.keys() - a.keys()),
         "removed": sorted(a.keys() - b.keys()),
-        "changed": sorted(i for i in a.keys() & b.keys() if _norm(a[i]) != _norm(b[i])),
+        "changed": sorted(i for i in a.keys() & b.keys() if a[i] != b[i]),
     }
