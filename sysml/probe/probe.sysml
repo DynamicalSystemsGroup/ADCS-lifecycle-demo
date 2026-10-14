@@ -74,7 +74,7 @@ package ProbePkg {
     verification tunedTorque : TorqueCheckUnbound { subject = tuned; }
     verification overTorque : TorqueCheckUnbound { subject = over; }
 
-    // Human attestation: named satisfy, spec form (typed by the requirement def)
+    // Human attestation: def-typed named satisfy
     satisfy requirement attWeak : SettlingReq by weak;
     satisfy requirement attTuned : SettlingReq by tuned;
     not satisfy requirement attWeakNot : SettlingReq by weak;
