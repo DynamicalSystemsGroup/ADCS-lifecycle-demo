@@ -45,7 +45,7 @@ scan "local home path"             '/Users/[a-z]+/'
 scan "Slack archive link"          'slack\.com/archives'
 scan "Google Docs link"            'docs\.google\.com'
 # email addresses, except obviously public/no-reply ones
-EMAILS="$(printf '%s\n' "$ADDED" | grep -noE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
+EMAILS="$(printf '%s\n' "$ADDED" | grep -noE '[A-Za-z0-9][A-Za-z0-9._%+-]*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
   | grep -viE 'noreply|no-reply|example\.(com|org)|@users\.noreply\.github\.com' || true)"
 if [ -n "$EMAILS" ]; then report "email address in outgoing diff"; printf '%s\n' "$EMAILS" | head -20; fi
 
