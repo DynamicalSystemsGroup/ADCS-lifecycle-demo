@@ -11,6 +11,7 @@ Verdicts and `holds` are verification (automated). The attestation is the human'
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -103,6 +104,30 @@ def attestation_block(design: str, satisfied: bool, originator: str, status: str
 """
 
 
+def status_block(target: str, status: str = "tbc", originator: str | None = None,
+                 rationale: str | None = None) -> str:
+    """A StatusInfo (and, for a person, a Rationale) about `target`, with no `satisfy`.
+
+    With no originator this records "no person has acted yet": status is validated, nothing
+    is invented, and no Rationale is written (a Rationale is a person's judgement). With an
+    originator, the name must pass the NOT_A_HUMAN guard and the Rationale, if given, is
+    emitted. A rationale given without an originator is dropped, never attributed."""
+    _ident("target", target)
+    if status not in _STATUS:
+        raise ValueError(f"status must be one of {sorted(_STATUS)}, got {status!r}")
+    out = f"    metadata : ModelingMetadata::StatusInfo about {target} {{\n"
+    if originator is not None:
+        who = originator.strip()
+        if not who or who.lower() in NOT_A_HUMAN:
+            raise ValueError(f"originator {originator!r} is not a named human")
+        out += f'        originator = "{_q(who)}";\n'
+    out += f"        status = StatusKind::{status};\n    }}\n"
+    if originator is not None and rationale is not None:
+        out += (f"    metadata : ModelingMetadata::Rationale about {target} {{\n"
+                f'        text = "{_q(rationale)}";\n    }}\n')
+    return out
+
+
 def _banner(label: str, owner: str) -> str:
     return f"    // ===== {label} block ({owner}) =====\n"
 
@@ -123,6 +148,16 @@ def assemble(structure: str, evidence: str = "", attestation: str = "") -> str:
 
 def load_structure() -> str:
     return STRUCTURE_PATH.read_text()
+
+
+def to_elements(text: str) -> list[dict]:
+    """The model's API elements (OpenSysML `to_api_json`), the snapshot published to Flexo.
+    The export also lists the standard-library definitions the model references."""
+    conn = opensysml.connect(version=VERSION)
+    try:
+        return json.loads(conn.load_from_content(text, strict=True).to_api_json().content)
+    finally:
+        conn.close()
 
 
 def evaluate(text: str) -> dict:

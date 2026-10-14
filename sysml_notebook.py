@@ -16,17 +16,18 @@ app = marimo.App(width="medium")
 
 @app.cell(hide_code=True)
 def _():
-    import json
+    import html
+    import math
     import os
+    import re
     import uuid
     import warnings
     from collections import Counter
 
     import httpx
     import marimo as mo
-    import opensysml
 
-    warnings.simplefilter("ignore")  # opensysml flags its API-JSON export as experimental
+    warnings.simplefilter("ignore")  # the model library flags its API-JSON export as experimental
 
     from analysis.load_params import load_params
     from analysis.numerical import run_step_response
@@ -35,22 +36,22 @@ def _():
     from sysml.git_source import head_sha, text_diff
     from sysml.model import (
         DEFAULT_ADEQUACY,
-        NOT_A_HUMAN,
-        VERSION,
+        PACKAGE,
         assemble,
         attestation_block,
         evaluate,
         evidence_block,
         load_structure,
+        status_block,
+        to_elements,
     )
 
     return (
         Counter,
         DEFAULT_ADEQUACY,
         FlexoV2,
-        NOT_A_HUMAN,
         NoChangeError,
-        VERSION,
+        PACKAGE,
         assemble,
         attestation_block,
         diff,
@@ -58,15 +59,18 @@ def _():
         evidence_block,
         hash_simulation,
         head_sha,
+        html,
         httpx,
-        json,
         load_params,
         load_structure,
+        math,
         mo,
-        opensysml,
         os,
+        re,
         run_step_response,
+        status_block,
         text_diff,
+        to_elements,
         uuid,
     )
 
@@ -75,7 +79,8 @@ def _():
 def _(head_sha, httpx, mo, os):
     # Headless export: SYSML_DEMO_PRESEED=1 pre-seeds the human attestations (the Attest steps
     # cannot be clicked in a static export) and publishes NOTHING to Flexo, even when it is
-    # reachable. The export shows Git text diffs instead. Flexo publishing happens live only.
+    # reachable. The export shows the element diff computed in-process and Git text diffs.
+    # Flexo publishing happens live only.
     PRESEED = os.environ.get("SYSML_DEMO_PRESEED") == "1"
     SEED_NAME = "Demo Engineer"
 
@@ -96,6 +101,10 @@ def _(head_sha, httpx, mo, os):
             mo.md(f"**pre-seeded for export: in the live demo the speaker clicks {action}**"),
             kind="warn",
         )
+
+    def sfx(n: int) -> str:
+        """Heading suffix. A commit is promised only when publishing is live."""
+        return f" (Flexo commit C{n})" if FLEXO_PUBLISH else " (Git-only: no Flexo commit)"
 
     if not FLEXO_UP:
         banner = mo.callout(
@@ -118,22 +127,56 @@ def _(head_sha, httpx, mo, os):
             mo.md(f"Flexo is reachable. Source Git SHA: `{GIT_SHA[:12]}`."), kind="success"
         )
     banner
-    return FLEXO_PUBLISH, GIT_SHA, PRESEED, SEED_NAME, seed_label
+    return FLEXO_PUBLISH, GIT_SHA, PRESEED, SEED_NAME, seed_label, sfx
 
 
 @app.cell(hide_code=True)
-def _(FLEXO_PUBLISH, FlexoV2, GIT_SHA, NoChangeError, VERSION, httpx, json, opensysml, uuid):
-    # Publishing glue only. Which elements go to Flexo comes from OpenSysML's API JSON export;
-    # sysml/model.py has no helper for that yet (reported as a gap).
+def _(
+    Counter,
+    FLEXO_PUBLISH,
+    FlexoV2,
+    GIT_SHA,
+    NoChangeError,
+    PACKAGE,
+    PRESEED,
+    diff,
+    html,
+    httpx,
+    mo,
+    to_elements,
+    uuid,
+):
+    # Publishing glue and the B5 grouping. No model logic: the element export is
+    # sysml.model.to_elements, the diff is sysml.flexo_v2.diff.
     flexo = FlexoV2() if FLEXO_PUBLISH else None
+
+    # One Flexo project per notebook session, created on the first publish and reused after.
+    # The projects are named sysml-talk-<random>; they are NOT deleted, so every earlier
+    # session leaves one behind. Remove them with FlexoV2().delete_project(<id>).
     project = {}
 
-    def snapshot(text: str) -> list[dict]:
-        conn = opensysml.connect(version=VERSION)
-        try:
-            return json.loads(conn.load_from_content(text, strict=True).to_api_json().content)
-        finally:
-            conn.close()
+    # Reactivity guards. Editing a text area re-runs the cells that read it; these two dicts
+    # make sure that re-run never acts again.
+    handled = {}  # button key -> click count already acted on (a re-run with the same count is a no-op)
+    frozen = {}  # the adequacy text as recorded at the first Attest; later edits do not change evidence
+
+    def should_fire(key: str, clicks: int) -> bool:
+        """True once per new click (clicks > last handled); pre-seeded export fires once."""
+        fire = clicks > handled.get(key, 0) or (PRESEED and key not in handled)
+        if fire:
+            handled[key] = clicks
+        return fire
+
+    def once(key: str) -> bool:
+        """True the first time it is asked for `key` in this session."""
+        if key in handled:
+            return False
+        handled[key] = 1
+        return True
+
+    def counter_button(label: str):
+        """A button whose value is its click count."""
+        return mo.ui.button(value=0, on_click=lambda v: v + 1, label=label)
 
     def publish_snapshot(label: str, text: str):
         """Return (commit_id or None, note or None). Never raises on an unchanged snapshot."""
@@ -142,13 +185,137 @@ def _(FLEXO_PUBLISH, FlexoV2, GIT_SHA, NoChangeError, VERSION, httpx, json, open
         try:
             if "id" not in project:
                 project["id"] = flexo.ensure_project(f"sysml-talk-{uuid.uuid4().hex[:8]}")
-            return flexo.publish(project["id"], snapshot(text), label, GIT_SHA), None
+            return flexo.publish(project["id"], to_elements(text), label, GIT_SHA), None
         except NoChangeError:
             return None, "No change: the snapshot is identical to the head, so Flexo made no commit."
         except httpx.HTTPError as e:
             return None, f"Flexo publish failed ({type(e).__name__}); continuing without it."
 
-    return flexo, project, publish_snapshot
+    def diff_view(patch: str):
+        """A unified diff with removed and added lines tinted."""
+        rows = []
+        for line in patch.splitlines():
+            bg = ("rgba(220,60,60,.18)" if line.startswith("-") and not line.startswith("---")
+                  else "rgba(60,170,80,.18)" if line.startswith("+") and not line.startswith("+++")
+                  else "transparent")
+            rows.append(f'<span style="display:block;background:{bg}">{html.escape(line) or " "}</span>')
+        return mo.Html('<pre style="font-size:0.8em;overflow-x:auto">' + "".join(rows) + "</pre>")
+
+    def tag_of(commit_id: str) -> str:
+        return f"git-{flexo.git_sha(project['id'], commit_id)}"
+
+    def by_id(elements: list[dict]) -> dict[str, dict]:
+        return {e["@id"]: e for e in elements}
+
+    def _owner(e: dict):
+        return (e.get("owner") or {}).get("@id")
+
+    def group_diff(old: dict, new: dict) -> dict:
+        """Group the element diff of two snapshots (keyed by @id), from @type and ownership:
+        user-model elements are those whose owner chain reaches the model package, the rest
+        are standard-library definitions. Nothing is typed in by hand."""
+        d = diff(old, new)
+
+        def in_user_model(i, snap):
+            for _ in range(200):
+                if i == PACKAGE:
+                    return True
+                i = _owner(snap[i]) if i in snap else None
+                if i is None:
+                    return False
+            return False
+
+        def top_element(i, snap):
+            """The user-model element directly under the package that holds `i`; a membership
+            is resolved to the element it owns."""
+            for _ in range(200):
+                o = _owner(snap[i])
+                if o == PACKAGE or o is None or o not in snap:
+                    break
+                i = o
+            e = snap[i]
+            if e["@type"] == "OwningMembership":
+                i = e["memberElement"]["@id"]
+            return snap[i]
+
+        att, att_roots, lib, other = [], Counter(), [], Counter()
+        for i in d["added"]:
+            if not in_user_model(i, new):
+                lib.append(i)
+                continue
+            root = top_element(i, new)
+            targets = [new[t["@id"]] for t in root.get("annotatedElement", []) if t["@id"] in new]
+            is_att = root["@type"] == "SatisfyRequirementUsage" or (
+                root["@type"] == "MetadataUsage"
+                and any(t["@type"] == "SatisfyRequirementUsage" and t["@id"] in d["added"] for t in targets)
+            )
+            if is_att:
+                att.append(i)
+                if root["@id"] == i:
+                    att_roots[root["@type"]] += 1
+            else:
+                other[f"added {new[i]['@type']}"] += 1
+        pkg_grew = 0
+        for i in d["changed"]:
+            members_old = {m["@id"] for m in old[i].get("ownedRelationship", [])}
+            members_new = {m["@id"] for m in new[i].get("ownedRelationship", [])}
+            if i == PACKAGE and members_old < members_new:
+                pkg_grew = len(members_new - members_old)
+            else:
+                other[f"changed {new[i]['@type']}"] += 1
+        for i in d["removed"]:
+            other[f"removed {old[i]['@type']}"] += 1
+        return {"att": len(att), "att_roots": att_roots, "pkg_grew": pkg_grew,
+                "lib": len(lib), "other": other}
+
+    def groups_view(g: dict, c_from: str, c_to: str, how: str):
+        """The three approved groups, live counts only. The closing line is shown only when
+        nothing falls outside them."""
+        roots = ", ".join(f"{t} x{n}" for t, n in sorted(g["att_roots"].items())) or "none"
+        parts = [
+            mo.md(
+                f"**Element diff {c_from} to {c_to}** ({how}), grouped by what each element is\n\n"
+                f"- attestation elements added: {g['att']} (top-level: {roots})\n"
+                f"- owning package changed (member list grew): {1 if g['pkg_grew'] else 0}"
+                f" (+{g['pkg_grew']} members)\n"
+                f"- standard-library definitions referenced by the attestation metadata: {g['lib']}"
+            )
+        ]
+        if g["other"]:
+            outside = ", ".join(f"{k} x{n}" for k, n in sorted(g["other"].items()))
+            parts.append(
+                mo.callout(
+                    mo.md(
+                        f"**Warning: not everything in this diff is the attestation or what it "
+                        f"references.** Outside the three groups: {outside}. The statement that no "
+                        "evidence or design element changed is therefore not made."
+                    ),
+                    kind="danger",
+                )
+            )
+        else:
+            parts.append(
+                mo.md(
+                    f"Everything new in {c_to} is the human's attestation and what it "
+                    "references; no evidence or design element changed."
+                )
+            )
+        return mo.vstack(parts)
+
+    return (
+        by_id,
+        counter_button,
+        diff_view,
+        flexo,
+        frozen,
+        group_diff,
+        groups_view,
+        once,
+        project,
+        publish_snapshot,
+        should_fire,
+        tag_of,
+    )
 
 
 @app.cell(hide_code=True)
@@ -157,7 +324,8 @@ def _(mo):
     get_c2, set_c2 = mo.state(None)
     get_c3, set_c3 = mo.state(None)
     get_b6, set_b6 = mo.state(None)
-    return get_b6, get_c1, get_c2, get_c3, set_b6, set_c1, set_c2, set_c3
+    get_b7, set_b7 = mo.state(None)
+    return get_b6, get_b7, get_c1, get_c2, get_c3, set_b6, set_b7, set_c1, set_c2, set_c3
 
 
 @app.cell(hide_code=True)
@@ -180,12 +348,22 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(load_structure, mo):
+def _(load_structure, mo, re):
     structure = load_structure()
+    _blocks = []
+    for _req, _usage in (("REQ-001", "req001 : SettlingRequirement;"), ("REQ-004", "req004 : DisturbanceRequirement;")):
+        _m = re.search(rf"// {_req}\..*?requirement {re.escape(_usage)}", structure, re.S)
+        _blocks.append(_m.group(0) if _m else f"// {_req}: block not found")
     mo.vstack(
         [
-            mo.md("**Structure** (hand-authored, versioned in Git): `sysml/satellite.sysml`"),
-            mo.md(f"```text\n{structure}\n```"),
+            mo.md(
+                "satisfy = a person's claim that a requirement is met; "
+                "StatusInfo = who and status (tbc = pending, done = attested); "
+                "Rationale = the person's reasons"
+            ),
+            mo.md("**Structure** (hand-authored, versioned in Git): REQ-001 and REQ-004"),
+            mo.md("```text\n" + "\n\n".join(_blocks) + "\n```"),
+            mo.accordion({"Full structure listing (sysml/satellite.sysml)": mo.md(f"```text\n{structure}\n```")}),
             mo.md("**Evidence** (written by Python from the simulation): not yet written"),
             mo.md("**Attestation** (written only by a human): not yet written"),
         ]
@@ -219,19 +397,21 @@ def _(
     assemble,
     evaluate,
     evidence_block,
+    frozen,
     hash_simulation,
     load_params,
     mo,
     run_step_response,
     structure,
 ):
-    # Inputs of the first design.
+    # Inputs of the first design. The adequacy text is the one recorded at the first Attest,
+    # once there is one; editing the box afterwards does not change the evidence.
     KP1, KD1 = 1.0, 10.0
     params1 = dict(load_params(), Kp=KP1, Kd=KD1)
     sim1 = run_step_response(params1)
     summary1 = sim1.summary()
     hash1 = hash_simulation(sim1.config.to_dict(), summary1)
-    ev1 = evidence_block("initial", params1, summary1, hash1, adequacy.value)
+    ev1 = evidence_block("initial", params1, summary1, hash1, frozen.get("adequacy", adequacy.value))
     model_b2 = assemble(structure, ev1)
     res_b2 = evaluate(model_b2)
     verdict_b2 = res_b2["verdicts"]["vc001_initial"]
@@ -253,19 +433,19 @@ def _(
             ),
         ]
     )
-    return ev1, model_b2, summary1
+    return ev1, model_b2
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md("""
-    ## BEAT:B3 · The human attests *not satisfied* (Flexo commit C1)
+def _(mo, sfx):
+    mo.md(f"""
+    ## BEAT:B3 · The human attests *not satisfied*{sfx(1)}
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(PRESEED, SEED_NAME, mo, seed_label):
+def _(PRESEED, SEED_NAME, counter_button, mo, seed_label):
     name_in = mo.ui.text(
         value=SEED_NAME if PRESEED else "", label="Engineer name", full_width=True
     )
@@ -278,7 +458,7 @@ def _(PRESEED, SEED_NAME, mo, seed_label):
         full_width=True,
         rows=3,
     )
-    btn_b3 = mo.ui.run_button(label="Attest: not satisfied")
+    btn_b3 = counter_button("Attest: not satisfied")
     mo.vstack(
         [
             mo.md("Adequacy is the text from B2 above. The attestation block is written only by this click."),
@@ -293,29 +473,30 @@ def _(PRESEED, SEED_NAME, mo, seed_label):
 
 @app.cell(hide_code=True)
 def _(
-    PRESEED,
+    adequacy,
     assemble,
     attestation_block,
     btn_b3,
     ev1,
-    evaluate,
+    frozen,
     mo,
     name_in,
     publish_snapshot,
     set_c1,
+    should_fire,
     structure,
     suff_b3,
 ):
-    mo.stop(not (btn_b3.value or PRESEED))
+    mo.stop(not should_fire("b3", btn_b3.value))
     try:
         _att = attestation_block(
             "initial", False, name_in.value, "done", suff_b3.value, "vc001_initial"
         )
         _text = assemble(structure, ev1, _att)
-        _res = evaluate(_text)
+        frozen.setdefault("adequacy", adequacy.value)  # evidence is fixed from the first Attest on
         _commit, _note = publish_snapshot("C1: human attests not satisfied", _text)
         set_c1(
-            {"who": name_in.value.strip(), "att": _att, "text": _text, "res": _res,
+            {"who": name_in.value.strip(), "att": _att, "text": _text,
              "commit": _commit, "note": _note}
         )
     except ValueError as _e:
@@ -324,7 +505,7 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(flexo, get_c1, mo, model_b2, project, text_diff):
+def _(adequacy, diff_view, frozen, get_c1, mo, model_b2, tag_of, text_diff):
     _c1 = get_c1()
     if _c1 is None:
         _out = mo.md("*Attestation pending: nothing written yet.*")
@@ -339,41 +520,52 @@ def _(flexo, get_c1, mo, model_b2, project, text_diff):
             mo.md(f"```text\n{_c1['att']}\n```"),
         ]
         if _c1["commit"]:
-            _sha = flexo.git_sha(project["id"], _c1["commit"])
             _parts.append(
-                mo.md(f"Published to Flexo as **C1**. Each Flexo commit is tagged with the Git SHA of the source that produced it: tag `git-{_sha[:12]}`.")
+                mo.md(
+                    "Published to Flexo as **C1**. Each Flexo commit is tagged with the Git SHA "
+                    f"of the source that produced it: tag `{tag_of(_c1['commit'])}`."
+                )
             )
         else:
-            _parts.append(
-                mo.md("Git text diff of this change (B2 model to B3 model):\n\n"
-                      f"```diff\n{text_diff(model_b2, _c1['text'])}\n```")
-            )
+            _parts += [
+                mo.md("Git text diff of this change (B2 model to B3 model):"),
+                diff_view(text_diff(model_b2, _c1["text"])),
+            ]
         if _c1["note"]:
             _parts.append(mo.callout(mo.md(_c1["note"]), kind="warn"))
+        if frozen.get("adequacy") not in (None, adequacy.value):
+            _parts.append(
+                mo.callout(
+                    mo.md("The adequacy text was edited after Attest. The recorded evidence and "
+                          "any published commit keep the text as it was at Attest."),
+                    kind="warn",
+                )
+            )
         _out = mo.vstack(_parts)
     _out
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md("""
-    ## BEAT:B4 · Retune, re-evaluate: the attestation resets to pending (Flexo commit C2)
+def _(mo, sfx):
+    mo.md(f"""
+    ## BEAT:B4 · Retune, re-evaluate: the attestation is removed, status is pending{sfx(2)}
     """)
     return
 
 
 @app.cell(hide_code=True)
 def _(
-    FLEXO_PUBLISH,
     adequacy,
     assemble,
     evaluate,
     evidence_block,
+    frozen,
     hash_simulation,
     load_params,
     mo,
     run_step_response,
+    status_block,
     structure,
 ):
     # The retune is one fixed, explicit change.
@@ -382,12 +574,14 @@ def _(
     sim2 = run_step_response(params2)
     summary2 = sim2.summary()
     hash2 = hash_simulation(sim2.config.to_dict(), summary2)
-    ev2 = evidence_block("tuned", params2, summary2, hash2, adequacy.value)
-    model_b4 = assemble(structure, ev2)
+    ev2 = evidence_block("tuned", params2, summary2, hash2, frozen.get("adequacy", adequacy.value))
+    # Pending marker: StatusInfo tbc about req001, no originator, no rationale. Python writes it,
+    # so it sits in the generated block; no person has acted, so it names no person.
+    pending = status_block("req001")
+    model_b4 = assemble(structure, ev2 + pending)
     res_b4 = evaluate(model_b4)
     verdict_b4 = res_b4["verdicts"]["vc001_tuned"]
 
-    btn_c2 = mo.ui.run_button(label="Publish C2")
     mo.vstack(
         [
             mo.md(
@@ -396,62 +590,70 @@ def _(
                 f"Evidence hash: `sha256:{hash2[:16]}...`"
             ),
             mo.callout(
-                mo.md(f"Automated verdict: **{verdict_b4}**."),
+                mo.md(
+                    "The evidence changed, so the prior attestation no longer applies and is "
+                    f"removed. The verdict is **{verdict_b4}**. Status is pending: no person has "
+                    "judged the new evidence yet."
+                ),
                 kind="success" if verdict_b4 == "pass" else "danger",
             ),
-            mo.md(
-                "The earlier attestation was about the earlier design. For this design the "
-                "attestation is pending (`tbc`): no `satisfy` is written."
-            ),
-            btn_c2 if FLEXO_PUBLISH else mo.md(""),
+            mo.md("**Generated by Python** (not written by a person): the pending status"),
+            mo.md(f"```text\n{pending}\n```"),
         ]
     )
-    return (
-        btn_c2,
-        ev2,
-        model_b4,
-        params2,
-        res_b4,
-        summary2,
-        verdict_b4,
-    )
+    return ev2, model_b4, params2, res_b4, summary2, verdict_b4
 
 
 @app.cell(hide_code=True)
-def _(btn_c2, mo, model_b4, publish_snapshot, set_c2):
-    mo.stop(not btn_c2.value)
-    _commit, _note = publish_snapshot("C2: retune, attestation pending", model_b4)
-    set_c2({"commit": _commit, "note": _note})
-    return
-
-
-@app.cell(hide_code=True)
-def _(flexo, get_c2, mo, project):
-    _c2 = get_c2()
-    if _c2 is None:
-        _out = mo.md("")
+def _(diff_view, get_c1, mo, model_b4, text_diff):
+    _c1 = get_c1()
+    if _c1 is None or "error" in _c1:
+        _out = mo.md("*The text diff from the C1 model appears after the attestation in B3.*")
     else:
-        _parts = []
-        if _c2["commit"]:
-            _sha = flexo.git_sha(project["id"], _c2["commit"])
-            _parts.append(mo.md(f"Published to Flexo as **C2**, tagged `git-{_sha[:12]}`."))
-        if _c2["note"]:
-            _parts.append(mo.callout(mo.md(_c2["note"]), kind="warn"))
-        _out = mo.vstack(_parts)
+        _out = mo.vstack(
+            [
+                mo.md("Git text diff, C1 model to this model. The `not satisfy` line is gone:"),
+                diff_view(text_diff(_c1["text"], model_b4)),
+            ]
+        )
     _out
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md("""
-    ## BEAT:B5 · The human clicks Attest (Flexo commit C3)
+def _(get_c1, model_b4, once, publish_snapshot, set_c2):
+    # Live mode only (publish_snapshot is a no-op without Flexo). Runs once, after C1 exists, so
+    # C2 always follows C1 and there is no separate click. Later re-runs (edits upstream) do not
+    # publish again.
+    _c1 = get_c1()
+    if _c1 is not None and "error" not in _c1 and once("c2"):
+        _commit, _note = publish_snapshot("C2: retune, attestation removed, status pending", model_b4)
+        set_c2({"commit": _commit, "note": _note})
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_c2, mo, tag_of):
+    _c2 = get_c2()
+    _parts = []
+    if _c2 and _c2["commit"]:
+        _parts.append(mo.md(f"Published to Flexo as **C2**, tagged `{tag_of(_c2['commit'])}`."))
+    if _c2 and _c2["note"]:
+        _parts.append(mo.callout(mo.md(_c2["note"]), kind="warn"))
+    mo.vstack(_parts)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo, sfx):
+    mo.md(f"""
+    ## BEAT:B5 · The human clicks Attest{sfx(3)}
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo, name_in, seed_label):
+def _(counter_button, mo, name_in, seed_label):
     suff_b5 = mo.ui.text_area(
         value=(
             "One step-response simulation within the stated model. Enough for me to "
@@ -461,7 +663,7 @@ def _(mo, name_in, seed_label):
         full_width=True,
         rows=3,
     )
-    btn_b5 = mo.ui.run_button(label="Attest: satisfied")
+    btn_b5 = counter_button("Attest: satisfied")
     mo.vstack(
         [
             mo.md(f"Attesting as: {name_in.value.strip() or '(enter the engineer name in B3)'}"),
@@ -475,46 +677,44 @@ def _(mo, name_in, seed_label):
 
 @app.cell(hide_code=True)
 def _(
-    Counter,
-    PRESEED,
     assemble,
     attestation_block,
     btn_b5,
-    diff,
+    by_id,
     ev2,
-    evaluate,
     flexo,
     get_c2,
+    group_diff,
     mo,
+    model_b4,
     name_in,
     project,
     publish_snapshot,
     set_c3,
+    should_fire,
     structure,
     suff_b5,
+    to_elements,
 ):
-    mo.stop(not (btn_b5.value or PRESEED))
+    mo.stop(not should_fire("b5", btn_b5.value))
     try:
         _att = attestation_block(
             "tuned", True, name_in.value, "done", suff_b5.value, "vc001_tuned"
         )
         _text = assemble(structure, ev2, _att)
-        _res = evaluate(_text)
         _commit, _note = publish_snapshot("C3: human attests satisfied", _text)
-        _delta = None
         _c2 = get_c2()
         if _commit and _c2 and _c2["commit"]:
-            _a = flexo.elements(project["id"], _c2["commit"])
-            _b = flexo.elements(project["id"], _commit)
-            _d = diff(_a, _b)
-            _delta = {
-                "added": dict(Counter(_b[i]["@type"] for i in _d["added"])),
-                "removed": len(_d["removed"]),
-                "changed": [(i, _b[i]["@type"]) for i in _d["changed"]],
-            }
+            _old = flexo.elements(project["id"], _c2["commit"])
+            _new = flexo.elements(project["id"], _commit)
+            _how = "from the two Flexo commits"
+        else:  # export, Git-only mode, or C2/C3 not both committed: diff the two snapshots in-process
+            _old = by_id(to_elements(model_b4))
+            _new = by_id(to_elements(_text))
+            _how = "computed in-process from the two model snapshots; nothing published"
         set_c3(
-            {"who": name_in.value.strip(), "att": _att, "text": _text, "res": _res,
-             "commit": _commit, "note": _note, "delta": _delta}
+            {"who": name_in.value.strip(), "att": _att, "text": _text, "commit": _commit,
+             "note": _note, "groups": group_diff(_old, _new), "how": _how}
         )
     except ValueError as _e:
         set_c3({"error": str(_e)})
@@ -522,10 +722,10 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(flexo, get_c1, get_c2, get_c3, mo, model_b4, project, text_diff):
+def _(diff_view, get_c1, get_c2, get_c3, groups_view, mo, model_b4, tag_of, text_diff):
     _c3 = get_c3()
     if _c3 is None:
-        _out = mo.md("*Attestation pending (`tbc`): nothing written yet.*")
+        _out = mo.md("*Status is pending (`tbc`): no attestation written yet.*")
     elif "error" in _c3:
         _out = mo.callout(mo.md(f"Not recorded: {_c3['error']}"), kind="danger")
     else:
@@ -537,31 +737,29 @@ def _(flexo, get_c1, get_c2, get_c3, mo, model_b4, project, text_diff):
             mo.md(f"```text\n{_c3['att']}\n```"),
         ]
         if _c3["commit"]:
-            _tags = []
-            for _n, _s in (("C1", get_c1()), ("C2", get_c2()), ("C3", _c3)):
-                if _s and _s.get("commit"):
-                    _sha = flexo.git_sha(project["id"], _s["commit"])
-                    _tags.append(f"- {_n}: tag `git-{_sha[:12]}`")
-            _parts.append(mo.md("Each Flexo commit is tagged with the Git SHA of the source that produced it:\n\n" + "\n".join(_tags)))
-            _d = _c3["delta"]
-            if _d:
-                _added = ", ".join(f"{_k}: {_v}" for _k, _v in sorted(_d["added"].items()))
-                _chg = ", ".join(f"{_t} `{_i}`" for _i, _t in _d["changed"])
-                _parts.append(
-                    mo.md(
-                        "**Flexo diff C2 to C3** (by element id)\n\n"
-                        f"- added, by type: {_added}\n"
-                        f"- changed: {_chg or 'none'}\n"
-                        f"- removed: {_d['removed']}"
-                    )
-                )
-            else:
-                _parts.append(mo.md("*Flexo diff C2 to C3 needs both commits; publish C2 in B4 first.*"))
-        else:
-            _parts.append(
-                mo.md("Git text diff of this change (B4 model to B5 model):\n\n"
-                      f"```diff\n{text_diff(model_b4, _c3['text'])}\n```")
+            _tags = [
+                f"- {_n}: tag `{tag_of(_s['commit'])}`"
+                for _n, _s in (("C1", get_c1()), ("C2", get_c2()), ("C3", _c3))
+                if _s and _s.get("commit")
+            ]
+            _shas = {t.split("`")[1] for t in _tags}
+            _same = (
+                "\n\nThe tags are the same Git SHA because the source did not change during the demo."
+                if len(_tags) > 1 and len(_shas) == 1
+                else ""
             )
+            _parts.append(
+                mo.md(
+                    "Each Flexo commit is tagged with the Git SHA of the source that produced it:\n\n"
+                    + "\n".join(_tags) + _same
+                )
+            )
+        else:
+            _parts += [
+                mo.md("Git text diff of this change (B4 model to B5 model):"),
+                diff_view(text_diff(model_b4, _c3["text"])),
+            ]
+        _parts.append(groups_view(_c3["groups"], "C2", "C3", _c3["how"]))
         if _c3["note"]:
             _parts.append(mo.callout(mo.md(_c3["note"]), kind="warn"))
         _out = mo.vstack(_parts)
@@ -578,7 +776,7 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(mo, seed_label, structure):
+def _(counter_button, mo, seed_label, structure):
     import re as _re
 
     _doc = _re.search(r"requirement def DisturbanceRequirement \{\s*doc /\*(.*?)\*/", structure, _re.S)
@@ -592,14 +790,13 @@ def _(mo, seed_label, structure):
         full_width=True,
         rows=3,
     )
-    btn_b6 = mo.ui.run_button(label="Record (status stays tbc)")
+    btn_b6 = counter_button("Record (status stays tbc)")
     mo.vstack([margin_in, btn_b6, seed_label("Record")])
     return btn_b6, margin_in, req004_text
 
 
 @app.cell(hide_code=True)
 def _(
-    NOT_A_HUMAN,
     PRESEED,
     SEED_NAME,
     assemble,
@@ -611,39 +808,42 @@ def _(
     mo,
     name_in,
     set_b6,
+    should_fire,
+    status_block,
     structure,
 ):
-    mo.stop(not (btn_b6.value or PRESEED))
-    _who = name_in.value.strip() or SEED_NAME if PRESEED else name_in.value.strip()
-    if not _who or _who.lower() in NOT_A_HUMAN:
-        set_b6({"error": "Enter the engineer name in B3: the margin must be recorded by a named human."})
-    else:
-        # Local helper: sysml/model.py has no block for a pending (tbc) status without a
-        # `satisfy`. Same standard constructs only: StatusInfo and Rationale (reported as a gap).
-        _q = lambda s: s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
-        _block = (
-            f'    metadata : ModelingMetadata::StatusInfo about req004 {{\n'
-            f'        originator = "{_q(_who)}";\n'
-            f'        status = StatusKind::tbc;\n'
-            f'    }}\n'
-            f'    metadata : ModelingMetadata::Rationale about req004 {{\n'
-            f'        text = "{_q(margin_in.value)}";\n'
-            f'    }}\n'
-        )
+    mo.stop(not should_fire("b6", btn_b6.value))
+    _who = (name_in.value.strip() or SEED_NAME) if PRESEED else name_in.value.strip()
+    try:
+        _block = status_block("req004", originator=_who, rationale=margin_in.value)
         _c3 = get_c3()
         _prior = _c3["att"] if _c3 and "att" in _c3 else ""
         _text = assemble(structure, ev2, _prior + _block)
         set_b6({"who": _who, "block": _block, "res": evaluate(_text)})
+    except ValueError:
+        set_b6({"error": "Enter the engineer name in B3: the margin must be recorded by a named human."})
     return
 
 
 @app.cell(hide_code=True)
-def _(get_b6, mo, params2, req004_text, res_b4, summary2):
+def _(get_b6, math, mo, params2, req004_text, res_b4, summary2):
     _peak = summary2["peak_control_torque"]
     _limit = params2["maxTorque"]
     _verdict = res_b4["verdicts"]["vc004_tuned"]
     _holds = res_b4["req"]["req004(tuned)"]
-    _rel = "equals" if _peak == _limit else "differs from"
+    if math.isclose(_peak, _limit, rel_tol=1e-9):
+        _why = (
+            f"The constraint holds because peak torque ({_peak:.3g} N·m) equals the actuator "
+            f"limit ({_limit:.3g} N·m): the simulation clips torque (`np.clip`). The model "
+            "cannot represent an over-capacity command. That is a model-adequacy question, "
+            "recorded as a Rationale (an assumption), not evidence of satisfaction."
+        )
+    else:
+        _why = (
+            f"Peak torque ({_peak:.3g} N·m) differs from the actuator limit ({_limit:.3g} N·m) "
+            f"in this run, and the constraint evaluates {_holds}. The torque-clipping "
+            "explanation does not apply here."
+        )
     _parts = [
         mo.md(f"REQ-004, verbatim: *{req004_text}*"),
         mo.callout(
@@ -653,13 +853,7 @@ def _(get_b6, mo, params2, req004_text, res_b4, summary2):
             ),
             kind="neutral",
         ),
-        mo.md(
-            f"The constraint evaluates {_holds}, but peak torque ({_peak:.3g} N·m) {_rel} the "
-            f"actuator limit ({_limit:.3g} N·m) because the simulation clips torque "
-            "(`np.clip`). The model cannot represent an over-capacity command. That is a "
-            "model-adequacy question, recorded as a Rationale (an assumption), not evidence "
-            "of satisfaction."
-        ),
+        mo.md(_why),
     ]
     _b6 = get_b6()
     if _b6 is None:
@@ -685,26 +879,69 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(SEED_NAME, assemble, attestation_block, ev1, evaluate, mo, structure):
-    # A deliberately contradicting claim: "satisfied" on the design whose verdict is fail.
+def _(mo):
+    btn_b7 = mo.ui.run_button(label="Write a contradicting claim")
+    return (btn_b7,)
+
+
+@app.cell(hide_code=True)
+def _(
+    PRESEED,
+    SEED_NAME,
+    assemble,
+    attestation_block,
+    btn_b7,
+    ev1,
+    evaluate,
+    mo,
+    name_in,
+    set_b7,
+    structure,
+):
+    mo.stop(not (btn_b7.value or PRESEED))
+    # "Satisfied" on the design whose verdict is fail, under the human's own name from the form.
     # Illustrative only; it is never published.
-    _claim = attestation_block(
-        "initial", True, SEED_NAME, "tbc", "Illustrative claim for the check only.", "vc001_initial"
-    )
-    _res = evaluate(assemble(structure, ev1, _claim))
-    _holds = _res["claims"]["att_initial"]["holds"]
-    _body = mo.vstack(
-        [
-            mo.md(f"```text\n{_claim}\n```"),
-            mo.md(f"`verify_satisfaction` on this illustrative claim: consistent with the evaluated model = **{_holds}**."),
-            mo.md(
-                "The tool checks that the human's claim is consistent with the evaluated model. "
-                "That is verification of the claim. It is not the attestation, and it says "
-                "nothing about the physical satellite."
-            ),
-        ]
-    )
-    mo.accordion({"Show the check": _body})
+    _who = (name_in.value.strip() or SEED_NAME) if PRESEED else name_in.value.strip()
+    try:
+        _claim = attestation_block(
+            "initial", True, _who, "tbc", "Illustrative claim for the check only.", "vc001_initial"
+        )
+        _res = evaluate(assemble(structure, ev1, _claim))
+        set_b7({"claim": _claim, "holds": _res["claims"]["att_initial"]["holds"]})
+    except ValueError:
+        set_b7({"error": "Enter the engineer name in B3: the claim is written under a named human."})
+    return
+
+
+@app.cell(hide_code=True)
+def _(PRESEED, btn_b7, get_b7, mo, seed_label):
+    _b7 = get_b7()
+    if _b7 is None:
+        _result = mo.md("")
+    elif "error" in _b7:
+        _result = mo.callout(mo.md(_b7["error"]), kind="danger")
+    else:
+        _result = mo.vstack(
+            [
+                seed_label("Write a contradicting claim"),
+                mo.md(f"```text\n{_b7['claim']}\n```"),
+                mo.md(
+                    "`verify_satisfaction` on this illustrative claim: consistent with the "
+                    f"evaluated model = **{_b7['holds']}**."
+                ),
+                mo.md(
+                    "The tool checks that the human's claim is consistent with the evaluated model. "
+                    "That is verification of the claim. It is not the attestation, and it says "
+                    "nothing about the physical satellite."
+                ),
+            ]
+        )
+    _intro = mo.md("A `satisfy` of *satisfied* on the design whose verdict is fail, under your name from B3.")
+    if PRESEED:  # static export: the result sits inside the accordion
+        _out = mo.accordion({"Show the check": mo.vstack([_intro, btn_b7, _result])})
+    else:  # live: the accordion would re-collapse on every update, so the result sits below it
+        _out = mo.vstack([mo.accordion({"Show the check": mo.vstack([_intro, btn_b7])}), _result])
+    _out
     return
 
 
