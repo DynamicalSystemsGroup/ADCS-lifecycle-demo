@@ -1,5 +1,5 @@
 // Probe model: requirement -> evidence -> automated verdict -> human attestation.
-// Placeholders (__BAD_ST__, __GOOD_ST__, __BAD_PT__, __GOOD_PT__, __LIMIT__) are
+// Placeholders (__BAD_ST__, __GOOD_ST__, __BAD_PT__, __GOOD_PT__, __LIMIT__, __OVER_PT__) are
 // substituted by run_probe.py with values computed by the scipy step response.
 package ProbePkg {
     private import ScalarValues::*;
@@ -37,6 +37,12 @@ package ProbePkg {
         attribute :>> peakTorque = __BAD_PT__ [N * m];
         attribute :>> torqueLimit = __LIMIT__ [N * m];
     }
+    // Violates the torque limit (peakTorque above torqueLimit); verdict stays unbound
+    part over : ADCS {
+        attribute :>> settlingTime = __GOOD_ST__ [s];
+        attribute :>> peakTorque = __OVER_PT__ [N * m];
+        attribute :>> torqueLimit = __LIMIT__ [N * m];
+    }
     part tuned : ADCS {
         attribute :>> settlingTime = __GOOD_ST__ [s];
         attribute :>> peakTorque = __GOOD_PT__ [N * m];
@@ -66,6 +72,7 @@ package ProbePkg {
     verification weakSingle : SettlingCheckSingle { subject = weak; }
     verification tunedSingle : SettlingCheckSingle { subject = tuned; }
     verification tunedTorque : TorqueCheckUnbound { subject = tuned; }
+    verification overTorque : TorqueCheckUnbound { subject = over; }
 
     // Human attestation: named satisfy, spec form (typed by the requirement def)
     satisfy requirement attWeak : SettlingReq by weak;
@@ -74,6 +81,12 @@ package ProbePkg {
 
     // Named satisfy, subsetting form (names the claim, points at the requirement usage)
     satisfy requirement subTuned :> req001 by tuned;
+    // Reference-subsetting named satisfy
+    satisfy requirement refTuned ::> req001 by tuned;
+    // Unnamed satisfy of the usage (own package so verify_satisfaction can be scoped to it)
+    package UnnamedScope {
+        satisfy req001 by tuned;
+    }
     not satisfy requirement subWeakNot :> req001 by weak;
     // Deliberately contradicting claim: weak does not meet req001
     satisfy requirement subWeakContra :> req001 by weak;
