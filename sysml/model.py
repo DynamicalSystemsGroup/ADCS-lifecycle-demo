@@ -39,13 +39,40 @@ DEMO_ENGINEER = "Michael Zargham"
 _STATUS = {"tbc", "done"}
 _IDENT = re.compile(r"^[A-Za-z_]\w*$")
 
-# DRAFT placeholder for the notebook to pre-fill. It is not a finding and not the person's
-# judgement: the wording is drafted separately and approved by the person before use.
-DEFAULT_ADEQUACY = (
-    "[DRAFT — pending Michael's approval] The linear estimate and the simulation are "
-    "models of the pointing loop; whether they are adequate for this requirement is the "
-    "engineer's judgement."
+# Human judgement text, approved by Michael Zargham (DL-25/DL-26), verbatim. `{...}` fields in
+# the satisfied template are filled from computed values by `sufficiency_satisfied`.
+ADEQUACY_TEXT = (
+    "The linear model and the nonlinear simulation are adequate for judging REQ-001's "
+    "settling-time clause at this design stage. Both represent the same rigid-body loop and "
+    "control law, and the simulation also enforces the actuator torque limit. Neither "
+    "represents sensor noise, so this judgement covers the settling-time clause, not the "
+    "3-sigma accuracy clause."
 )
+DEFAULT_ADEQUACY = ADEQUACY_TEXT  # alias: the notebook's pre-filled adequacy text
+
+SUFFICIENCY_NOT_SATISFIED = (
+    "Both the linear estimate and the simulation settle well after the limit, so this evidence "
+    "is sufficient for me to say this design does not satisfy REQ-001. I attest not satisfied."
+)
+SUFFICIENCY_SATISFIED_TEMPLATE = (
+    "At Kp={Kp}, Kd={Kd} the simulation settles in {t_sim} s and the linear estimate in {t_sym} s, "
+    "both within the {limit} s limit. This evidence is sufficient: I attest REQ-001's "
+    "settling-time clause satisfied for this design."
+)
+
+# Exact excerpts of the texts above, for the amber card.
+CARD_ADEQUACY = ("The linear model and the nonlinear simulation are adequate for judging REQ-001's "
+                 "settling-time clause at this design stage.")
+CARD_NOT_SATISFIED = ("This evidence is sufficient for me to say this design does not satisfy REQ-001. "
+                      "I attest not satisfied.")
+CARD_SATISFIED = ("This evidence is sufficient: I attest REQ-001's settling-time clause satisfied "
+                  "for this design.")
+
+
+def sufficiency_satisfied(Kp, Kd, t_sim, t_sym, limit) -> str:
+    """The approved C3 sufficiency text with live numbers: times as whole seconds, gains as given."""
+    return SUFFICIENCY_SATISFIED_TEMPLATE.format(Kp=Kp, Kd=Kd, t_sim=f"{t_sim:.0f}",
+                                                 t_sym=f"{t_sym:.0f}", limit=limit)
 
 
 def _q(text: str) -> str:
@@ -68,7 +95,7 @@ def symbolic_settling(params: dict) -> tuple[float, str]:
 
 def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adequacy: str,
                    adequacy_by: str, t_estimate_s: float, est_hash: str) -> str:
-    """The generated block for one design. `params` has Kp, Kd, maxTorque;
+    """The generated block for one design. `params` has Kp, Kd;
     `summary` is SimResult.summary(); `sim_hash` comes from evidence.hashing.hash_simulation.
     `t_estimate_s` and `est_hash` come from `symbolic_settling`: a second, independent estimate.
 
@@ -88,8 +115,6 @@ def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adeq
         attribute :>> Kd = {float(params['Kd'])!r};
         attribute :>> settlingTime = {float(summary['settling_time_s'])!r} [s];
         attribute :>> settlingTimeEstimate = {float(t_estimate_s)!r} [s];
-        attribute :>> peakTorque = {float(summary['peak_control_torque'])!r} [N*m];
-        attribute :>> torqueLimit = {float(params['maxTorque'])!r} [N*m];
     }}
     metadata : AnalysisTooling::ToolExecution about {design}::settlingTime {{
         toolName = "scipy solve_ivp (analysis/numerical.py)";
@@ -107,7 +132,6 @@ def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adeq
         status = StatusKind::done;
     }}
     verification vc001_{design} : SettlingVerification {{ subject = {design}; }}
-    verification vc004_{design} : DisturbanceVerification {{ subject = {design}; }}
 """
 
 
@@ -349,8 +373,7 @@ def evaluate(text: str) -> dict:
             claims[name] = {"holds": bool(v.holds) if not v.error else None, "error": v.error or None}
         req = {}
         for design in re.findall(r"^\s*part\s+(\w+)\s*:\s*ADCS\b", text, re.M):
-            for r in ("req001", "req004"):
-                req[f"{r}({design})"] = bool(model.eval(f"{PACKAGE}::{r}({PACKAGE}::{design})"))
+            req[f"req001({design})"] = bool(model.eval(f"{PACKAGE}::req001({PACKAGE}::{design})"))
         return {"diagnostics": diagnostics, "verdicts": verdicts, "claims": claims, "req": req}
     finally:
         conn.close()

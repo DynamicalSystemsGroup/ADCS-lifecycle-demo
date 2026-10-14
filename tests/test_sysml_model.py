@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 from rdflib import Graph
@@ -10,8 +11,11 @@ from rdflib import Graph
 from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
-from sysml.model import (DEFAULT_ADEQUACY, DEMO_ENGINEER, PACKAGE, NOT_A_HUMAN, assemble, attestation_block, evaluate,
-                         evidence_block, group_diff, load_structure, status_block, symbolic_settling, to_elements)
+from sysml.model import (ADEQUACY_TEXT, CARD_ADEQUACY, CARD_NOT_SATISFIED, CARD_SATISFIED, DEFAULT_ADEQUACY,
+                         DEMO_ENGINEER, NOT_A_HUMAN, PACKAGE, SUFFICIENCY_NOT_SATISFIED,
+                         SUFFICIENCY_SATISFIED_TEMPLATE, assemble, attestation_block, evaluate, evidence_block,
+                         group_diff, load_structure, status_block, sufficiency_satisfied, symbolic_settling,
+                         to_elements)
 
 pytestmark = pytest.mark.filterwarnings("ignore")
 ROOT_TTL = "structural/satellite.ttl"
@@ -52,24 +56,20 @@ def test_requirement_text_matches_rdf(structure):
     docs = {m.group(1): m.group(2) for m in re.finditer(
         r"requirement def (\w+) \{\s*doc /\*(.*?)\*/", structure, re.S)}
     assert _norm(docs["SettlingRequirement"]) == _norm(texts["REQ-001"])
-    assert _norm(docs["DisturbanceRequirement"]) == _norm(texts["REQ-004"])
+    assert "DisturbanceRequirement" not in docs  # REQ-004 is out of the demo model (DL-25)
 
 
 def test_verdicts(both):
     assert both["diagnostics"] == []
     assert both["verdicts"]["vc001_v1"] == "fail"
     assert both["verdicts"]["vc001_v2"] == "pass"
-
-
-def test_req004_inconclusive_for_both(both):
-    assert both["verdicts"]["vc004_v1"] == "inconclusive"
-    assert both["verdicts"]["vc004_v2"] == "inconclusive"
+    assert set(both["verdicts"]) == {"vc001_v1", "vc001_v2"}  # no vc004: REQ-004 is out of the demo model
 
 
 def test_req_truth_values_are_plain_bools(both):
     assert both["req"]["req001(v1)"] is False
     assert both["req"]["req001(v2)"] is True
-    assert both["req"]["req004(v2)"] is True
+    assert set(both["req"]) == {"req001(v1)", "req001(v2)"}
 
 
 def _claim(structure, satisfied, status="done"):
@@ -186,8 +186,7 @@ def test_evidence_block_has_estimate_and_two_tool_executions():
 def test_estimate_loads_clean_and_verdicts_unchanged(structure):
     out = evaluate(assemble(structure, _evidence("v1", 1.0, 10.0) + _evidence("v2", 4.0, 30.0)))
     assert out["diagnostics"] == []
-    assert out["verdicts"] == {"vc001_v1": "fail", "vc004_v1": "inconclusive",
-                               "vc001_v2": "pass", "vc004_v2": "inconclusive"}
+    assert out["verdicts"] == {"vc001_v1": "fail", "vc001_v2": "pass"}
 
 
 def test_tool_executions_annotate_the_value_bearing_redefinitions(structure):
@@ -211,10 +210,79 @@ def test_symbolic_settling_is_computed_and_hashed():
     assert repr(t) in _evidence("v2", 4.0, 30.0)
 
 
-def test_adequacy_default_is_marked_draft():
-    assert DEFAULT_ADEQUACY.startswith("[DRAFT — pending Michael's approval]")
-    assert "the linear estimate and the simulation" in DEFAULT_ADEQUACY.lower()
-    assert not re.search(r"\d", DEFAULT_ADEQUACY)
+# ----- approved human text (DL-25/DL-26) -----
+# talk/human_text_approved.md lives under the private/ tree, which a worktree may not have, so the
+# expected strings are hard-coded here and the file (when found beside the repo) is checked too.
+
+_APPROVED = {
+    "adequacy_full": "The linear model and the nonlinear simulation are adequate for judging REQ-001's "
+                     "settling-time clause at this design stage. Both represent the same rigid-body loop and "
+                     "control law, and the simulation also enforces the actuator torque limit. Neither "
+                     "represents sensor noise, so this judgement covers the settling-time clause, not the "
+                     "3-sigma accuracy clause.",
+    "adequacy_card": "The linear model and the nonlinear simulation are adequate for judging REQ-001's "
+                     "settling-time clause at this design stage.",
+    "not_satisfied_full": "Both the linear estimate and the simulation settle well after the limit, so this "
+                          "evidence is sufficient for me to say this design does not satisfy REQ-001. I attest "
+                          "not satisfied.",
+    "not_satisfied_card": "This evidence is sufficient for me to say this design does not satisfy REQ-001. "
+                          "I attest not satisfied.",
+    "satisfied_full": "At Kp={Kp}, Kd={Kd} the simulation settles in {t_sim} s and the linear estimate in "
+                      "{t_sym} s, both within the {limit} s limit. This evidence is sufficient: I attest "
+                      "REQ-001's settling-time clause satisfied for this design.",
+    "satisfied_card": "This evidence is sufficient: I attest REQ-001's settling-time clause satisfied for "
+                      "this design.",
+}
+
+
+def test_text_constants_equal_approved_text():
+    assert ADEQUACY_TEXT == _APPROVED["adequacy_full"] and DEFAULT_ADEQUACY is ADEQUACY_TEXT
+    assert CARD_ADEQUACY == _APPROVED["adequacy_card"]
+    assert SUFFICIENCY_NOT_SATISFIED == _APPROVED["not_satisfied_full"]
+    assert CARD_NOT_SATISFIED == _APPROVED["not_satisfied_card"]
+    assert SUFFICIENCY_SATISFIED_TEMPLATE == _APPROVED["satisfied_full"]
+    assert CARD_SATISFIED == _APPROVED["satisfied_card"]
+    assert "DRAFT" not in ADEQUACY_TEXT
+
+
+def _approved_file():
+    here = Path(__file__).resolve().parent.parent
+    for root in (here, here.parent.parent / "ADCS-lifecycle-demo"):
+        f = root / "private" / "talk" / "human_text_approved.md"
+        if f.is_file():
+            return f
+    return None
+
+
+@pytest.mark.skipif(_approved_file() is None, reason="private/talk/human_text_approved.md not reachable")
+def test_text_constants_equal_approved_file():
+    src = _approved_file().read_text()
+    found = {}
+    for sec in re.split(r"^## ", src, flags=re.M)[1:]:
+        name = sec.split(" ", 1)[0]
+        for kind in ("full", "card"):
+            m = re.search(rf"^\*\*{kind}:\*\* (.+)$", sec, re.M)
+            found[f"{name}_{kind}"] = m.group(1).strip()
+    assert found["adequacy_full"] == ADEQUACY_TEXT and found["adequacy_card"] == CARD_ADEQUACY
+    assert found["sufficiency_not_satisfied_full"] == SUFFICIENCY_NOT_SATISFIED
+    assert found["sufficiency_not_satisfied_card"] == CARD_NOT_SATISFIED
+    assert found["sufficiency_satisfied_full"] == SUFFICIENCY_SATISFIED_TEMPLATE
+    assert found["sufficiency_satisfied_card"] == CARD_SATISFIED
+
+
+def test_cards_are_excerpts_of_full_text():
+    assert CARD_ADEQUACY in ADEQUACY_TEXT
+    # the approved card capitalises "This"; in the full text it begins mid-sentence ("this")
+    assert CARD_NOT_SATISFIED[1:] in SUFFICIENCY_NOT_SATISFIED
+    assert CARD_SATISFIED in SUFFICIENCY_SATISFIED_TEMPLATE
+
+
+def test_sufficiency_satisfied_formats_live_numbers():
+    text = sufficiency_satisfied(4.0, 30.0, 67.4, 71.6, 120)
+    assert "{" not in text and "}" not in text
+    assert text.startswith("At Kp=4.0, Kd=30.0 the simulation settles in 67 s and the linear estimate in 72 s, "
+                           "both within the 120 s limit.")
+    assert text.endswith(CARD_SATISFIED)
 
 
 def test_group_diff_c2_to_c3_has_nothing_in_other(structure):
@@ -240,15 +308,15 @@ def test_status_block_pending_has_no_originator_and_no_rationale(structure):
 
 
 def test_status_block_rationale_only_with_originator():
-    assert "Rationale" not in status_block("req004", rationale="a reason")
-    with_who = status_block("req004", originator="A. Engineer", rationale="a reason")
+    assert "Rationale" not in status_block("req001", rationale="a reason")
+    with_who = status_block("req001", originator="A. Engineer", rationale="a reason")
     assert 'originator = "A. Engineer"' in with_who
-    assert "ModelingMetadata::Rationale about req004" in with_who and 'text = "a reason"' in with_who
-    assert "Rationale" not in status_block("req004", originator="A. Engineer")
+    assert "ModelingMetadata::Rationale about req001" in with_who and 'text = "a reason"' in with_who
+    assert "Rationale" not in status_block("req001", originator="A. Engineer")
 
 
 def test_status_block_with_originator_loads(structure):
-    block = status_block("req004", originator="A. Engineer", rationale='margin "unknown"')
+    block = status_block("req001", originator="A. Engineer", rationale='margin "unknown"')
     out = evaluate(assemble(structure, _evidence("v1", 1.0, 10.0), block))
     assert out["diagnostics"] == []
 
@@ -256,13 +324,13 @@ def test_status_block_with_originator_loads(structure):
 @pytest.mark.parametrize("who", ["claude", "Bot", "", "  "])
 def test_status_block_non_human_originator_refused(who):
     with pytest.raises(ValueError):
-        status_block("req004", originator=who)
+        status_block("req001", originator=who)
 
 
 @pytest.mark.parametrize("bad", ["inwork", "", "DONE"])
 def test_status_block_bad_status_refused(bad):
     with pytest.raises(ValueError):
-        status_block("req004", status=bad)
+        status_block("req001", status=bad)
 
 
 @pytest.mark.parametrize("bad", ["", "1x", "req 1", "req001;", "a-b"])
