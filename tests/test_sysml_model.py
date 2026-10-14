@@ -10,8 +10,8 @@ from rdflib import Graph
 from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
-from sysml.model import (DEFAULT_ADEQUACY, NOT_A_HUMAN, assemble, attestation_block, evaluate,
-                         evidence_block, load_structure, status_block, to_elements)
+from sysml.model import (DEFAULT_ADEQUACY, PACKAGE, NOT_A_HUMAN, assemble, attestation_block, evaluate,
+                         evidence_block, group_diff, load_structure, status_block, to_elements)
 
 pytestmark = pytest.mark.filterwarnings("ignore")
 ROOT_TTL = "structural/satellite.ttl"
@@ -197,3 +197,92 @@ def test_to_elements_lists_user_and_library_elements(structure):
     assert len(ids) == len(els) and "GeoSatADCS" in ids
     assert any(not i.startswith("GeoSatADCS") for i in ids)  # referenced library definitions
     assert all("@type" in e for e in els)
+
+
+# ---- group_diff on small synthetic snapshots ----------------------------------------------
+
+def _lib(i, qn):
+    return {"@type": "AttributeUsage", "@id": i, "qualifiedName": qn, "isLibraryElement": True}
+
+
+def _top(i, typ, owner_of=(), refs=(), **kw):
+    """A top-level element, its owning membership, and one owned child that points at `refs`."""
+    e = {"@type": typ, "@id": i, "owner": {"@id": PACKAGE}, "qualifiedName": f"{PACKAGE}::{i}", **kw}
+    om = {"@type": "OwningMembership", "@id": i + "_om", "owner": {"@id": PACKAGE},
+          "memberElement": {"@id": i}}
+    child = {"@type": "FeatureValue", "@id": i + "_c", "owner": {"@id": i},
+             "ref": [{"@id": r} for r in refs]}
+    return [e, om, child]
+
+
+def _snap(*groups, members):
+    pkg = {"@type": "Package", "@id": PACKAGE,
+           "ownedRelationship": [{"@id": m + "_om"} for m in members]}
+    return [pkg] + [e for g in groups for e in g]
+
+
+LIB = [_lib("L_info", "ModelingMetadata::StatusInfo"), _lib("L_tbc", "ModelingMetadata::StatusKind::tbc"),
+       _lib("L_done", "ModelingMetadata::StatusKind::done"),
+       _lib("L_orig", "ModelingMetadata::StatusInfo::originator"), _lib("L_orphan", "Other::Thing")]
+REQ = _top("req001", "RequirementUsage")  # qualifiedName GeoSatADCS::req001
+PEND = _top("pend", "MetadataUsage", refs=["L_tbc"], type=[{"@id": "L_info"}],
+            annotatedElement=[{"@id": "req001"}])
+SAT = _top("sat", "SatisfyRequirementUsage")
+ATTM = _top("attm", "MetadataUsage", refs=["L_done", "L_orig"], type=[{"@id": "L_info"}],
+            annotatedElement=[{"@id": "sat"}])
+
+
+def _c2_snap():
+    return _snap([LIB[0], LIB[1]], REQ, PEND, members=["req001", "pend"])
+
+
+def _c3_snap(extra=(), members=("req001", "sat", "attm"), lib=("L_info", "L_done", "L_orig")):
+    libs = [e for e in LIB if e["@id"] in lib]
+    return _snap(libs, REQ, SAT, ATTM, list(extra), members=list(members))
+
+
+def test_group_diff_all_four_groups_and_nothing_else():
+    g = group_diff(_c2_snap(), _c3_snap())
+    assert g["att"] == 6 and g["att_roots"] == {"SatisfyRequirementUsage": 1, "MetadataUsage": 1}
+    assert (g["pending"], g["pending_elements"], g["pending_library"]) == (1, 3, 1)
+    assert g["pkg"] == 2 and g["lib"] == 2  # done, originator
+    assert not g["other"]
+
+
+def test_group_diff_accepts_dicts_keyed_by_id():
+    by = lambda snap: {e["@id"]: e for e in snap}  # noqa: E731
+    assert group_diff(by(_c2_snap()), by(_c3_snap())) == group_diff(_c2_snap(), _c3_snap())
+
+
+def test_group_diff_design_element_goes_to_other():
+    part = _top("tuned", "PartUsage")
+    g = group_diff(_c2_snap(), _c3_snap(extra=part, members=("req001", "sat", "attm", "tuned")))
+    assert g["other"] == {"added PartUsage GeoSatADCS::tuned": 3, "changed Package GeoSatADCS": 1}
+    assert g["pkg"] == 0
+
+
+def test_group_diff_unreachable_library_addition_goes_to_other():
+    g = group_diff(_c2_snap(), _c3_snap(lib=("L_info", "L_done", "L_orig", "L_orphan")))
+    assert g["lib"] == 2 and g["other"] == {"added AttributeUsage Other::Thing": 1}
+
+
+def test_group_diff_marker_with_originator_does_not_qualify():
+    named = _top("pend", "MetadataUsage", refs=["L_tbc", "L_orig"], type=[{"@id": "L_info"}],
+                 annotatedElement=[{"@id": "req001"}])
+    old = _snap([LIB[0], LIB[1], LIB[3]], REQ, named, members=["req001", "pend"])
+    g = group_diff(old, _c3_snap())
+    assert g["pending"] == 0
+    assert g["other"]["removed MetadataUsage GeoSatADCS::pend"] == 3
+    assert g["pkg"] == 0 and g["other"]["changed Package GeoSatADCS"] == 1  # lost member is not a pending marker
+
+
+def test_group_diff_marker_with_done_status_does_not_qualify():
+    done = _top("pend", "MetadataUsage", refs=["L_done"], type=[{"@id": "L_info"}],
+                annotatedElement=[{"@id": "req001"}])
+    old = _snap([LIB[0], LIB[2]], REQ, done, members=["req001", "pend"])
+    assert group_diff(old, _c3_snap())["pending"] == 0
+
+
+def test_group_diff_identical_snapshots_are_empty():
+    g = group_diff(_c3_snap(), _c3_snap())
+    assert not g["att"] and not g["pending"] and not g["pkg"] and not g["lib"] and not g["other"]

@@ -22,7 +22,6 @@ def _():
     import re
     import uuid
     import warnings
-    from collections import Counter
 
     import httpx
     import marimo as mo
@@ -32,7 +31,7 @@ def _():
     from analysis.load_params import load_params
     from analysis.numerical import run_step_response
     from evidence.hashing import hash_simulation
-    from sysml.flexo_v2 import FlexoV2, NoChangeError, diff
+    from sysml.flexo_v2 import FlexoV2, NoChangeError
     from sysml.git_source import head_sha, text_diff
     from sysml.model import (
         DEFAULT_ADEQUACY,
@@ -41,22 +40,22 @@ def _():
         attestation_block,
         evaluate,
         evidence_block,
+        group_diff,
         load_structure,
         status_block,
         to_elements,
     )
 
     return (
-        Counter,
         DEFAULT_ADEQUACY,
         FlexoV2,
         NoChangeError,
         PACKAGE,
         assemble,
         attestation_block,
-        diff,
         evaluate,
         evidence_block,
+        group_diff,
         hash_simulation,
         head_sha,
         html,
@@ -132,14 +131,11 @@ def _(head_sha, httpx, mo, os):
 
 @app.cell(hide_code=True)
 def _(
-    Counter,
     FLEXO_PUBLISH,
     FlexoV2,
     GIT_SHA,
     NoChangeError,
-    PACKAGE,
     PRESEED,
-    diff,
     html,
     httpx,
     mo,
@@ -204,81 +200,21 @@ def _(
     def tag_of(commit_id: str) -> str:
         return f"git-{flexo.git_sha(project['id'], commit_id)}"
 
-    def by_id(elements: list[dict]) -> dict[str, dict]:
-        return {e["@id"]: e for e in elements}
-
-    def _owner(e: dict):
-        return (e.get("owner") or {}).get("@id")
-
-    def group_diff(old: dict, new: dict) -> dict:
-        """Group the element diff of two snapshots (keyed by @id), from @type and ownership:
-        user-model elements are those whose owner chain reaches the model package, the rest
-        are standard-library definitions. Nothing is typed in by hand."""
-        d = diff(old, new)
-
-        def in_user_model(i, snap):
-            for _ in range(200):
-                if i == PACKAGE:
-                    return True
-                i = _owner(snap[i]) if i in snap else None
-                if i is None:
-                    return False
-            return False
-
-        def top_element(i, snap):
-            """The user-model element directly under the package that holds `i`; a membership
-            is resolved to the element it owns."""
-            for _ in range(200):
-                o = _owner(snap[i])
-                if o == PACKAGE or o is None or o not in snap:
-                    break
-                i = o
-            e = snap[i]
-            if e["@type"] == "OwningMembership":
-                i = e["memberElement"]["@id"]
-            return snap[i]
-
-        att, att_roots, lib, other = [], Counter(), [], Counter()
-        for i in d["added"]:
-            if not in_user_model(i, new):
-                lib.append(i)
-                continue
-            root = top_element(i, new)
-            targets = [new[t["@id"]] for t in root.get("annotatedElement", []) if t["@id"] in new]
-            is_att = root["@type"] == "SatisfyRequirementUsage" or (
-                root["@type"] == "MetadataUsage"
-                and any(t["@type"] == "SatisfyRequirementUsage" and t["@id"] in d["added"] for t in targets)
-            )
-            if is_att:
-                att.append(i)
-                if root["@id"] == i:
-                    att_roots[root["@type"]] += 1
-            else:
-                other[f"added {new[i]['@type']}"] += 1
-        pkg_grew = 0
-        for i in d["changed"]:
-            members_old = {m["@id"] for m in old[i].get("ownedRelationship", [])}
-            members_new = {m["@id"] for m in new[i].get("ownedRelationship", [])}
-            if i == PACKAGE and members_old < members_new:
-                pkg_grew = len(members_new - members_old)
-            else:
-                other[f"changed {new[i]['@type']}"] += 1
-        for i in d["removed"]:
-            other[f"removed {old[i]['@type']}"] += 1
-        return {"att": len(att), "att_roots": att_roots, "pkg_grew": pkg_grew,
-                "lib": len(lib), "other": other}
-
     def groups_view(g: dict, c_from: str, c_to: str, how: str):
-        """The three approved groups, live counts only. The closing line is shown only when
+        """The four approved groups, live counts only. The closing line is shown only when
         nothing falls outside them."""
         roots = ", ".join(f"{t} x{n}" for t, n in sorted(g["att_roots"].items())) or "none"
+        lib_note = (f" + {g['pending_library']} library definition only it referenced"
+                    if g["pending_library"] else "")
         parts = [
             mo.md(
                 f"**Element diff {c_from} to {c_to}** ({how}), grouped by what each element is\n\n"
                 f"- attestation elements added: {g['att']} (top-level: {roots})\n"
-                f"- owning package changed (member list grew): {1 if g['pkg_grew'] else 0}"
-                f" (+{g['pkg_grew']} members)\n"
-                f"- standard-library definitions referenced by the attestation metadata: {g['lib']}"
+                f"- pending marker removed (superseded by the attestation): {g['pending']}"
+                f" ({g['pending_elements']} elements{lib_note})\n"
+                f"- owning package changed (gained the attestation members): "
+                f"{1 if g['pkg'] else 0} (+{g['pkg']} members)\n"
+                f"- standard-library definitions reachable from the attestation elements: {g['lib']}"
             )
         ]
         if g["other"]:
@@ -286,29 +222,29 @@ def _(
             parts.append(
                 mo.callout(
                     mo.md(
-                        f"**Warning: not everything in this diff is the attestation or what it "
-                        f"references.** Outside the three groups: {outside}. The statement that no "
-                        "evidence or design element changed is therefore not made."
+                        f"**Warning: not everything in this diff is the attestation, what it "
+                        f"references, or the pending marker it supersedes.** Outside the four "
+                        f"groups: {outside}. The statement that no evidence or design element "
+                        "changed is therefore not made."
                     ),
                     kind="danger",
                 )
             )
-        else:
+        elif g["att"]:
             parts.append(
                 mo.md(
                     f"Everything new in {c_to} is the human's attestation and what it "
-                    "references; no evidence or design element changed."
+                    "references; the pending marker it supersedes is removed; no evidence or "
+                    "design element changed."
                 )
             )
         return mo.vstack(parts)
 
     return (
-        by_id,
         counter_button,
         diff_view,
         flexo,
         frozen,
-        group_diff,
         groups_view,
         once,
         project,
@@ -680,7 +616,6 @@ def _(
     assemble,
     attestation_block,
     btn_b5,
-    by_id,
     ev2,
     flexo,
     get_c2,
@@ -709,8 +644,8 @@ def _(
             _new = flexo.elements(project["id"], _commit)
             _how = "from the two Flexo commits"
         else:  # export, Git-only mode, or C2/C3 not both committed: diff the two snapshots in-process
-            _old = by_id(to_elements(model_b4))
-            _new = by_id(to_elements(_text))
+            _old = to_elements(model_b4)
+            _new = to_elements(_text)
             _how = "computed in-process from the two model snapshots; nothing published"
         set_c3(
             {"who": name_in.value.strip(), "att": _att, "text": _text, "commit": _commit,
