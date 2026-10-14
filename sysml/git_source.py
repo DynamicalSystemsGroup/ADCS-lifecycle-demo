@@ -23,8 +23,8 @@ def text_diff(old: str, new: str, name: str = "satellite.sysml") -> str:
 
 
 def is_dirty(path: str = ".") -> bool:
-    """True when the source files (`sysml/`, `sysml_notebook.py`) have uncommitted changes."""
+    """True when the source files (`sysml/`, `talk.py`) have uncommitted changes."""
     return bool(subprocess.run(
-        ["git", "-C", path, "status", "--porcelain", "--", "sysml", "sysml_notebook.py"],
+        ["git", "-C", path, "status", "--porcelain", "--", "sysml", "talk.py"],
         check=True, capture_output=True, text=True,
     ).stdout.strip())

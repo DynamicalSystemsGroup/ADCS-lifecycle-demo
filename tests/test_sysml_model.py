@@ -397,6 +397,13 @@ def test_group_diff_all_four_groups_and_nothing_else():
     assert not g["other"]
 
 
+def test_group_diff_returns_the_names_it_groups():
+    g = group_diff(_c2_snap(), _c3_snap())
+    assert g["names"] == {"meta": ["StatusInfo"],
+                          "lib": ["ModelingMetadata::StatusInfo::originator", "ModelingMetadata::StatusKind::done"]}
+    assert len(g["names"]["lib"]) == g["lib"] and len(g["names"]["meta"]) == g["att_roots"]["MetadataUsage"]
+
+
 def test_group_diff_accepts_dicts_keyed_by_id():
     by = lambda snap: {e["@id"]: e for e in snap}  # noqa: E731
     assert group_diff(by(_c2_snap()), by(_c3_snap())) == group_diff(_c2_snap(), _c3_snap())

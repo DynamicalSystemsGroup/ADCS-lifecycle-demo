@@ -76,10 +76,15 @@ def test_is_dirty(tmp_path):
     (tmp_path / "sysml").mkdir()
     (tmp_path / "sysml" / "m.sysml").write_text("a")
     (tmp_path / "other.txt").write_text("x")
+    (tmp_path / "talk.py").write_text("t = 1")
     git("add", ".")
     git("commit", "-q", "-m", "c")
     assert not is_dirty(str(tmp_path))
     (tmp_path / "other.txt").write_text("changed")  # outside the source files
+    assert not is_dirty(str(tmp_path))
+    (tmp_path / "talk.py").write_text("t = 2")  # the talk notebook is a source file
+    assert is_dirty(str(tmp_path))
+    git("commit", "-q", "-am", "talk")
     assert not is_dirty(str(tmp_path))
     (tmp_path / "sysml" / "m.sysml").write_text("b")
     assert is_dirty(str(tmp_path))

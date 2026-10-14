@@ -66,9 +66,50 @@ def test_settling_figure(runs, case):
     assert dot.get_xdata()[0] == pytest.approx(t_sim)
     assert f"{LIMIT_S:g} s limit" in labels
     band = 0.01 * F.pointing_error_deg(sim)[0]
-    assert f"{band:.2g}° (1% of initial error)" in labels and "must stay inside the band" in labels
+    assert f"{band:.2g}° band" in labels and "must stay inside the band" in labels
     assert any(abs(l.get_ydata()[0] - band) < 1e-12 for l in fig.axes[0].get_lines() if len(set(l.get_ydata())) == 1)
     _assert_screen_legible(fig)
+
+
+def _bbox(text):
+    return text.get_window_extent(text.figure.canvas.get_renderer())
+
+
+def _curve_points(fig, line):
+    """The plotted vertices of `line`, densified, in display pixels."""
+    import numpy as np
+    ax = fig.axes[0]
+    xy = np.column_stack([np.asarray(line.get_xdata(), float), np.asarray(line.get_ydata(), float)])
+    d = ax.transData.transform(xy)
+    k = np.arange(len(d))
+    fine = np.linspace(0, len(d) - 1, 40 * len(d))
+    return np.column_stack([np.interp(fine, k, d[:, 0]), np.interp(fine, k, d[:, 1])])
+
+
+@pytest.mark.parametrize("figsize", [(11, 5.4), (6.4, 4.4)])
+def test_settling_labels_do_not_touch_the_curve(runs, figsize):
+    p, t_sym, sim = runs[(1.0, 10.0)]
+    fig = F.settling_figure(sim, t_sym, LIMIT_S, figsize=figsize)
+    curve = [l for l in fig.axes[0].get_lines() if l.get_label() == "simulation"][0]
+    pts = _curve_points(fig, curve)
+    for t in _texts(fig):
+        s = t.get_text()
+        if s.startswith(("SymPy:", "simulation:")) or "band" in s:
+            b = _bbox(t)
+            m = 6  # px of clear space around the label
+            hit = [(x, y) for x, y in pts if b.x0 - m <= x <= b.x1 + m and b.y0 - m <= y <= b.y1 + m]
+            assert not hit, (s, hit[:3])
+
+
+def test_strip_limit_line_does_not_strike_the_labels(runs):
+    rows = [("a", 80.0, 70.0, True), ("b", 100.0, 130.0, False)]
+    fig = F.neighbour_strip(rows, LIMIT_S)
+    ax = fig.axes[0]
+    x_line = ax.transData.transform((LIMIT_S, 0))[0]
+    for t in _texts(fig):
+        if t.get_text().startswith(("within", "over")):
+            b = _bbox(t)
+            assert not (b.x0 - 16 <= x_line <= b.x1 + 16), (t.get_text(), b.x0, b.x1, x_line)
 
 
 def test_overlay_figure(runs):

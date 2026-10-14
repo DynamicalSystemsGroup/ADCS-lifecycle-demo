@@ -296,6 +296,8 @@ def group_diff(old, new) -> dict:
                 and the only member lost is a pending marker
       lib       added library elements reachable by reference from the att elements
       other     everything else, rolled up by top-level owner: {"added Type name": count}
+      names     the names behind the counts: "meta" = the metadata types of the att top-level
+                metadata, "lib" = qualified names of the lib elements (both sorted)
 
     Empty `other` means nothing outside the four named groups changed."""
     old = {e["@id"]: e for e in (old.values() if isinstance(old, dict) else old)}
@@ -332,7 +334,12 @@ def group_diff(old, new) -> dict:
     out = {"att": len(att), "att_roots": Counter(new[t]["@type"] for t in att_tops),
            "pending": len(pend_tops),
            "pending_elements": len({i for i in removed if _in_model(i, old) and _top(i, old) in pend_tops}),
-           "pending_library": len(pend_lib), "pkg": 0, "lib": len(reach & added), "other": Counter()}
+           "pending_library": len(pend_lib), "pkg": 0, "lib": len(reach & added), "other": Counter(),
+           "names": {
+               "meta": sorted(new[x["@id"]]["qualifiedName"].split("::")[-1] for t in att_tops
+                              if new[t]["@type"] == "MetadataUsage" for x in new[t].get("type", [])
+                              if x["@id"] in new),
+               "lib": sorted(new[i]["qualifiedName"] for i in reach & added)}}
     named = att | (reach & added) | pend_lib | {i for i in removed if _in_model(i, old) and _top(i, old) in pend_tops}
 
     for i in sorted(added - named):

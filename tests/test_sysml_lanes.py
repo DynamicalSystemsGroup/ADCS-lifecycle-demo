@@ -203,10 +203,94 @@ def test_two_store_mermaid_names_both_stores_and_the_tag():
 
 def test_sandwich_mermaid_stacks_three_labels():
     m = sandwich_mermaid(["top <b>layer</b>", "middle", 'bottom "x"'])
-    assert m.startswith("flowchart TB")
+    assert m.startswith("%%{init") and "'fontSize': '26px'" in m and "\nflowchart TB\n" in m
     assert "L0 --- L1 --- L2" in m
     assert 'L0["top <b>layer</b>"]' in m and 'L1["middle"]' in m and "bottom 'x'" in m
     with pytest.raises(ValueError):
         sandwich_mermaid(["a", "b"])
     with pytest.raises(ValueError):
         sandwich_mermaid(["a", "", "c"])
+
+
+# ---------- compact (presentation) mode ----------
+
+@pytest.fixture(scope="module")
+def compact(states):
+    s = load_structure()
+    ev1, ev2 = _evidence("initial", 1.0, 10.0), _evidence("tuned", 4.0, 30.0)
+    return {
+        "c0": lanes_mermaid(to_elements(s), compact=True),
+        "c1": lanes_mermaid(to_elements(assemble(s, ev1, attestation_block(
+            "initial", False, DEMO_ENGINEER, "done", "Too slow.", "vc001_initial"))), compact=True),
+        "c2": lanes_mermaid(to_elements(assemble(s, ev2, status_block("req001"))), compact=True),
+        "c3": lanes_mermaid(to_elements(assemble(s, ev2, attestation_block(
+            "tuned", True, DEMO_ENGINEER, "done", "Inside the limit.", "vc001_tuned"))), compact=True),
+    }
+
+
+def _nodes(m):
+    """Node ids defined in the diagram, headers excluded."""
+    return [n for n in re.findall(r'^\s+(\w+)(?:\(\[|\[|\{\{)"', m, re.M) if n not in ("hS", "hE", "hA")]
+
+
+def _lane_c(m, key):
+    return re.search(rf'subgraph {key}\[.*?\n  end', m, re.S).group(0)
+
+
+def test_compact_font_is_20px_or_larger(compact):
+    for m in compact.values():
+        assert int(re.search(r"'fontSize': '(\d+)px'", m).group(1)) >= 20
+
+
+def test_compact_titles_are_header_nodes_not_cluster_titles(compact):
+    for m in compact.values():
+        assert re.findall(r'subgraph \w\[" "\]', m) == ['subgraph S[" "]', 'subgraph E[" "]', 'subgraph A[" "]']
+        assert "direction" not in m and m.splitlines()[1] == "flowchart TB"
+        heads = dict(re.findall(r'^\s+h([SEA])\["([^"]+)"\]', m, re.M))
+        assert [heads[k].split("<br/>")[0] for k in "SEA"] == ["STRUCTURE", "EVIDENCE", "ATTESTATION"]
+        assert "hS ~~~ hE" in m and "hE ~~~ hA" in m  # the bands stack in order
+
+
+def test_compact_one_node_per_evidence_source_and_per_judgement(compact):
+    m = compact["c3"]
+    assert len(_nodes(m)) == 7  # part def, requirement; design, scipy, SymPy; two judgements
+    lane = _lane_c(m, "E")
+    assert "scipy<br/>simulation" in lane and "SymPy<br/>estimate" in lane and "ToolExecution" not in m
+    assert "StatusInfo" not in m and "Rationale" not in m
+    assert len(re.findall(r"class \w+ human", m)) == 2  # adequacy judgement, satisfy judgement
+    assert f"<b>{DEMO_ENGINEER}</b><br/>done · adequacy" in m
+    assert f"<b>{DEMO_ENGINEER}</b><br/>satisfied" in m and "linkStyle" in m  # satisfy edge: thick, amber
+
+
+def test_compact_not_satisfied_is_one_amber_card_with_a_distinct_edge(compact):
+    m = compact["c1"]
+    assert f"<b>{DEMO_ENGINEER}</b><br/>NOT satisfied" in m
+    assert re.search(r"class \w+ negated", m)
+    assert re.search(r"^\s+\w+ -\.- \w+$", m, re.M) and "linkStyle" in m  # dotted, amber
+    assert len(_nodes(m)) == 7
+    assert "line-through" not in m
+
+
+def test_compact_pending_is_one_dashed_node_and_no_person(compact):
+    m = compact["c2"]
+    assert "tbc · no one has judged" in _lane_c(m, "A")
+    assert _node_class(m, "tbc · no one has judged") == "pending"
+    assert "satisfied" not in m
+
+
+def test_compact_c0_has_the_structure_band_filled_only(compact):
+    m = compact["c0"]
+    assert "part def" in _lane_c(m, "S") and "requirement" in _lane_c(m, "S")
+    assert "scipy" not in m and "tbc" not in m and "satisfied" not in m
+    assert "hS ~~~ hE" in m and "hE ~~~ hA" in m  # empty bands still stack in order
+
+
+def test_compact_no_link_points_at_an_undrawn_node(compact):
+    for m in compact.values():
+        defined = set(re.findall(r'^\s+(\w+)(?:\(\[|\[|\{\{)', m, re.M))
+        for a, b in re.findall(r"^\s+(\w+) (?:~~~|-\.|==|-\.-)[^\n]*?(\w+)$", m, re.M):
+            assert a in defined and b in defined, (a, b)
+
+
+def test_full_mode_is_unchanged_by_the_flag(states):
+    assert states["c3"].startswith("flowchart LR") and "ToolExecution" in states["c3"]
