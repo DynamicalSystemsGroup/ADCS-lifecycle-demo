@@ -26,6 +26,10 @@ STRUCTURE_PATH = Path(__file__).with_name("satellite.sysml")
 # security boundary: copied from sysmlv2-testing (same trust model as git authorship).
 NOT_A_HUMAN = frozenset({"svt", "svt-cli", "cli", "claude", "llm", "ai", "agent", "bot", "assistant"})
 
+# The person the demo fixtures are attributed to: the pre-seeded name in export mode and the
+# pre-filled (editable) name field in live mode.
+DEMO_ENGINEER = "Michael Zargham"
+
 # The demo uses only two statuses: "tbc" (pending, the human has not yet decided) and
 # "done" (attested). The rest of StatusKind (for example inwork, closed) is not used, so
 # anything else is refused rather than silently recorded.
@@ -51,16 +55,22 @@ def _ident(kind: str, value: str) -> str:
     return value
 
 
-def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adequacy: str) -> str:
+def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adequacy: str,
+                   adequacy_by: str) -> str:
     """The generated block for one design. `params` has Kp, Kd, maxTorque;
     `summary` is SimResult.summary(); `sim_hash` comes from evidence.hashing.hash_simulation.
 
     `adequacy` is the Rationale text: a person's judgement (validation) that the model is
     adequate for this use, carried with the evidence. The caller supplies it; this function
-    makes no judgement of its own."""
+    makes no judgement of its own. `adequacy_by` is the person whose judgement it is: it is
+    recorded as the originator of a StatusInfo about the design (a Rationale has no author
+    field) and must pass the NOT_A_HUMAN guard."""
     _ident("design", design)
+    who = adequacy_by.strip()
+    if not who or who.lower() in NOT_A_HUMAN:
+        raise ValueError(f"adequacy_by {adequacy_by!r} is not a named human")
     return f"""\
-    // ----- Rationale below is a person's adequacy judgement, carried with the evidence -----
+    // ----- Rationale and StatusInfo below are {_q(who)}'s adequacy judgement, carried with the evidence -----
     part {design} : ADCS {{
         attribute :>> Kp = {float(params['Kp'])!r};
         attribute :>> Kd = {float(params['Kd'])!r};
@@ -74,6 +84,10 @@ def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adeq
     }}
     metadata : ModelingMetadata::Rationale about {design} {{
         text = "{_q(adequacy)}";
+    }}
+    metadata : ModelingMetadata::StatusInfo about {design} {{
+        originator = "{_q(who)}";
+        status = StatusKind::done;
     }}
     verification vc001_{design} : SettlingVerification {{ subject = {design}; }}
     verification vc004_{design} : DisturbanceVerification {{ subject = {design}; }}

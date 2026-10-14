@@ -10,7 +10,7 @@ from rdflib import Graph
 from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
-from sysml.model import (DEFAULT_ADEQUACY, PACKAGE, NOT_A_HUMAN, assemble, attestation_block, evaluate,
+from sysml.model import (DEFAULT_ADEQUACY, DEMO_ENGINEER, PACKAGE, NOT_A_HUMAN, assemble, attestation_block, evaluate,
                          evidence_block, group_diff, load_structure, status_block, to_elements)
 
 pytestmark = pytest.mark.filterwarnings("ignore")
@@ -26,7 +26,7 @@ def _evidence(design: str, kp: float, kd: float) -> str:
     sim = run_step_response(params)
     summary = sim.summary()
     return evidence_block(design, params, summary, hash_simulation(sim.config.to_dict(), summary),
-                          DEFAULT_ADEQUACY)
+                          DEFAULT_ADEQUACY, DEMO_ENGINEER)
 
 
 @pytest.fixture(scope="module")
@@ -122,7 +122,7 @@ def test_bad_identifiers_refused(bad):
     params = dict(load_params(), Kp=1.0, Kd=10.0)
     sim = run_step_response(params)
     with pytest.raises(ValueError):
-        evidence_block(bad, params, sim.summary(), "0" * 64, "x")
+        evidence_block(bad, params, sim.summary(), "0" * 64, "x", "A. Engineer")
     with pytest.raises(ValueError):
         attestation_block(bad, False, "A. Engineer", "tbc", "x", "vc001_v1")
     with pytest.raises(ValueError):
@@ -143,9 +143,32 @@ def test_v2_peak_torque_is_clipped_at_limit():
 def test_adequacy_text_is_caller_supplied():
     params = dict(load_params(), Kp=1.0, Kd=10.0)
     summary = run_step_response(params).summary()
-    block = evidence_block("v1", params, summary, "0" * 64, "My own judgement.")
+    block = evidence_block("v1", params, summary, "0" * 64, "My own judgement.", "A. Engineer")
     assert "My own judgement." in block
     assert "adequate" not in block.replace("adequacy judgement", "")
+
+
+def test_adequacy_statusinfo_carries_originator(structure):
+    params = dict(load_params(), Kp=1.0, Kd=10.0)
+    summary = run_step_response(params).summary()
+    block = evidence_block("v1", params, summary, "0" * 64, "x", DEMO_ENGINEER)
+    assert DEMO_ENGINEER == "Michael Zargham"
+    assert ("metadata : ModelingMetadata::StatusInfo about v1 {\n"
+            f'        originator = "{DEMO_ENGINEER}";\n'
+            "        status = StatusKind::done;") in block
+    assert "metadata def" not in block
+    assert f"{DEMO_ENGINEER}'s adequacy judgement" in block  # banner names the owner
+    # structure plus evidence loads with no diagnostics (StatusInfo about a part, standard library only)
+    out = evaluate(assemble(structure, block))
+    assert out["diagnostics"] == []
+
+
+@pytest.mark.parametrize("who", sorted(NOT_A_HUMAN) + ["", "  ", "Claude"])
+def test_adequacy_by_non_human_refused(who):
+    params = dict(load_params(), Kp=1.0, Kd=10.0)
+    summary = run_step_response(params).summary()
+    with pytest.raises(ValueError):
+        evidence_block("v1", params, summary, "0" * 64, "x", who)
 
 
 # ----- status_block and to_elements -----
