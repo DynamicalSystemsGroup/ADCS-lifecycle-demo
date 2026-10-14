@@ -12,6 +12,8 @@ package GeoSatADCS {
         attribute Kp : Real;
         attribute Kd : Real;
         attribute settlingTime : ISQ::DurationValue;
+        // The linear (SymPy) estimate; the requirement's constraint stays on settlingTime.
+        attribute settlingTimeEstimate : ISQ::DurationValue;
         attribute peakTorque : ISQ::TorqueValue;
         attribute torqueLimit : ISQ::TorqueValue;
     }
