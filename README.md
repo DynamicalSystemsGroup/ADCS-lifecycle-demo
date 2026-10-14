@@ -164,7 +164,9 @@ uv run marimo run sysml_notebook.py                     # live: the speaker clic
 SYSML_DEMO_PRESEED=1 uv run marimo export html sysml_notebook.py -o output/sysml-talk-fallback.html
 ```
 
-Git versions the `.sysml` source and shows text diffs; Flexo (set `FLEXO_V2_URL`, see `sysml/FLEXO_LOCAL.md`) versions the model elements, each commit tagged with the Git SHA. Without a reachable Flexo the notebook runs in Git-only mode.
+Git versions the `.sysml` source and shows text diffs of the model; Flexo (set `FLEXO_V2_URL`, see `sysml/FLEXO_LOCAL.md`) versions the model elements, each commit tagged with the Git SHA. Without a reachable Flexo the notebook runs in local mode (Flexo not reachable).
+
+`SYSML_DEMO_PRESEED=1` (used for the fallback export) never publishes to Flexo; the live demo is `uv run marimo run sysml_notebook.py` with the local Flexo stack up (see `sysml/FLEXO_LOCAL.md`).
 
 ## Pipeline Stages
 

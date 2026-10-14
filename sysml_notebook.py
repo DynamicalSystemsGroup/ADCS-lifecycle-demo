@@ -32,7 +32,7 @@ def _():
     from analysis.numerical import run_step_response
     from evidence.hashing import hash_simulation
     from sysml.flexo_v2 import FlexoV2, NoChangeError
-    from sysml.git_source import head_sha, text_diff
+    from sysml.git_source import head_sha, is_dirty, text_diff
     from sysml.model import (
         DEFAULT_ADEQUACY,
         PACKAGE,
@@ -64,6 +64,7 @@ def _():
         head_sha,
         html,
         httpx,
+        is_dirty,
         load_params,
         load_structure,
         math,
@@ -79,10 +80,10 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(head_sha, httpx, mo, os):
+def _(head_sha, httpx, is_dirty, mo, os):
     # Headless export: SYSML_DEMO_PRESEED=1 pre-seeds the human attestations (the Attest steps
     # cannot be clicked in a static export) and publishes NOTHING to Flexo, even when it is
-    # reachable. The export shows the element diff computed in-process and Git text diffs.
+    # reachable. The export shows the element diff computed in-process and text diff of the models.
     # Flexo publishing happens live only.
     PRESEED = os.environ.get("SYSML_DEMO_PRESEED") == "1"
     SEED_NAME = "Demo Engineer"
@@ -95,6 +96,12 @@ def _(head_sha, httpx, mo, os):
     FLEXO_PUBLISH = FLEXO_UP and not PRESEED
 
     GIT_SHA = head_sha(str(mo.notebook_dir()))
+    # Shown next to any tag display: the tag names HEAD, which may not hold the running source.
+    DIRTY_NOTE = (
+        "\n\n*Warning: source has uncommitted changes; the tag names the last commit.*"
+        if is_dirty(str(mo.notebook_dir()))
+        else ""
+    )
 
     def seed_label(action: str):
         """Visible label on every pre-seeded human step."""
@@ -106,7 +113,7 @@ def _(head_sha, httpx, mo, os):
         )
 
     # One flag, one set of names for the later two states, used by headings, diff titles and the
-    # speaker line alike. Live: Flexo commits C2 and C3. Otherwise (Git-only or export): snapshots.
+    # speaker line alike. Live: Flexo commits C2 and C3. Otherwise (local mode or export): snapshots.
     SHORT = {2: "C2", 3: "C3"} if FLEXO_PUBLISH else {2: "snapshot 2", 3: "snapshot 3"}
     LONG = (
         {2: "C2", 3: "C3 (Flexo commits)"}
@@ -118,13 +125,13 @@ def _(head_sha, httpx, mo, os):
         """Heading suffix. A commit is promised only when publishing is live."""
         if FLEXO_PUBLISH:
             return f" (Flexo commit C{n})"
-        return f" ({LONG[n]}; no Flexo commit)" if n in LONG else " (Git-only: no Flexo commit)"
+        return f" ({LONG[n]}; no Flexo commit)" if n in LONG else " (local mode: no Flexo commit)"
 
     if not FLEXO_UP:
         banner = mo.callout(
             mo.md(
-                "**Git-only mode.** The Flexo service is not reachable. B3 and B5 show the "
-                "Git text diff in place of the Flexo element diff."
+                "**Local mode (Flexo not reachable).** B3 and B5 show the "
+                "text diff of the model in place of the Flexo element diff."
             ),
             kind="warn",
         )
@@ -132,16 +139,16 @@ def _(head_sha, httpx, mo, os):
         banner = mo.callout(
             mo.md(
                 "**Export mode.** Human steps are pre-seeded and nothing is published to Flexo. "
-                "B3 and B5 show the Git text diff."
+                "B3 and B5 show the text diff of the model."
             ),
             kind="info",
         )
     else:
         banner = mo.callout(
-            mo.md(f"Flexo is reachable. Source Git SHA: `{GIT_SHA[:12]}`."), kind="success"
+            mo.md(f"Flexo is reachable. Source Git SHA: `{GIT_SHA[:12]}`.{DIRTY_NOTE}"), kind="success"
         )
     banner
-    return FLEXO_PUBLISH, GIT_SHA, LONG, PRESEED, SEED_NAME, SHORT, seed_label, sfx
+    return DIRTY_NOTE, FLEXO_PUBLISH, GIT_SHA, LONG, PRESEED, SEED_NAME, SHORT, seed_label, sfx
 
 
 @app.cell(hide_code=True)
@@ -526,7 +533,7 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(adequacy, diff_view, frozen, get_c1, mo, model_b2, tag_of, text_diff):
+def _(DIRTY_NOTE, adequacy, diff_view, frozen, get_c1, mo, model_b2, tag_of, text_diff):
     _c1 = get_c1()
     if _c1 is None:
         _out = mo.md("*Attestation pending: nothing written yet.*")
@@ -544,12 +551,12 @@ def _(adequacy, diff_view, frozen, get_c1, mo, model_b2, tag_of, text_diff):
             _parts.append(
                 mo.md(
                     "Published to Flexo as **C1**. Each Flexo commit is tagged with the Git SHA "
-                    f"of the source that produced it: tag `{tag_of(_c1['commit'])}`."
+                    f"of the source that produced it: tag `{tag_of(_c1['commit'])}`.{DIRTY_NOTE}"
                 )
             )
         else:
             _parts += [
-                mo.md("Git text diff of this change (B2 model to B3 model):"),
+                mo.md("Text diff of the model for this change (B2 model to B3 model):"),
                 diff_view(text_diff(model_b2, _c1["text"])),
             ]
         if _c1["note"]:
@@ -633,7 +640,7 @@ def _(diff_view, get_c1, mo, model_b4, text_diff):
     else:
         _out = mo.vstack(
             [
-                mo.md("Git text diff, B3 model to this model. The `not satisfy` line is gone:"),
+                mo.md("Text diff of the model, B3 model to this model. The `not satisfy` line is gone:"),
                 diff_view(text_diff(_c1["text"], model_b4)),
             ]
         )
@@ -654,11 +661,11 @@ def _(get_c1, model_b4, once, publish_snapshot, set_c2):
 
 
 @app.cell(hide_code=True)
-def _(get_c2, mo, tag_of):
+def _(DIRTY_NOTE, get_c2, mo, tag_of):
     _c2 = get_c2()
     _parts = []
     if _c2 and _c2["commit"]:
-        _parts.append(mo.md(f"Published to Flexo as **C2**, tagged `{tag_of(_c2['commit'])}`."))
+        _parts.append(mo.md(f"Published to Flexo as **C2**, tagged `{tag_of(_c2['commit'])}`.{DIRTY_NOTE}"))
     if _c2 and _c2["note"]:
         _parts.append(mo.callout(mo.md(_c2["note"]), kind="warn"))
     mo.vstack(_parts)
@@ -729,7 +736,7 @@ def _(
             _old = flexo.elements(project["id"], _c2["commit"])
             _new = flexo.elements(project["id"], _commit)
             _how = "from the two Flexo commits"
-        else:  # export, Git-only mode, or C2/C3 not both committed: diff the two snapshots in-process
+        else:  # export, local mode, or C2/C3 not both committed: diff the two snapshots in-process
             _old = to_elements(model_b4)
             _new = to_elements(_text)
             _how = "computed in-process from the two model snapshots; nothing published"
@@ -744,7 +751,7 @@ def _(
 
 
 @app.cell(hide_code=True)
-def _(LONG, SHORT, diff_view, get_c1, get_c2, get_c3, groups_view, mo, model_b4, tag_of, text_diff):
+def _(DIRTY_NOTE, LONG, SHORT, diff_view, get_c1, get_c2, get_c3, groups_view, mo, model_b4, tag_of, text_diff):
     _c3 = get_c3()
     if _c3 is None:
         _out = mo.md("*Status is pending (`tbc`): no attestation written yet.*")
@@ -773,12 +780,12 @@ def _(LONG, SHORT, diff_view, get_c1, get_c2, get_c3, groups_view, mo, model_b4,
             _parts.append(
                 mo.md(
                     "Each Flexo commit is tagged with the Git SHA of the source that produced it:\n\n"
-                    + "\n".join(_tags) + _same
+                    + "\n".join(_tags) + _same + DIRTY_NOTE
                 )
             )
         else:
             _parts += [
-                mo.md("Git text diff of this change (B4 model to B5 model):"),
+                mo.md("Text diff of the model for this change (B4 model to B5 model):"),
                 diff_view(text_diff(model_b4, _c3["text"])),
             ]
         _parts.append(groups_view(_c3["groups"], _c3["names"], LONG[2], LONG[3], SHORT[3], _c3["how"]))
