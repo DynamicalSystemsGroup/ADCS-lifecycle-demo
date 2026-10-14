@@ -35,6 +35,7 @@ def _():
     from sysml.git_source import head_sha, is_dirty, text_diff
     from sysml.model import (
         DEFAULT_ADEQUACY,
+        DEMO_ENGINEER,
         PACKAGE,
         assemble,
         attestation_block,
@@ -49,6 +50,7 @@ def _():
 
     return (
         DEFAULT_ADEQUACY,
+        DEMO_ENGINEER,
         FlexoV2,
         NoChangeError,
         PACKAGE,
@@ -86,7 +88,6 @@ def _(head_sha, httpx, is_dirty, mo, os):
     # reachable. The export shows the element diff computed in-process and text diff of the models.
     # Flexo publishing happens live only.
     PRESEED = os.environ.get("SYSML_DEMO_PRESEED") == "1"
-    SEED_NAME = "Demo Engineer"
 
     _url = os.environ.get("FLEXO_V2_URL", "http://localhost:8083").rstrip("/")
     try:
@@ -148,7 +149,7 @@ def _(head_sha, httpx, is_dirty, mo, os):
             mo.md(f"Flexo is reachable. Source Git SHA: `{GIT_SHA[:12]}`.{DIRTY_NOTE}"), kind="success"
         )
     banner
-    return DIRTY_NOTE, FLEXO_PUBLISH, GIT_SHA, LONG, PRESEED, SEED_NAME, SHORT, seed_label, sfx
+    return DIRTY_NOTE, FLEXO_PUBLISH, GIT_SHA, LONG, PRESEED, SHORT, seed_label, sfx
 
 
 @app.cell(hide_code=True)
@@ -408,15 +409,16 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
-def _(DEFAULT_ADEQUACY, mo):
+def _(DEFAULT_ADEQUACY, DEMO_ENGINEER, mo):
+    name_in = mo.ui.text(value=DEMO_ENGINEER, label="Engineer name", full_width=True)
     adequacy = mo.ui.text_area(
         value=DEFAULT_ADEQUACY,
         label="Model adequacy: the human's draft, carried with the evidence as a Rationale",
         full_width=True,
         rows=3,
     )
-    adequacy
-    return (adequacy,)
+    mo.vstack([name_in, adequacy])
+    return adequacy, name_in
 
 
 @app.cell(hide_code=True)
@@ -429,6 +431,7 @@ def _(
     hash_simulation,
     load_params,
     mo,
+    name_in,
     run_step_response,
     structure,
 ):
@@ -439,7 +442,15 @@ def _(
     sim1 = run_step_response(params1)
     summary1 = sim1.summary()
     hash1 = hash_simulation(sim1.config.to_dict(), summary1)
-    ev1 = evidence_block("initial", params1, summary1, hash1, frozen.get("adequacy", adequacy.value))
+    _by = frozen.get("adequacy_by", name_in.value)
+    mo.stop(
+        not _by.strip(),
+        mo.callout(mo.md("Enter the engineer name: the adequacy judgement must belong to a named human."), kind="danger"),
+    )
+    try:
+        ev1 = evidence_block("initial", params1, summary1, hash1, frozen.get("adequacy", adequacy.value), _by)
+    except ValueError as _e:
+        mo.stop(True, mo.callout(mo.md(str(_e)), kind="danger"))
     model_b2 = assemble(structure, ev1)
     res_b2 = evaluate(model_b2)
     verdict_b2 = res_b2["verdicts"]["vc001_initial"]
@@ -452,6 +463,7 @@ def _(
                 f"Evidence hash: `sha256:{hash1[:16]}...`"
             ),
             mo.md(f"```text\n{ev1}\n```"),
+            mo.md(f"Adequacy is {_by.strip()}'s adequacy judgement (StatusInfo + Rationale)."),
             mo.callout(
                 mo.md(
                     f"OpenSysML evaluates the evidence block: verdict **{verdict_b2}**. "
@@ -473,10 +485,7 @@ def _(mo, sfx):
 
 
 @app.cell(hide_code=True)
-def _(PRESEED, SEED_NAME, counter_button, mo, seed_label):
-    name_in = mo.ui.text(
-        value=SEED_NAME if PRESEED else "", label="Engineer name", full_width=True
-    )
+def _(counter_button, mo, seed_label):
     suff_b3 = mo.ui.text_area(
         value=(
             "One step-response simulation. Enough to say the requirement is not met; "
@@ -489,14 +498,13 @@ def _(PRESEED, SEED_NAME, counter_button, mo, seed_label):
     btn_b3 = counter_button("Attest: not satisfied")
     mo.vstack(
         [
-            mo.md("Adequacy is the text from B2 above. The attestation block is written only by this click."),
-            name_in,
+            mo.md("Adequacy is the text from B2 above. The attestation block is written only by this click, under the name from B2."),
             suff_b3,
             btn_b3,
             seed_label("Attest"),
         ]
     )
-    return btn_b3, name_in, suff_b3
+    return btn_b3, suff_b3
 
 
 @app.cell(hide_code=True)
@@ -522,6 +530,7 @@ def _(
         )
         _text = assemble(structure, ev1, _att)
         frozen.setdefault("adequacy", adequacy.value)  # evidence is fixed from the first Attest on
+        frozen.setdefault("adequacy_by", name_in.value)
         _commit, _note = publish_snapshot("C1: human attests not satisfied", _text)
         set_c1(
             {"who": name_in.value.strip(), "att": _att, "text": _text,
@@ -592,6 +601,7 @@ def _(
     hash_simulation,
     load_params,
     mo,
+    name_in,
     run_step_response,
     status_block,
     structure,
@@ -602,7 +612,13 @@ def _(
     sim2 = run_step_response(params2)
     summary2 = sim2.summary()
     hash2 = hash_simulation(sim2.config.to_dict(), summary2)
-    ev2 = evidence_block("tuned", params2, summary2, hash2, frozen.get("adequacy", adequacy.value))
+    try:
+        ev2 = evidence_block(
+            "tuned", params2, summary2, hash2, frozen.get("adequacy", adequacy.value),
+            frozen.get("adequacy_by", name_in.value),
+        )
+    except ValueError as _e:
+        mo.stop(True, mo.callout(mo.md(str(_e)), kind="danger"))
     # Pending marker: StatusInfo tbc about req001, no originator, no rationale. Python writes it,
     # so it sits in the generated block; no person has acted, so it names no person.
     pending = status_block("req001")
@@ -694,7 +710,7 @@ def _(counter_button, mo, name_in, seed_label):
     btn_b5 = counter_button("Attest: satisfied")
     mo.vstack(
         [
-            mo.md(f"Attesting as: {name_in.value.strip() or '(enter the engineer name in B3)'}"),
+            mo.md(f"Attesting as: {name_in.value.strip() or '(enter the engineer name in B2)'}"),
             suff_b5,
             btn_b5,
             seed_label("Attest"),
@@ -826,8 +842,8 @@ def _(counter_button, mo, seed_label, structure):
 
 @app.cell(hide_code=True)
 def _(
+    DEMO_ENGINEER,
     PRESEED,
-    SEED_NAME,
     assemble,
     btn_b6,
     ev2,
@@ -842,7 +858,7 @@ def _(
     structure,
 ):
     mo.stop(not should_fire("b6", btn_b6.value))
-    _who = (name_in.value.strip() or SEED_NAME) if PRESEED else name_in.value.strip()
+    _who = (name_in.value.strip() or DEMO_ENGINEER) if PRESEED else name_in.value.strip()
     try:
         _block = status_block("req004", originator=_who, rationale=margin_in.value)
         _c3 = get_c3()
@@ -850,7 +866,7 @@ def _(
         _text = assemble(structure, ev2, _prior + _block)
         set_b6({"who": _who, "block": _block, "res": evaluate(_text)})
     except ValueError:
-        set_b6({"error": "Enter the engineer name in B3: the margin must be recorded by a named human."})
+        set_b6({"error": "Enter the engineer name in B2: the margin must be recorded by a named human."})
     return
 
 
@@ -915,8 +931,8 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(
+    DEMO_ENGINEER,
     PRESEED,
-    SEED_NAME,
     assemble,
     attestation_block,
     btn_b7,
@@ -930,7 +946,7 @@ def _(
     mo.stop(not (btn_b7.value or PRESEED))
     # "Satisfied" on the design whose verdict is fail, under the human's own name from the form.
     # Illustrative only; it is never published.
-    _who = (name_in.value.strip() or SEED_NAME) if PRESEED else name_in.value.strip()
+    _who = (name_in.value.strip() or DEMO_ENGINEER) if PRESEED else name_in.value.strip()
     try:
         _claim = attestation_block(
             "initial", True, _who, "tbc", "Illustrative claim for the check only.", "vc001_initial"
@@ -938,7 +954,7 @@ def _(
         _res = evaluate(assemble(structure, ev1, _claim))
         set_b7({"claim": _claim, "holds": _res["claims"]["att_initial"]["holds"]})
     except ValueError:
-        set_b7({"error": "Enter the engineer name in B3: the claim is written under a named human."})
+        set_b7({"error": "Enter the engineer name in B2: the claim is written under a named human."})
     return
 
 
@@ -965,7 +981,7 @@ def _(PRESEED, btn_b7, get_b7, mo, seed_label):
                 ),
             ]
         )
-    _intro = mo.md("A `satisfy` of *satisfied* on the design whose verdict is fail, under your name from B3.")
+    _intro = mo.md("A `satisfy` of *satisfied* on the design whose verdict is fail, under your name from B2.")
     if PRESEED:  # static export: the result sits inside the accordion
         _out = mo.accordion({"Show the check": mo.vstack([_intro, btn_b7, _result])})
     else:  # live: the accordion would re-collapse on every update, so the result sits below it
