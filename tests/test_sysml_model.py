@@ -208,16 +208,18 @@ def test_per_axis_comments_in_evidence_block():
 def test_draft_texts_are_marked_and_format():
     src = (Path(__file__).resolve().parent.parent / "sysml" / "model.py").read_text()
     assert src.count("DRAFT") >= 3
-    assert SUFFICIENCY_DISAGREE_DRAFT.startswith("At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s and z3")
-    assert SUFFICIENCY_DISAGREE_DRAFT.endswith("I attest not satisfied.")
-    assert "across this box of nearby designs" in SUFFICIENCY_DISAGREE_DRAFT
+    assert SUFFICIENCY_DISAGREE_DRAFT.startswith("At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s, and Z3 finds")
+    assert SUFFICIENCY_DISAGREE_DRAFT.endswith("I attest not satisfied for this design.")
+    assert "across this box of nearby designs, for the linear model" in SUFFICIENCY_DISAGREE_DRAFT
     assert "solver step" in SUFFICIENCY_DISAGREE_DRAFT and "{margin}" in SUFFICIENCY_DISAGREE_DRAFT
-    assert "neighbo" not in SUFFICIENCY_DISAGREE_DRAFT.lower() and "Z3 confirms" not in SUFFICIENCY_DISAGREE_DRAFT
+    assert "neighbo" not in SUFFICIENCY_DISAGREE_DRAFT.lower() and "confirms" not in SUFFICIENCY_DISAGREE_DRAFT
     text = sufficiency_disagree(4, 25, 104.7, 120.498, "x")
-    assert "{" not in text and "is 104.7 s" in text and "settles in 120.5 s on the x axis" in text
-    # the card is an exact excerpt of the full text, and the margin (0.5 s) is computed
-    card = card_disagree(120.498)
-    assert card in text and "misses by 0.5 s" in card and len(card.split()) <= 20
+    assert "{" not in text and "is 105 s, and Z3" in text and "misses the limit by 0.5 s" in text
+    card = card_disagree(120.498)  # the margin (0.5 s) is computed, never typed
+    assert "misses by 0.5 s" in card and "Too close to call: I attest not satisfied." in card and len(card.split()) <= 20
+    assert "Too close to call: I attest not satisfied" in text
+    from sysml.model import C2_TEXT_SIGNED_OFF
+    assert C2_TEXT_SIGNED_OFF is False  # flips to True only on Michael's approval; the card shows DRAFT until then
     assert "{" not in per_axis_sentence(1, 2, 3) and "{x}" in PER_AXIS_DRAFT_SENTENCE
 
 

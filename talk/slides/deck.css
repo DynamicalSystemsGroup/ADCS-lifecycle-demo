@@ -103,7 +103,14 @@
 .slide details.audit[open] { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 12px;
   max-height: 520px; overflow: auto; bottom: 40px; width: 1000px; max-width: 1000px; box-shadow: 0 0 0 100vmax rgba(255,255,255,.0); }
 .slide details.audit pre { white-space: pre-wrap; font-size: 13px; line-height: 1.35; margin: 6px 0; color: #111111; }
-.slide .stepnav { zoom: 1.3; }
+.slide .stepnav { zoom: 1.9; }
 .slide .hint { font-size: 22px; color: #4b5563; }
 .slide .go { display: inline-block; zoom: 1.5; }
 .slide .zoomctl { zoom: 1.5; }
+.slide .tag.draft { margin-left: 14px; border-color: #d97706; color: #b45309; font-size: 15px; padding: 0 10px; vertical-align: middle; }
+.slide .strip { display: flex; flex-wrap: wrap; gap: 10px; }
+.slide .strip span { border: 1.5px solid #2166ac; background: #fff; color: #111; border-radius: 16px; padding: 2px 14px; font-size: 19px; }
+.slide .rows .r.new { font-size: 22px; border-left: 6px solid #d97706; padding-left: 12px; background: #fffbeb; color: #111; }
+.slide .rows .r.new code { font-size: 22px; }
+.slide .rows .r { flex-wrap: wrap; }
+.slide .rows code + code { color: #4b5563; }

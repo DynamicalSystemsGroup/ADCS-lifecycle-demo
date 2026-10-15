@@ -146,3 +146,11 @@ def test_talk_uses_group_diff_names_not_private_model_helpers() -> None:
 def test_talk_uses_only_the_model_constants_for_the_approved_text() -> None:
     for text in ("I attest not satisfied", "I attest REQ-001's", "adequate for judging"):
         assert text not in TALK, text  # approved wording comes from sysml/model.py constants, never retyped
+
+
+def test_verdict_pills_say_automated_and_the_draft_card_is_gated() -> None:
+    assert "REQ-001: PASS" not in TALK and "REQ-001: FAIL" not in TALK
+    assert "automated verdict:" in TALK
+    assert "draft=not K.C2_CONFIRMED" in TALK  # DRAFT tag until Michael approves
+    assert "lucide-hourglass" in TALK  # the marimo busy indicator is hidden
+    assert "ConnectError" not in TALK  # no raw exception names on screen

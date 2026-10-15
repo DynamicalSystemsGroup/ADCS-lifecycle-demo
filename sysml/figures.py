@@ -322,7 +322,7 @@ def history_timeline(data: dict, figsize: tuple[float, float] = (13.4, 5.7), rec
             ax.plot([x, x], [line_y, y], color=_MUTED, lw=1.2, zorder=2)
             ax.plot([x], [line_y], "o", ms=11, color=PALETTE["prescribed"], zorder=4)
             ax.text(x + (0.08 if pl["align"] == "left" else -0.08), y, wrapped(ev["label"]), ha=pl["align"],
-                    va="center", multialignment=pl["align"], color=PALETTE["prescribed"], linespacing=1.15, zorder=4)
+                    va="center", multialignment=pl["align"], color=PALETTE["prescribed"], linespacing=1.45, zorder=4)
         # the sparkline: a white card inside the last band, upper part, under the band title
         v = data["velocity"]
         series = v["series"]
@@ -502,7 +502,7 @@ def grid_svg(points, kps, kds, limit: float = 120.0, box_label: str = "z3 box", 
 
 
 def axis_bars_svg(values: dict, limit: float = 120.0, t_max: float = 140.0, width: int = 700,
-                  height: int = 200) -> str:
+                  height: int = 200, blank: bool = False) -> str:
     """Simulated settling time for a slew about each body axis (x, y, z) against the limit; the worst
     axis (the one that governs) is drawn solid, the others lighter. Blue throughout: verdict colours
     belong to verdict pills."""
@@ -510,10 +510,15 @@ def axis_bars_svg(values: dict, limit: float = 120.0, t_max: float = 140.0, widt
     pw = width - L - R
     worst = max(values, key=values.get)
     rows = list(values.items())
+    # blank=True draws the empty frame: the axis names and the limit, no bars and no numbers
     rh = (height - 40) / len(rows)
     out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="Settling time about each slew axis against the {limit:g} second limit">']
     for i, (ax, v) in enumerate(rows):
         y = 8 + rh * i
+        if blank:
+            out.append(f'<text x="{L - 12}" y="{y + rh * .55 + 6:.0f}" text-anchor="end" style="font-size:22px;font-weight:700">{ax}</text>'
+                       f'<path d="M{L},{y + rh * .55:.0f} H{L + pw}" stroke="#e5e7eb" stroke-width="2" stroke-dasharray="3 6"/>')
+            continue
         w = v / t_max * pw
         fill = PALETTE["machine"] if ax == worst else "#93b4d8"
         out.append(f'<text x="{L - 12}" y="{y + rh * .55 + 6:.0f}" text-anchor="end" style="font-size:22px;font-weight:700">{ax}</text>'

@@ -34,7 +34,7 @@ VERIFY_CMD = ["sysmlv2", "verify", LINEAR_MODEL, "--solve"]
 
 # The two design states, (Kp, Kd): (1,10) not satisfied, (8,30) satisfied.
 C1 = ("initial", 1.0, 10.0, False)
-C3 = ("final", 8.0, 30.0, True)
+C3 = ("revised", 8.0, 30.0, True)
 
 # The VCRM document definition, generated for the design it reports on. The table is the
 # REDK `Verdicts` query over the design: the checks that apply to it, with their verdicts.

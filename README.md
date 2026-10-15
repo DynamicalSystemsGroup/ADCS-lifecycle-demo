@@ -173,6 +173,7 @@ SYSML_DEMO_PRESEED=1 uv run marimo export html talk.py -o output/talk.html   # s
   - the Attest click, which writes the person's claim into the model, evaluates it and publishes the snapshot to Flexo (tagged `git-<sha>`). Fallback: a row labelled "local mode";
   - the regenerated requirement view on D3 (`sysml.views.requirement_view`, then PlantUML; needs Java). Fallback: `talk/assets/tool-req-c3.svg`, labelled "captured".
 - **Flexo.** Set `FLEXO_V2_URL` (default `http://localhost:8083`, see `sysml/FLEXO_LOCAL.md`). The notebook probes it once at load and uses one project per Git SHA, `sysml-talk-<sha7>`. A publish takes about 17 s on the local stack and shows "Publishing…" meanwhile. Without a reachable Flexo it runs in local mode and the commit row says so.
+- **DRAFT wording.** The D2 (4, 25) card and rationale are DRAFT: the card carries a visible DRAFT tag until `C2_TEXT_APPROVED` in `sysml/model.py` is set to `True`, which is done only when the speaker approves the wording.
 - **Engineer name.** The recorded attestations carry `SYSML_DEMO_ENGINEER` (default: the name in `sysml/model.py`).
 - **Static export.** `SYSML_DEMO_PRESEED=1` shows each demo slide in its final state, pre-signed, and never publishes to Flexo.
 - **Fault injection.** `FLEXO_V2_URL=http://127.0.0.1:1`, `OPENSYSML_SMT=/nonexistent` (no z3) and `SYSML_TOOLS_DIR=/nonexistent` (no `.tools/`) each degrade to a labelled fallback, not a crash.
