@@ -1,0 +1,3 @@
+verdict: no_counterexample
+RegionSettles (holds): holds=True | ✓ constraint LinearADCS::RegionSettles holds — proved by solve
+ValidAndSettles (satisfiable): holds=False | ✗ constraint LinearADCS::ValidAndSettles fails: condition evaluated to false — proved by solve

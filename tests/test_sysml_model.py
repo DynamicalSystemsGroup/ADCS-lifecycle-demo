@@ -12,10 +12,11 @@ from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
 from sysml.model import (ADEQUACY_TEXT, CARD_ADEQUACY, CARD_NOT_SATISFIED, CARD_SATISFIED, DEFAULT_ADEQUACY,
-                         DEMO_ENGINEER, NOT_A_HUMAN, PACKAGE, SUFFICIENCY_NOT_SATISFIED,
-                         SUFFICIENCY_SATISFIED_TEMPLATE, assemble, attestation_block, evaluate, evidence_block,
-                         group_diff, load_structure, status_block, sufficiency_satisfied, symbolic_settling,
-                         to_elements)
+                         CARD_DISAGREE_DRAFT, DEMO_ENGINEER, NOT_A_HUMAN, PACKAGE, PER_AXIS_DRAFT_SENTENCE, SCOPE,
+                         SUFFICIENCY_DISAGREE_DRAFT, SUFFICIENCY_NOT_SATISFIED, SUFFICIENCY_SATISFIED_TEMPLATE,
+                         adequacy_block, assemble, attestation_block, evaluate, evidence_block, group_diff,
+                         load_structure, per_axis_sentence, status_block, sufficiency_disagree,
+                         sufficiency_satisfied, symbolic_settling, to_elements)
 
 pytestmark = pytest.mark.filterwarnings("ignore")
 ROOT_TTL = "structural/satellite.ttl"
@@ -31,7 +32,7 @@ def _evidence(design: str, kp: float, kd: float) -> str:
     summary = sim.summary()
     t, est_hash = symbolic_settling(params)
     return evidence_block(design, params, summary, hash_simulation(sim.config.to_dict(), summary),
-                          DEFAULT_ADEQUACY, DEMO_ENGINEER, t, est_hash)
+                          t, est_hash)
 
 
 @pytest.fixture(scope="module")
@@ -123,7 +124,7 @@ def test_bad_identifiers_refused(bad):
     params = dict(load_params(), Kp=1.0, Kd=10.0)
     sim = run_step_response(params)
     with pytest.raises(ValueError):
-        evidence_block(bad, params, sim.summary(), "0" * 64, "x", "A. Engineer", 1.0, "0" * 64)
+        evidence_block(bad, params, sim.summary(), "0" * 64, 1.0, "0" * 64)
     with pytest.raises(ValueError):
         attestation_block(bad, False, "A. Engineer", "tbc", "x", "vc001_v1")
     with pytest.raises(ValueError):
@@ -141,35 +142,79 @@ def test_v2_peak_torque_is_clipped_at_limit():
     assert summary["peak_control_torque"] == params["maxTorque"]
 
 
-def test_adequacy_text_is_caller_supplied():
-    params = dict(load_params(), Kp=1.0, Kd=10.0)
-    summary = run_step_response(params).summary()
-    block = evidence_block("v1", params, summary, "0" * 64, "My own judgement.", "A. Engineer", 1.0, "0" * 64)
-    assert "My own judgement." in block
-    assert "adequate" not in block.replace("adequacy judgement", "")
+def _rationales_about(els: dict, qname: str) -> list:
+    """Rationale metadata usages whose annotated element has this qualified name."""
+    out = []
+    for e in els.values():
+        if e["@type"] == "MetadataUsage" and any(
+                els.get(t["@id"], {}).get("qualifiedName") == "ModelingMetadata::Rationale" for t in e.get("type", [])):
+            if any(els.get(a["@id"], {}).get("qualifiedName") == qname for a in e["annotatedElement"]):
+                out.append(e)
+    return out
 
 
-def test_adequacy_statusinfo_carries_originator(structure):
-    params = dict(load_params(), Kp=1.0, Kd=10.0)
-    summary = run_step_response(params).summary()
-    block = evidence_block("v1", params, summary, "0" * 64, "x", DEMO_ENGINEER, 1.0, "0" * 64)
+def test_adequacy_is_about_the_scope_element_and_carries_originator(structure):
+    block = adequacy_block(DEMO_ENGINEER)
     assert DEMO_ENGINEER == "Michael Zargham"
-    assert ("metadata : ModelingMetadata::StatusInfo about v1 {\n"
+    assert f"ModelingMetadata::Rationale about {SCOPE} {{" in block
+    assert (f"metadata : ModelingMetadata::StatusInfo about {SCOPE} {{\n"
             f'        originator = "{DEMO_ENGINEER}";\n'
             "        status = StatusKind::done;") in block
-    assert "metadata def" not in block
-    assert f"{DEMO_ENGINEER}'s adequacy judgement" in block  # banner names the owner
-    # structure plus evidence loads with no diagnostics (StatusInfo about a part, standard library only)
-    out = evaluate(assemble(structure, block))
-    assert out["diagnostics"] == []
+    assert ADEQUACY_TEXT in block and "metadata def" not in block
+    text = assemble(structure, _evidence("v1", 1.0, 10.0), adequacy=block)
+    assert evaluate(text)["diagnostics"] == []
+    els = {e["@id"]: e for e in to_elements(text)}
+    assert els[f"{PACKAGE}__{SCOPE}"]["@type"] == "AnalysisCaseDefinition"
+    assert len(_rationales_about(els, f"{PACKAGE}::{SCOPE}")) == 1
+
+
+def test_no_design_part_carries_an_adequacy_rationale(structure):
+    text = assemble(structure, _evidence("v1", 1.0, 10.0) + _evidence("v2", 4.0, 30.0),
+                    adequacy=adequacy_block(DEMO_ENGINEER))
+    els = {e["@id"]: e for e in to_elements(text)}
+    for d in ("v1", "v2"):
+        assert not _rationales_about(els, f"{PACKAGE}::{d}")
+    assert "adequate" not in _evidence("v1", 1.0, 10.0)
+
+
+def test_scope_doc_lists_the_assumptions(structure):
+    for phrase in ("rigid body with constant inertia", "small-angle linearisation", "no actuator limit",
+                   "quaternion kinematics", "0.1 N m torque limit", "10 degree slew", "1% settling band",
+                   "no sensor noise", "no flexible modes"):
+        assert phrase.lower() in _norm(structure).lower()
+
+
+def test_adequacy_text_is_caller_supplied():
+    assert "My own judgement." in adequacy_block("A. Engineer", "My own judgement.")
 
 
 @pytest.mark.parametrize("who", sorted(NOT_A_HUMAN) + ["", "  ", "Claude"])
 def test_adequacy_by_non_human_refused(who):
-    params = dict(load_params(), Kp=1.0, Kd=10.0)
-    summary = run_step_response(params).summary()
     with pytest.raises(ValueError):
-        evidence_block("v1", params, summary, "0" * 64, "x", who, 1.0, "0" * 64)
+        adequacy_block(who)
+
+
+def test_per_axis_comments_in_evidence_block():
+    params = dict(load_params(), Kp=4.0, Kd=25.0)
+    summary = {"settling_time_s": 120.5}
+    pa = {"x": 120.5, "y": 96.5, "z": 116.5, "worst": 120.5, "worst_axis": "x", "saturated_s": 8.3,
+          "peak_torque": 0.1}
+    block = evidence_block("v1", params, summary, "0" * 64, 104.7, "0" * 64, per_axis=pa)
+    assert "x=120.5, y=96.5, z=116.5; worst axis x governs settlingTime" in block
+    assert "torque limit active until 8.3 s" in block
+    assert "attribute :>> settlingTime = 120.5 [s];" in block
+
+
+def test_draft_texts_are_marked_and_format():
+    src = (Path(__file__).resolve().parent.parent / "sysml" / "model.py").read_text()
+    assert src.count("DRAFT") >= 3
+    assert SUFFICIENCY_DISAGREE_DRAFT.startswith("At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s and Z3")
+    assert SUFFICIENCY_DISAGREE_DRAFT.endswith("I attest not satisfied.")
+    assert CARD_DISAGREE_DRAFT in SUFFICIENCY_DISAGREE_DRAFT.replace("governs here. This evidence is not "
+        "sufficient for satisfied: ", "governs here. ")
+    text = sufficiency_disagree(4, 25, 104.7, 120.498, "x")
+    assert "{" not in text and "is 104.7 s" in text and "settles in 120.5 s on the x axis" in text
+    assert "{" not in per_axis_sentence(1, 2, 3) and "{x}" in PER_AXIS_DRAFT_SENTENCE
 
 
 # ----- second evidence source: the linear (SymPy) settling estimate -----
@@ -441,3 +486,10 @@ def test_group_diff_marker_with_done_status_does_not_qualify():
 def test_group_diff_identical_snapshots_are_empty():
     g = group_diff(_c3_snap(), _c3_snap())
     assert not g["att"] and not g["pending"] and not g["pkg"] and not g["lib"] and not g["other"]
+
+
+def test_legacy_evidence_block_call_ignores_adequacy():
+    params = dict(load_params(), Kp=1.0, Kd=10.0)
+    legacy = evidence_block("v1", params, {"settling_time_s": 5.0}, "0" * 64, "adequate!", "A. Engineer", 1.0, "1" * 64)
+    assert legacy == evidence_block("v1", params, {"settling_time_s": 5.0}, "0" * 64, 1.0, "1" * 64)
+    assert "adequate!" not in legacy
