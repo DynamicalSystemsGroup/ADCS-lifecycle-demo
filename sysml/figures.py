@@ -275,8 +275,7 @@ def history_timeline(data: dict, figsize: tuple[float, float] = (13.4, 5.7), rec
     def wrapped(label: str) -> str:
         if len(label) <= 28 or " · " not in label:
             return label
-        parts = label.split(" · ")
-        return " ·\n".join(textwrap.fill(t, 18) for t in parts)
+        return "\n".join(label.split(" · "))
 
     with screen_style():
         fig = Figure(figsize=figsize)

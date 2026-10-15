@@ -407,8 +407,8 @@ def _s1(asset, head, mo):
 def _s2(head):
     head(
         "## A tool says pass. A person says satisfied. <!-- SLIDE:S2 -->\n\n"
-        "- Evidence supports a human judgement.\n"
-        "- Written before OpenSysML existed; now it runs on it.\n\n"
+        "- Evidence supports a human judgment.\n"
+        "- The pattern predates OpenSysML; today it runs on OpenSysML.\n\n"
         "### The pattern\n\n"
         "- A machine-checkable requirement\n"
         "- A verdict: pass, fail or inconclusive\n"
