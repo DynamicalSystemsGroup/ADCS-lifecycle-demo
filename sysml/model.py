@@ -61,13 +61,16 @@ SUFFICIENCY_SATISFIED_TEMPLATE = (
     "settling-time clause satisfied for this design."
 )
 
-# DRAFT (DL-36), pending Michael's approval; not approved text. New judgement text for a design
-# where the linear estimate and Z3 pass but the simulation does not (the (4,25) step).
+# DRAFT (DL-36, DL-43), pending Michael's approval; not approved text. New judgement text for a
+# design where the linear estimate and z3 pass but the simulation does not (the (4,25) step).
+# `{margin}` is computed (simulated settling minus the limit), never typed. The card text is the
+# second and third sentences, verbatim, so the card is an exact excerpt of the full text.
 SUFFICIENCY_DISAGREE_DRAFT = (
-    "At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s and Z3 confirms that bound across the "
-    "neighbouring region, but the simulation, which enforces the actuator torque limit, settles in "
-    "{t_sim} s on the {axis} axis. The models disagree, and the one that carries the torque limit "
-    "governs here. This evidence is not sufficient for satisfied: I attest not satisfied."
+    "At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s and z3 finds no counterexample across this "
+    "box of nearby designs. The simulation, which enforces the actuator torque limit, settles in "
+    "{t_sim} s on the {axis} axis. "
+    "The torque-limited simulation misses by {margin} s; the result flips with solver step. "
+    "Too close to call is not satisfied. I attest not satisfied."
 )
 # DRAFT (DL-36): optional per-axis sentence, authored by the WP19 author; not approved text.
 PER_AXIS_DRAFT_SENTENCE = (
@@ -81,9 +84,9 @@ CARD_NOT_SATISFIED = ("This evidence is sufficient for me to say this design doe
                       "I attest not satisfied.")
 CARD_SATISFIED = ("This evidence is sufficient: I attest REQ-001's settling-time clause satisfied "
                   "for this design.")
-# DRAFT (DL-36): card excerpt of SUFFICIENCY_DISAGREE_DRAFT.
-CARD_DISAGREE_DRAFT = ("The models disagree, and the one that carries the torque limit governs here. "
-                       "I attest not satisfied.")
+# DRAFT (DL-36, DL-43): card excerpt of SUFFICIENCY_DISAGREE_DRAFT; `{margin}` is computed.
+CARD_DISAGREE_DRAFT = ("The torque-limited simulation misses by {margin} s; the result flips with solver step. "
+                       "Too close to call is not satisfied.")
 
 
 def sufficiency_satisfied(Kp, Kd, t_sim, t_sym, limit) -> str:
@@ -92,9 +95,20 @@ def sufficiency_satisfied(Kp, Kd, t_sim, t_sym, limit) -> str:
                                                  t_sym=f"{t_sym:.0f}", limit=limit)
 
 
-def sufficiency_disagree(Kp, Kd, t_sym, t_sim, axis) -> str:
-    """DRAFT text (DL-36) with live numbers. Times keep one decimal: a 120.5 s result must not read as 120."""
-    return SUFFICIENCY_DISAGREE_DRAFT.format(Kp=Kp, Kd=Kd, t_sym=f"{t_sym:.1f}", t_sim=f"{t_sim:.1f}", axis=axis)
+def disagree_margin(t_sim, limit=120) -> str:
+    """How far the simulated settling time is over the limit, one decimal, computed."""
+    return f"{t_sim - float(limit):.1f}"
+
+
+def sufficiency_disagree(Kp, Kd, t_sym, t_sim, axis, limit=120) -> str:
+    """DRAFT text (DL-36/43) with live numbers. Times keep one decimal: a 120.5 s result must not read as 120."""
+    return SUFFICIENCY_DISAGREE_DRAFT.format(Kp=Kp, Kd=Kd, t_sym=f"{t_sym:.1f}", t_sim=f"{t_sim:.1f}", axis=axis,
+                                             margin=disagree_margin(t_sim, limit))
+
+
+def card_disagree(t_sim, limit=120) -> str:
+    """DRAFT amber-card text with the computed margin: an exact excerpt of `sufficiency_disagree`."""
+    return CARD_DISAGREE_DRAFT.format(margin=disagree_margin(t_sim, limit))
 
 
 def per_axis_sentence(x, y, z) -> str:

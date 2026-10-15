@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FACT_ID = re.compile(r"\bF-\d{2,3}\b")
 BEAT_ID = re.compile(r"\bB\d+\b")
 BEAT_MARKER = re.compile(r"BEAT:(B\d+)")
-SLIDE_MARKER = re.compile(r"SLIDE:(S\d+)")
+SLIDE_MARKER = re.compile(r"SLIDE:([A-Z]\d+)")
 
 app = typer.Typer(add_completion=False, help=__doc__.splitlines()[0])
 
@@ -144,12 +144,15 @@ def check_beats(modules: list[Module], notebook: Path) -> Result:
 
 
 def check_slides(modules: list[Module], notebook: Path) -> Result:
-    """Each module is one slide (SLIDE:Sx) unless it is the demo, whose slides are its beats."""
+    """Each module is one slide (SLIDE:<id>) unless it is a demo module, whose slides are its beats;
+    each slide in the notebook has its module."""
     if not notebook.exists():
         return Result("slides", "open", [f"notebook not found: {notebook.name}"])
     present = set(SLIDE_MARKER.findall(notebook.read_text()))
     missing = [f"{m.id}: no SLIDE:{m.id} marker in {notebook.name}"
                for m in modules if not m.cited_beats() and m.id not in present]
+    have = {m.id for m in modules}
+    missing += [f"{sid}: SLIDE:{sid} in {notebook.name} has no module" for sid in sorted(present - have)]
     return Result("slides", "failed" if missing else "passed", missing)
 
 
@@ -206,7 +209,7 @@ def run_checks(private: Path, notebook: Path, budget: float, root: Path = ROOT) 
     if not mod_dir.is_dir() or not facts_path.exists():
         why = f"private talk directory not found under {private}"
         return [Result(c, "open", [why]) for c in ("facts", "beats", "slides", "handoff", "minutes", "public")]
-    modules = sorted((parse_module(p) for p in mod_dir.glob("S*.md")), key=lambda m: int(m.id[1:]))
+    modules = [parse_module(p) for p in sorted(mod_dir.glob("*.md"))]  # file names carry the slide order (01-T0.md)
     facts = parse_facts(facts_path)
     return [
         check_facts(modules, facts),

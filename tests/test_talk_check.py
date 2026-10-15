@@ -101,29 +101,48 @@ def test_missing_slide_marker_flags_only_that_module(talk: Path, tmp_path: Path)
     assert res.status == "failed" and res.details == ["S2: no SLIDE:S2 marker in nb.py"]
 
 
-# ---- guards on talk.py itself (source level: the notebook needs a live stack to run) ----------
+# ---- guards on talk.py itself (source level: the notebook needs a live stack to run) ----
+
+import re  # noqa: E402
 
 TALK = (Path(__file__).resolve().parent.parent / "talk.py").read_text()
+ORDER = "T0 H0 P1 H1 H2 M1 E1 M2 D1 D2 D3 F2 X1 C1 R1 R2 R3".split()  # STORYBOARD.md order, then the reserve
 
 
-def test_talk_has_one_diagram_sizing_mechanism_and_no_script_hack() -> None:
-    for banned in ("setInterval", "onerror", "clientWidth", 'replace("flowchart LR"', "zoom="):
-        assert banned not in TALK, banned
-    assert TALK.count("def mer(") == 1
+def test_slides_are_in_storyboard_order_one_cell_each() -> None:
+    assert re.findall(r"^@app\.cell", TALK, re.M).__len__() == len(ORDER)
+    seen = []
+    for sid in re.findall(r"SLIDE:([A-Z]\d+)", TALK):
+        if sid not in seen:
+            seen.append(sid)
+    assert seen == ORDER
 
 
 def test_talk_probes_flexo_once_with_a_long_timeout_and_one_project_per_sha() -> None:
     assert TALK.count("httpx.get(") == 1 and "timeout=20" in TALK
-    assert 'f"sysml-talk-{GIT_SHA[:7]}"' in TALK and "uuid" not in TALK
+    assert "sysml-talk-{GIT_SHA[:7]}-" in TALK and "uuid" not in TALK
 
 
-def test_talk_callouts_are_neutral_only_and_tags_are_not_looked_up_while_rendering() -> None:
-    import re
-    kinds = set(re.findall(r'kind="(\w+)"', TALK))
-    assert kinds == {"neutral"}, kinds  # amber is the human, red is the FAIL pill; callouts are neither
-    assert "git_sha(" not in TALK and "tag_of" not in TALK
+def test_talk_has_no_notebook_chrome_banners_and_no_script_hacks() -> None:
+    for banned in ("mo.callout", "pre-seeded", "Export mode", "Local mode:", "uncommitted", "setInterval", "onerror",
+                   "clientWidth", "<script"):
+        assert banned not in TALK, banned
+    assert "git_sha(" not in TALK and "tag_of" not in TALK  # tags are stored at publish time, never looked up
+
+
+def test_talk_wording_discipline() -> None:
+    """The contract's grep gate, plus the glossary's banned words, over talk.py and the fragments."""
+    gate = re.compile(r"proof|proved|verified satisfied|the truth|neighbo|human-validated", re.I)
+    for path in [Path(__file__).resolve().parent.parent / "talk.py",
+                 *(Path(__file__).resolve().parent.parent / "talk" / "slides").glob("*.html")]:
+        assert not gate.search(path.read_text()), path.name
 
 
 def test_talk_uses_group_diff_names_not_private_model_helpers() -> None:
     for banned in ("_in_model", "_lib_reach", "_top", "in_model", "lib_reach", "top_of", "group_names"):
         assert banned not in TALK, banned
+
+
+def test_talk_uses_only_the_model_constants_for_the_approved_text() -> None:
+    for text in ("I attest not satisfied", "I attest REQ-001's", "adequate for judging"):
+        assert text not in TALK, text  # approved wording comes from sysml/model.py constants, never retyped

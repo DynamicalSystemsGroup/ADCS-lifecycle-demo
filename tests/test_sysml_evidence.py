@@ -72,3 +72,44 @@ def test_precompute_bundle_and_cache(tmp_path, monkeypatch):
     assert len(b["grid"]) == 9 and b["region"]["verdict"] == "no_counterexample"
     assert b["inmodel"]["0.5"] == pytest.approx(119.5, abs=0.05)
     assert b["inmodel"]["0.05"] == pytest.approx(120.5, abs=0.05)
+
+
+# ---- the numbers the deck shows are computed; these pin them (talk.py reads the same bundle) ----
+
+@pytest.fixture(scope="module")
+def deck_bundle():
+    return ev.precompute()
+
+
+def test_deck_numbers_are_pinned(deck_bundle):
+    b = deck_bundle
+    assert ev.grid_counts(b) == (6, 9)  # "6 of 9 fail" in the simulated gain box
+    d = b["designs"]
+    assert d["initial"]["symbolic_s"] == pytest.approx(261.7, abs=0.05)  # 262 s
+    assert d["initial"]["settling"]["worst"] == pytest.approx(310.6, abs=0.1)  # 311 s
+    assert d["neighbour"]["symbolic_s"] == pytest.approx(104.7, abs=0.05)
+    assert d["neighbour"]["settling"]["worst"] == pytest.approx(120.5, abs=0.05)
+    assert d["neighbour"]["settling"]["worst_axis"] == "x"
+    assert d["tuned"]["symbolic_s"] == pytest.approx(87.2, abs=0.05)  # SymPy 87.2 s
+    s = d["tuned"]["settling"]
+    assert (round(s["x"], 1), round(s["y"], 1), round(s["z"], 1)) == (87.4, 53.8, 85.0)
+    assert s["worst"] == s["x"]  # the worst axis governs
+    assert b["nolimit"]["settling_s"] == pytest.approx(118.6, abs=0.05)  # torque limit off
+    assert b["inmodel"]["0.5"] == pytest.approx(119.5, abs=0.05) and b["inmodel"]["0.05"] == pytest.approx(120.5, abs=0.05)
+
+
+def test_4_30_fails_on_the_y_axis():
+    assert ev.slew_settling(4, 30)["y"] == pytest.approx(123.9, abs=0.05)
+
+
+def test_tool_verify_is_live_or_labelled_captured(monkeypatch):
+    cap = ev.VERIFY_CAPTURE.read_text()
+    monkeypatch.setenv("OPENSYSML_SMT", "/nonexistent")  # no z3: the capture, labelled
+    assert ev.tool_verify() == {"engine": "captured", "text": cap}
+    monkeypatch.delenv("OPENSYSML_SMT")
+    monkeypatch.setenv("SYSML_TOOLS_DIR", "/nonexistent")  # no tools directory: the capture
+    assert ev.tool_verify()["engine"] == "captured"
+    monkeypatch.delenv("SYSML_TOOLS_DIR")
+    live = ev.tool_verify()
+    if live["engine"] == "live":  # same command, same output as the capture used on the opening slide
+        assert live["text"] == cap
