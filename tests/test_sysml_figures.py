@@ -125,7 +125,7 @@ def test_neighbour_strip():
     rows = [("Kp=4, Kd=30", 80.0, 60.0, True), ("Kp=4, Kd=25", 90.0, 130.0, False)]
     fig = F.neighbour_strip(rows, LIMIT_S)
     assert isinstance(fig, Figure)
-    labels = " | ".join(t.get_text() for t in _texts(fig))
+    labels = " | ".join(t.get_text().replace("\n", " ") for t in _texts(fig))
     assert "within 120 s" in labels and "over 120 s" in labels
     _assert_screen_legible(fig)
 

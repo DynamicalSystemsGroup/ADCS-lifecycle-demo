@@ -18,6 +18,7 @@ import matplotlib as mpl
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
+from matplotlib.ticker import MultipleLocator
 
 PALETTE = {
     "human": "#d97706",         # amber: a person said it
@@ -171,9 +172,10 @@ def neighbour_strip(rows, t_limit: float, figsize: tuple[float, float] | None = 
         ax.axvspan(t_limit, xmax, color=PALETTE["prescribed"], alpha=0.07, lw=0, zorder=0)  # over the limit: reads without the text
         ax.axvline(t_limit, color=PALETTE["prescribed"], ls="--", lw=2)
         ax.set_xlim(0, xmax)
-        ax.set_ylim(-0.6, n - 0.2)
-        ax.text(t_limit - xmax * 0.03, n - 0.5, f"within {t_limit:g} s", ha="right", va="center", color=_MUTED)
-        ax.text(t_limit + xmax * 0.03, n - 0.5, f"over {t_limit:g} s", ha="left", va="center", color=_MUTED)
+        ax.set_ylim(-0.6, n + 0.6)
+        ax.xaxis.set_major_locator(MultipleLocator(50))  # few ticks: they stay legible in a thumbnail
+        ax.text(t_limit - xmax * 0.03, n + 0.05, f"within\n{t_limit:g} s", ha="right", va="center", color=_MUTED)
+        ax.text(t_limit + xmax * 0.03, n + 0.05, f"over\n{t_limit:g} s", ha="left", va="center", color=_MUTED)
         ax.grid(axis="y", visible=False)
         ax.set_xlabel("settling time [s]")
         ax.plot([], [], "D", ms=11, mfc="white", mec=PALETTE["machine"], mew=2.5, label="SymPy estimate")

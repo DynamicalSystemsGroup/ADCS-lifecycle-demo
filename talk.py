@@ -164,6 +164,10 @@ def _s0():
             parts.append(rec["note"])
         return mo.md(f'<small style="color:#6b7280">{" · ".join(parts)}</small>') if parts else mo.md("")
 
+    def tag_text(rec: dict):
+        """The tag as shown in an Audit trail: the tag, or a plain sentence when the commit has none."""
+        return f"tag `{rec['tag']}`" if rec.get("tag") else "not tagged; see the note"
+
     def publishing_line(label: str):
         """Shown the moment Attest is clicked, before the slow publish returns."""
         return mo.md(f'<small style="color:#6b7280">Publishing {label} to Flexo…</small>')
@@ -335,6 +339,7 @@ def _s0():
         publish_line,
         publish_snapshot,
         publishing_line,
+        tag_text,
         re,
         run_step_response,
         sandwich_mermaid,
@@ -431,7 +436,7 @@ def _b2(
     lanes_b2 = lanes_mermaid(to_elements(model_b2), compact=True)
     mo.vstack([
         head(
-            "## Two models, two answers <!-- BEAT:B2 -->\n\n"
+            "## Two models, two numbers <!-- BEAT:B2 -->\n\n"
             f"Linear estimate {_r['t_sym']:.0f} s, simulation {_r['t_sim']:.0f} s, limit {D['limit']:.0f} s."
         ),
         mo.hstack([mo.Html(fg.pill(verdict_b2.upper(), verdict_b2))], justify="start"),
@@ -483,6 +488,7 @@ def _b3(
     publish_line,
     publish_snapshot,
     publishing_line,
+    tag_text,
     seed_label,
     should_fire,
     store,
@@ -526,9 +532,9 @@ def _b3(
                 "## A person says not satisfied <!-- BEAT:B3 -->\n\n"
                 f"The tool said {verdict_b2}. I say not satisfied, and here is why."
             ),
-            mo.hstack([mer(c1["lanes"], 740), _thumb], widths=[3, 2], align="center"),
-            mo.Html(fg.human_card(c1["who"], "NOT SATISFIED", CARD_NOT_SATISFIED)),
-            publish_line("C1", c1),
+            mo.hstack([mer(c1["lanes"], 680), _thumb], widths=[3, 2], align="center"),
+            mo.hstack([mo.Html(fg.human_card(c1["who"], "NOT SATISFIED", CARD_NOT_SATISFIED)),
+                       publish_line("C1", c1)], widths=[4, 1], align="center"),
         ]
         _trail += [
             mo.md(f"**Attestation block** written by {c1['who']}:"),
@@ -538,7 +544,7 @@ def _b3(
         if c1["commit"]:
             _trail.append(mo.md(
                 "Published to Flexo as **C1**. Each Flexo commit is tagged with the Git SHA of the "
-                f"source that produced it: tag `{c1['tag']}`."))
+                f"source that produced it: {tag_text(c1)}." + (f" Note: {c1['note']}" if c1.get("note") else "")))
         else:
             _trail += [mo.md("Text diff of the model, B2 model to B3 model:"),
                        diff_view(text_diff(model_b2, c1["text"]))]
@@ -568,6 +574,7 @@ def _b4(
     publish_line,
     publish_snapshot,
     status_block,
+    tag_text,
     store,
     structure,
     text_diff,
@@ -606,7 +613,7 @@ def _b4(
         _trail += [mo.md("Text diff of the model, B3 model to this model. The `not satisfy` line is gone:"),
                    diff_view(text_diff(c1["text"], model_b4))]
     if c2 and c2["commit"]:
-        _trail.append(mo.md(f"Published to Flexo as **C2**, tagged `{c2['tag']}`."))
+        _trail.append(mo.md(f"Published to Flexo as **C2**: {tag_text(c2)}." + (f" Note: {c2['note']}" if c2.get("note") else "")))
     mo.vstack([
         head(
             "## Retune: old attestation removed <!-- BEAT:B4 -->\n\n"
@@ -652,6 +659,7 @@ def _b5(
     publish_line,
     publish_snapshot,
     publishing_line,
+    tag_text,
     seed_label,
     should_fire,
     store,
@@ -692,7 +700,8 @@ def _b5(
                     _old, _new = _flexo_old, _flexo_new
                     _labels, _how = ("C2", "C3 (Flexo commits)", "C3"), "from the two Flexo commits"
                 except httpx.HTTPError as _e:
-                    _note = f"Flexo diff unavailable ({type(_e).__name__}); the diff is computed in-process."
+                    _diff_note = f"Flexo diff unavailable ({type(_e).__name__}); the diff is computed in-process."
+                    _note = f"{_note} {_diff_note}" if _note else _diff_note
                     _how = "computed in-process from the two model snapshots; Flexo did not answer"
             store["c3"] = {"who": _who, "att": _att, "text": _text, "commit": _commit, "tag": _tag, "note": _note,
                            "groups": group_diff(_old, _new), "labels": _labels, "how": _how,
@@ -712,9 +721,9 @@ def _b5(
         _parts = [
             head(_head),
             # the lanes at C3 are primary (60%); the strip the judgement rests on is the 40% thumbnail
-            mo.hstack([mer(c3["lanes"], 700), mo.image(D["png"]["b5t"], width=470)], widths=[3, 2], align="center"),
-            mo.Html(fg.human_card(c3["who"], "SATISFIED", CARD_SATISFIED)),
-            publish_line("C3", c3),
+            mo.hstack([mer(c3["lanes"], 640), mo.image(D["png"]["b5t"], width=520)], widths=[11, 9], align="center"),
+            mo.hstack([mo.Html(fg.human_card(c3["who"], "SATISFIED", CARD_SATISFIED)),
+                       publish_line("C3", c3)], widths=[4, 1], align="center"),
         ]
         _trail += [
             mo.md("The neighborhood the judgement rests on:"),
@@ -724,10 +733,11 @@ def _b5(
             mo.md(f"**Sufficiency, in full:** {_suff}"),
         ]
         if c3["commit"]:
-            _tags = [f"- {_n}: tag `{_s['tag']}`"
-                     for _n, _s in (("C1", c1), ("C2", c2), ("C3", c3)) if _s and _s.get("commit") and _s.get("tag")]
+            _recs = [(_n, _s) for _n, _s in (("C1", c1), ("C2", c2), ("C3", c3)) if _s and _s.get("commit")]
+            _tags = [f"- {_n}: {tag_text(_s)}" for _n, _s in _recs]
+            _shas = {_s["tag"] for _n, _s in _recs if _s.get("tag")}
             _same = ("\n\nThe tags are the same Git SHA because the source did not change during the demo."
-                     if len(_tags) > 1 and len({t.split("`")[1] for t in _tags}) == 1 else "")
+                     if len(_shas) == 1 and sum(1 for _n, _s in _recs if _s.get("tag")) > 1 else "")
             _trail.append(mo.md("Each Flexo commit is tagged with the Git SHA of the source that produced it:\n\n"
                                 + "\n".join(_tags) + _same))
         else:
@@ -793,10 +803,11 @@ def _s5(c3, head, lanes_mermaid, mer, mo, model_b4, to_elements):
     mo.vstack([
         head(
             "## First built in RDF <!-- SLIDE:S5 -->\n\n"
-            "- PROV, EARL, GSN: the same pattern\n"
+            "- PROV (provenance), EARL (test outcomes), GSN (assurance arguments): the same pattern\n"
             "- Opinion: SysML v2 is the better home now"
         ),
         mer(_lanes, 760),
+        mo.md('<small style="color:#6b7280">≈ means corresponds to</small>'),
     ])
     return
 
@@ -879,7 +890,7 @@ def _s8(
             "b4": png(fg.overlay_figure(_a["sim"], _b["sim"], (_name(FIRST), _name(TUNED)), _limit, _band,
                                         figsize=(9, 4.2)), dpi=87),
             "b5": png(fg.neighbour_strip(_rows, _limit, figsize=(9, 3.9)), dpi=87),
-            "b5t": png(fg.neighbour_strip(_rows, _limit, figsize=(6.4, 4.2)), dpi=73),
+            "b5t": png(fg.neighbour_strip(_rows, _limit, figsize=(5.4, 3.4)), dpi=96),
         },
         # a neighbour "splits" when exactly one of the two estimates is within the limit
         "n_flip": sum((r[1] <= _limit) != (r[2] <= _limit) for r in _rows[1:]),
