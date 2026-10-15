@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADCS Lifecycle Demo</title>
+<meta name="description" content="One satellite, one requirement, several presentations: requirements as behavioral envelopes, evidence with blind spots, and human judgment on the record, made continuous like CI/CD.">
+<style>
+:root { --bg:#ffffff; --fg:#111111; --mut:#4b5563; --faint:#6b7280; --rule:#e5e7eb; --card:#f9fafb; --link:#2166ac; --sky:#dbeafe; --beam:#fef3c7; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --fg:#f3f4f6; --mut:#c0c6cf; --faint:#9aa3ae; --rule:#2b3138; --card:#181c21; --link:#7fb3e6; --sky:#1e3a5f; --beam:#5b4a1a; }
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:18px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+main { max-width:860px; margin:0 auto; padding:48px 16px 40px; }
+h1 { font-size:40px; line-height:1.15; margin:0 0 8px; }
+.sub { font-size:22px; color:var(--mut); margin:0 0 10px; }
+.by { color:var(--faint); margin:0 0 24px; }
+svg.hero { display:block; width:100%; max-width:560px; height:auto; margin:8px auto 28px; }
+svg.hero .s { stroke:var(--fg); fill:var(--bg); }
+svg.hero text { fill:var(--fg); font:15px sans-serif; }
+a { color:var(--link); }
+blockquote { margin:18px 0; padding:4px 0 4px 18px; border-left:4px solid var(--fg); font-weight:600; }
+h2 { font-size:24px; margin:40px 0 6px; }
+.venue { color:var(--faint); margin:0 0 14px; }
+h2.big { font-size:28px; margin:44px 0 10px; }
+ol.take { padding-left:22px; margin:8px 0 18px; }
+ol.take li { margin:0 0 12px; }
+ol.take b { color:var(--fg); }
+table.bridge { width:100%; border-collapse:collapse; margin:10px 0 18px; font-size:16px; }
+table.bridge th, table.bridge td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--rule); vertical-align:top; }
+table.bridge th { color:var(--faint); font-weight:600; }
+table.bridge td:first-child { color:var(--mut); }
+.thesis { font-size:26px; font-weight:700; margin:6px 0 8px; }
+.dual { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:12px 0 8px; }
+.dual div { border:1px solid var(--rule); border-radius:12px; padding:14px 16px; }
+.dual b { display:block; margin-bottom:4px; }
+.dual p { margin:0; color:var(--mut); font-size:16px; }
+@media (max-width:600px) { .dual { grid-template-columns:1fr; } }
+.note { border-left:4px solid var(--link); padding:6px 0 6px 16px; margin:0 0 16px; color:var(--mut); }
+.note b { color:var(--fg); }
+ul.cards { list-style:none; padding:0; margin:0; display:grid; gap:14px; }
+ul.cards li { background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:18px 20px; }
+ul.cards h3 { margin:0 0 6px; font-size:20px; }
+ul.cards .tools { font-size:15px; color:var(--faint); margin:0 0 8px; }
+ul.cards p { margin:0 0 10px; color:var(--mut); }
+ul.cards a.go { font-weight:600; text-decoration:none; }
+nav.tabs { display:flex; gap:4px; border-bottom:1px solid var(--rule); margin:8px 0 8px; flex-wrap:wrap; }
+nav.tabs a { padding:10px 16px; text-decoration:none; color:var(--mut); border-bottom:3px solid transparent; margin-bottom:-1px; font-weight:600; }
+nav.tabs a[aria-selected="true"] { color:var(--fg); border-bottom-color:var(--fg); }
+body.js section.panel { display:none; }
+body.js section.panel.on { display:block; }
+table.deer { width:100%; border-collapse:collapse; margin:10px 0 8px; font-size:16px; }
+table.deer th, table.deer td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--rule); vertical-align:top; }
+table.deer th { color:var(--faint); font-weight:600; }
+table.deer td:first-child { font-weight:700; white-space:nowrap; }
+.wide { overflow-x:auto; }
+.stack { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,2fr); gap:0 18px; margin:12px 0 8px; align-items:center; }
+.layer { border:1px solid var(--rule); border-radius:12px; padding:12px 16px; background:var(--card); }
+.layer b { display:block; font-size:18px; }
+.layer span { color:var(--mut); font-size:15px; }
+.layer.oss { border:3px solid var(--fg); background:var(--bg); }
+.layer.org { border-color:#b45309; }
+.arrow { text-align:center; color:var(--faint); font-size:14px; padding:4px 0; }
+.fbh { color:#b45309; font-size:15px; font-weight:600; }
+.fb { color:#b45309; font-size:15px; border-left:3px dashed #b45309; padding:2px 0 2px 10px; }
+@media (max-width:600px) { .stack { grid-template-columns:1fr; } .fb { margin:4px 0 0; } .fbh { margin:6px 0 0; } }
+footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px solid var(--rule); color:var(--faint); font-size:16px; }
+@media (max-width:600px) { h1 { font-size:30px; } .sub { font-size:19px; } }
+</style>
+</head>
+<body>
+<main>
+<h1>ADCS Lifecycle Demo</h1>
+<p class="sub">Evidence, attestation and requirements traceability, one satellite at a time</p>
+<p class="by">Michael Zargham · Dynamical Systems Group · OpenMBEE</p>
+
+<nav class="tabs" role="tablist">
+<a href="#overview" role="tab" aria-controls="overview">Overview</a>
+<a href="#framework" role="tab" aria-controls="framework">Framework</a>
+<a href="#presentations" role="tab" aria-controls="presentations">Presentations</a>
+</nav>
+<section class="panel" id="overview" role="tabpanel">
+<svg class="hero" viewBox="0 0 560 360" role="img" aria-label="A communications satellite in geosynchronous orbit, its antenna pointed at Earth; after a slew, pointing error must settle within 0.1 degrees in 120 seconds">
+<circle cx="230" cy="230" r="80" fill="var(--sky)" stroke="#2166ac" stroke-width="1.5"/>
+<text x="230" y="236" text-anchor="middle">Earth</text>
+<circle cx="230" cy="230" r="200" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="6 6"/>
+<text x="20" y="24">geosynchronous orbit</text>
+<path d="M347,96 L258,152 L300,190 Z" fill="var(--beam)"/>
+<g transform="translate(372,72) rotate(40)">
+<rect class="s" x="-90" y="-10" width="64" height="20" stroke-width="1.5"/>
+<rect class="s" x="26" y="-10" width="64" height="20" stroke-width="1.5"/>
+<rect class="s" x="-24" y="-22" width="48" height="44" rx="4" stroke-width="2"/>
+<path class="s" d="M-16,22 Q0,40 16,22" stroke-width="1.5"/>
+</g>
+<rect class="s" x="300" y="268" width="250" height="84" rx="10" stroke-width="1.5"/>
+<text x="316" y="294" font-weight="700">REQ-001</text>
+<text x="316" y="318">pointing error within 0.1°</text>
+<text x="316" y="340">within 120 s of a slew</text>
+</svg>
+
+<h2 class="big">The example</h2>
+<p>A geosynchronous communications satellite has an attitude determination and control system (ADCS): a PD controller whose two gains, Kp and Kd, are the design. One system-level requirement, REQ-001, says the pointing error must settle within 0.1° within 120 seconds of a slew. Several kinds of evidence speak to it: a symbolic estimate (SymPy), a torque-limited simulation (SciPy), model checking (z3) and the model's own simulation. They don't always agree. At one design the linear estimate says 105 s, and the simulation misses the limit by half a second. A qualified engineer has to judge whether the requirement is satisfied, and say why, on the record.</p>
+
+<h2 class="big">The take-away</h2>
+<p class="thesis">A tool says pass. A person says satisfied.</p>
+<p>The tool produced a formal result about the model. The human attestation is about the system the model represents. Bridging the two is where systems engineering practice meets software engineering agility.</p>
+<ol class="take">
+<li><b>Requirements declare behavioral envelopes.</b> A system-level requirement states ranges of acceptable behavior, under stated operating assumptions. Without that specification, "working as intended?" has no answer. Every automated system needs a behavioral envelope.</li>
+<li><b>Every kind of evidence has a blind spot.</b> Model checking, simulation, symbolic analysis and tests each cover something and miss something. None of them is the spacecraft. Contradictory evidence is expected, not a failure of the process.</li>
+<li><b>Continuous analysis, continuous publication (CA/CP).</b> Every design change re-runs the analyses and republishes the model, as CI/CD does for code. Automation alone is an open loop. A qualified engineer closes it, and their judgment, with rationale, becomes part of the model.</li>
+</ol>
+
+<p>More in <a href="#framework">Framework</a>: how open source fits into engineering, the DEER framework, and CI/CD next to CA/CP.</p>
+<blockquote>This is how engineering delivers trusted and trustworthy systems, despite an incomplete and uncertain world.</blockquote>
+
+</section>
+<section class="panel" id="framework" role="tabpanel">
+<h2 class="big">How open source fits into engineering</h2>
+<p>Engineering rests on slow, stable standards, and accountable organizations sit on top. Open-source software is the layer in between: it carries the standards into code anyone can build on. The arrows run up, and the organizations feed back into every layer below them.</p>
+<div class="stack">
+<div class="layer org"><b>Engineering organizations</b><span>do the engineering; own the outcome</span></div><div class="fbh">organizations feed back into each layer:</div>
+<div class="arrow">↑ used by</div><div></div>
+<div class="layer"><b>Engineering environments</b><span>controlled; hosted by the organization or its vendors</span></div><div class="fb">tool choice and provision</div>
+<div class="arrow">↑ imported by</div><div></div>
+<div class="layer oss"><b>Open-source software</b><span>carries the standards into code anyone can build on</span></div><div class="fb">sponsor, contribute and maintain</div>
+<div class="arrow">↑ implemented as</div><div></div>
+<div class="layer"><b>Engineering standards</b><span>change slowly; give everything above a stable base</span></div><div class="fb">standards body membership and working group participation</div>
+</div>
+<p>In this demo, the standard is SysML v2. OpenSysML and sysml-toolkit implement it as open-source software, and OpenMBEE's Flexo MMS stores models through the standard SysML v2 API.</p>
+
+<h2 class="big">The DEER framework</h2>
+<p><b>Declaration, Execution, Evidence, Realization.</b> Four layers of an engineering record, each implemented and stored in its own way. Together they keep the computational record reproducible, so that the evidence about the engineered system can be trusted.</p>
+<div class="wide"><table class="deer">
+<tr><th>Layer</th><th>What it holds</th><th>Implemented as</th><th>Stored in</th><th>In this demo</th></tr>
+<tr><td>Declaration</td><td>architecture and requirements</td><td>SysML v2</td><td>Flexo MMS</td><td><code>satellite.sysml</code>, authored and evaluated with OpenSysML</td></tr>
+<tr><td>Execution</td><td>scenarios, behavioral modeling and analysis pipelines</td><td>software</td><td>a Git repo</td><td>SymPy, NumPy/SciPy, z3 and the model's own simulation</td></tr>
+<tr><td>Evidence</td><td>data generated from measurements, simulations and analyses executed</td><td>datasets</td><td>append-only databases</td><td>carried in the model commits, each tagged with its Git SHA</td></tr>
+<tr><td>Realization</td><td>cloud infrastructure and Docker images</td><td>build artifacts</td><td>an artifact registry</td><td>a reusable Docker image and a locally hosted Flexo service</td></tr>
+</table></div>
+<p>Two realizations are worth keeping apart. One is the realization of the computational materials: the images and services the analysis runs in, which is what this layer covers. The other is the engineered artifact itself, the satellite that gets built and flown. The model is not the system.</p>
+<p>For how a compute run is authorized, built and verified, each step pinned to content hashes and recorded so an outside auditor can replay it, see <a href="https://docs.dynamicalsystemsgroup.com/governed-compute/">Governed Compute, End to End</a>.</p>
+
+<h2 class="big">From CI/CD to CA/CP</h2>
+<p>Engineering at the speed of software. The two loops have the same steps. Automation alone is an open loop, and a person closes it: first for software, then for engineering. In CI/CD a red check blocks the merge. In CA/CP contradictory evidence is expected, and the engineer's judgment, with rationale, becomes part of the model.</p>
+<div class="wide"><table class="bridge">
+<tr><th>CI/CD, with pull requests</th><th>CA/CP: continuous analysis, continuous publication</th></tr>
+<tr><td>commit and push a change on a branch</td><td>revise the design (Kp, Kd)</td></tr>
+<tr><td>CI builds and tests, automated</td><td>re-analysis, automated: several kinds of evidence</td></tr>
+<tr><td>status checks: a red check blocks the merge</td><td>evidence concurring or contradictory: disagreement is expected</td></tr>
+<tr><td>a reviewer approves, with comments</td><td>a qualified engineer judges, with rationale</td></tr>
+<tr><td>the approval is recorded, then deployed</td><td>the attestation is recorded in the model and republished</td></tr>
+</table></div>
+</section>
+<section class="panel" id="presentations" role="tabpanel">
+<h2 class="big">Two audiences, one example</h2>
+<p>This repository is a running workspace: the same satellite and requirement, built anew for each venue, and every version stays runnable. The two big talks are duals of each other.</p>
+<div class="dual">
+<div><b>JAXA, June 2026</b><p>For systems engineers, about open-source software: how a vendor-neutral, open-source spine (RDF standards, Python, Flexo MMS) keeps evidence and judgment traceable across heterogeneous tools.</p></div>
+<div><b>OSA, October 2026</b><p>For open-source software architects, about systems engineering: requirements as behavioral envelopes, evidence with blind spots, and a person's judgment on the record, made continuous like CI/CD.</p></div>
+</div>
+
+<h2>OpenMBEE community call</h2>
+<p class="venue">Flexo / SysML v2 dev meeting · May 22, 2026 · for OpenMBEE developers: the first build of the example</p>
+<ul class="cards">
+<li>
+<h3>ADCS lifecycle notebook</h3>
+<p class="tools">marimo · RDF (PROV, EARL, GSN) · SHACL · SymPy · SciPy</p>
+<p>The original. It takes the ADCS from structure through symbolic analysis, simulation and engineer attestation. All the traceability lives as named RDF graphs and is checked by a SHACL closure-rule suite. This page is a static export, with code.</p>
+<a class="go" href="notebook/">Open the notebook →</a>
+</li>
+</ul>
+
+<h2>JAXA MBSE/MCE Workshop</h2>
+<p class="venue">Presentations from Industry · Tsukuba · June 12, 2026 · for systems engineers: open-source software practice</p>
+<ul class="cards">
+<li>
+<h3>Intro slides</h3>
+<p class="tools">PDF · 5 slides</p>
+<p>Requirements, Evidence and Attestation Traceability with Python and Flexo MMS: engineering is loopy while institutions are linear, open source as a layered supply chain, and vendor-neutral spines for heterogeneous tool ecosystems.</p>
+<a class="go" href="jaxa/slides.pdf">Open the slides (PDF) →</a>
+</li>
+<li>
+<h3>Demo notebook</h3>
+<p class="tools">Jupyter · rdflib · Flexo MMS · SymPy · SciPy</p>
+<p>The live walkthrough as presented. It covers the integration ontology assembled like packages, evidence and attestation as RDF, and a behavior-model oracle beside the human judgment. This page is static HTML of the recorded outputs.</p>
+<a class="go" href="jaxa/notebook/">Open the notebook →</a>
+</li>
+</ul>
+
+<h2>INCOSE International Symposium 2026</h2>
+<p class="venue">June 18, 2026 · for systems engineers: accountable assurance of AI-assisted documents</p>
+<p class="note"><b>A related paper, with a different example.</b> This paper doesn't use the satellite. Its example is the paper itself: the framework assured its own documents. The idea is the same one the demos build on, applied to documents. Verification is machine conformance to a specification. Validation is an accountable human judgment against explicit guidance. Assurance closes the triangle between them. Content is organized with <a href="https://github.com/DynamicalSystemsGroup/knowledgecomplex">knowledgecomplex</a>, a typed simplicial complex over OWL, SHACL and SPARQL, so an audit becomes a check of topological coverage.</p>
+<ul class="cards">
+<li>
+<h3>Paper</h3>
+<p class="tools">INCOSE International Symposium 36(1), pp. 1501–1514 · Wiley</p>
+<p>Formalizing Document Assurance: A Topological Framework for Verification, Validation, and Human Accountability. Documents are vertices, verification and validation are edges, and spec-guidance coupling closes assurance triangles. AI assistance is tracked, but it cannot replace a human's judgment or signature.</p>
+<a class="go" href="https://doi.org/10.1002/iis2.70203">Read the paper (doi:10.1002/iis2.70203) →</a>
+</li>
+<li>
+<h3>Talk slides</h3>
+<p class="tools">PDF · 18 slides</p>
+<p>When AI assists in creating systems engineering documentation, who bears responsibility for the result? The slides cover the assurance triangle, the recursion to four self-describing boundary documents, and audits as traces of tiled triangles. The underlying topological framework is packaged as <a href="https://github.com/DynamicalSystemsGroup/knowledgecomplex">knowledgecomplex</a>.</p>
+<a class="go" href="incose/slides.pdf">Open the slides (PDF) →</a>
+</li>
+</ul>
+
+<h2>Open Source Architects (OSA) Community</h2>
+<p class="venue">October 15, 2026 · for open-source software architects: systems engineering practice</p>
+<p class="note"><b>Same title as the JAXA talk, different talk.</b> The invitation came from the JAXA talk and the OpenMBEE work, so the public abstract kept the JAXA title. The audience changed, and so did the emphasis (see above). So did the tools: OpenMBEE released OpenSysML in August 2026. At JAXA the traceability was RDF named graphs pushed to Flexo's RDF layer. At OSA the requirement, the evidence and the person's judgment live in the SysML v2 model itself: OpenSysML evaluates it, and Flexo stores it through the SysML v2 API.</p>
+<ul class="cards">
+<li>
+<h3>Evidence, Attestation, and Requirements Traceability with Python and Flexo MMS</h3>
+<p class="tools">marimo · SysML v2 (OpenSysML) · Flexo MMS · z3 · SymPy · SciPy · Git</p>
+<p>A slide deck with the demo inside it. The model, the evidence and the person's judgment are written in SysML v2. There are three designs, and in one of them the evidence disagrees. Each judgment is published as a Flexo commit tagged with its Git SHA. This page is a static export with every demo step pre-signed. The live version runs locally against Flexo (see the README).</p>
+<a class="go" href="osa/">Open the slides →</a>
+</li>
+</ul>
+</section>
+</main>
+<footer>Source for everything on this page: <a href="https://github.com/DynamicalSystemsGroup/ADCS-lifecycle-demo">github.com/DynamicalSystemsGroup/ADCS-lifecycle-demo</a></footer>
+<script>
+(function () {
+  var ids = ["overview", "framework", "presentations"];
+  document.body.classList.add("js");
+  function show() {
+    var id = location.hash.slice(1);
+    if (ids.indexOf(id) < 0) {
+      var el = id && document.getElementById(id);
+      var p = el && el.closest ? el.closest("section.panel") : null;
+      id = p ? p.id : "overview";
+    }
+    ids.forEach(function (k) {
+      document.getElementById(k).classList.toggle("on", k === id);
+      document.querySelector('nav.tabs a[href="#' + k + '"]').setAttribute("aria-selected", k === id ? "true" : "false");
+    });
+  }
+  addEventListener("hashchange", function () { show(); scrollTo(0, 0); });
+  show();
+})();
+</script>
+</body>
+</html>

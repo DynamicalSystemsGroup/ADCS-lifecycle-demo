@@ -1691,9 +1691,8 @@ def __(mo):
     ## Future Work
 
     The demo deliberately stops short of several production-grade
-    extensions, each documented in
-    [`/Users/z/.claude/plans/i-want-to-look-hidden-balloon.md`](#) and
-    summarized below:
+    extensions, summarized below (see also the README's Future Work
+    section):
 
     - **Cryptographic envelopes & signatures.** Today hashes are bare
       SHA-256: content identity, but not authenticity. Production

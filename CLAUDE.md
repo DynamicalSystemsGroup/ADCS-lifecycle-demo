@@ -9,6 +9,13 @@ lifecycle from SysMLv2 structural specification through symbolic analysis
 all traceability stored as RDF in a named-graph quadstore and all artifacts
 version-controlled in git.
 
+It is also a running collection of presentations on that one subject (OpenMBEE community
+call 2026-05-22: `notebook.py`; JAXA MBSE/MCE Workshop 2026-06-12: `jaxa_notebook.ipynb` +
+PDF slides; INCOSE IS 2026-06-18: a related paper + PDF slides, not the satellite example; OSA Community 2026-10-15: `talk.py`). The README's Presentations table and the
+Pages landing page `site/index.html` list them; `.github/workflows/publish.yml` exports each
+one to `_site/<venue>/`. Add a presentation as a new root entry point that reuses the shared
+code, plus a table row, a card and an export step.
+
 ## Core principle
 
 **Evidence does not verify requirements; evidence supports a human judgment

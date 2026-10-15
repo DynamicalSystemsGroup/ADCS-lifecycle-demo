@@ -1,13 +1,130 @@
 # ADCS Lifecycle Demo
 
-**Live demo:** <https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/>
-**Architecture:** see [ARCHITECTURE.md](ARCHITECTURE.md) — the three-remote (git + Flexo + local Docker) + fourth-service (CouchDB txnlog) picture.
-**AI-aided engineering loop:** see [ENGINEERING_LOOP.md](ENGINEERING_LOOP.md) — how the LLM agent is constrained by CLIs, p-plan sequencing, and SHACL closure rules, with validation reserved for the accountable engineer.
+**Site:** <https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/>: every presentation, one card per artifact.
 
-Bidirectional requirements traceability for a satellite Attitude Determination
-and Control System (ADCS), demonstrating the full lifecycle from SysMLv2
-structural specification through symbolic analysis, numerical simulation, and
-human expert attestation. The RTM is held as an `rdflib.Dataset` of named
+One satellite, one requirement, several presentations. This repo is a running workspace
+for building and presenting demos about evidence, attestation and requirements
+traceability. It always uses the same subject example: the attitude determination and
+control system (ADCS) of a geosynchronous communications satellite, and REQ-001, which
+says pointing error settles within 0.1° within 120 s of a slew. Each presentation adds a
+new artifact with a new toolchain, and the earlier ones stay runnable.
+
+> Evidence does not verify requirements; evidence supports a human judgment that
+> requirements are satisfied.
+
+## Presentations
+
+| Date | Venue | Artifact | Toolchain | Run it | On the site |
+|---|---|---|---|---|---|
+| 2026-05-22 | OpenMBEE community call (Flexo/SysML v2 dev meeting) | [`notebook.py`](notebook.py) | marimo, RDF (PROV, EARL, GSN), SHACL, SymPy, SciPy | `uv run marimo run notebook.py` | [notebook](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/notebook/) |
+| 2026-06-12 | JAXA MBSE/MCE Workshop, Presentations from Industry (Tsukuba) | intro slides (PDF, [`site/jaxa-intro-slides.pdf`](site/jaxa-intro-slides.pdf)) + [`jaxa_notebook.ipynb`](jaxa_notebook.ipynb) | Jupyter, rdflib, Flexo MMS (Layer 1), behavior-model oracle | `uv run jupyter lab jaxa_notebook.ipynb` | [slides](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/jaxa/slides.pdf), [notebook](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/jaxa/notebook/) |
+| 2026-06-18 | INCOSE International Symposium 2026 (a related paper; not the satellite example) | [paper](https://doi.org/10.1002/iis2.70203) + talk slides (PDF, [`site/incose-is-2026-slides.pdf`](site/incose-is-2026-slides.pdf)) | [knowledgecomplex](https://github.com/DynamicalSystemsGroup/knowledgecomplex) (OWL, SHACL, SPARQL) | see that repo | [slides](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/incose/slides.pdf) |
+| 2026-10-15 | Open Source Architects (OSA) Community | [`talk.py`](talk.py), slides and live demo in one marimo app | marimo, SysML v2 (OpenSysML), Flexo MMS SysML v2 API, z3, PlantUML, Git | `uv run marimo run talk.py` ([Run the talk](#run-the-talk-the-sysml-v2-edition)) | [deck](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/osa/), a static pre-signed export |
+
+The INCOSE IS 2026 paper is a companion piece. Instead of the satellite, it assures its own
+documents, applying the same split to documents: machine verification against a
+specification, an accountable human validation against guidance, and assurance as the
+closed triangle between them.
+
+**Two audiences, one example.** The two big talks are duals. JAXA was for systems
+engineers learning open-source software practice: a vendor-neutral, open-source spine
+(RDF standards, Python, Flexo MMS) keeps evidence and judgment traceable across tools.
+OSA was for open-source software architects learning systems engineering practice:
+requirements as behavioral envelopes, evidence with blind spots, and a person's judgment
+on the record, made continuous like CI/CD. They share a title because the OSA
+invitation came from the JAXA talk and the OpenMBEE work, so the public abstract kept the
+JAXA title. The tools changed too: OpenMBEE released OpenSysML in August 2026, so JAXA is
+the RDF edition and OSA is the SysML v2 edition (see below).
+
+### The framework
+
+The OSA talk frames the record in four layers, **DEER: Declaration, Execution, Evidence,
+Realization**. Declaration covers architecture and requirements (SysML v2, stored in
+Flexo MMS). Execution covers scenarios and analysis pipelines (software, in Git). Evidence
+covers data from measurements, simulations and analyses (datasets, in append-only
+stores). Realization covers infrastructure and images (build artifacts, in an artifact
+registry; see [Governed Compute, End to End](https://docs.dynamicalsystemsgroup.com/governed-compute/)).
+Open-source software is the layer that carries engineering standards into code that
+engineering environments import and organizations use; organizations feed back by
+choosing and provisioning tools, by sponsoring and maintaining the software, and through
+standards working groups. The site's Framework tab has both pictures.
+
+### The take-away
+
+**A tool says pass. A person says satisfied.** The tool's formal result is about the
+model; the human attestation is about the system the model represents.
+
+1. **Requirements declare behavioral envelopes**: ranges of acceptable behavior, under
+   stated operating assumptions. Without one, "working as intended?" has no answer.
+2. **Every kind of evidence has a blind spot.** Model checking, simulation, symbolic
+   analysis and tests each miss something, and none of them is the spacecraft.
+   Contradictory evidence is expected.
+3. **CI/CD becomes CA/CP: continuous analysis, continuous publication.** Every design
+   change re-runs the analyses and republishes the model. Automation alone is an open
+   loop. A qualified engineer closes it, as a reviewer does for a pull request, and their
+   judgment, with rationale, becomes part of the model.
+
+The site is built by [`.github/workflows/publish.yml`](.github/workflows/publish.yml) on
+every push to `main`. The landing page is [`site/index.html`](site/index.html), and each
+artifact is exported fresh: marimo `export html`, Jupyter `nbconvert` of the recorded
+outputs, and the PDF as committed. The OSA deck needs local tools and a Flexo server for
+its live steps, so it cannot run in the browser. The site carries its static export,
+with every demo step pre-signed and nothing published to Flexo.
+
+### Adding a presentation
+
+1. Build the new artifact at the repo root, next to the others (e.g. `<venue>_notebook.py`),
+   and reuse the shared code below rather than forking it.
+2. Add a row to the table above and a card to `site/index.html`.
+3. Add an export step to `publish.yml` that writes `_site/<venue>/`.
+
+## How this repo is organized
+
+All the presentations share one subject and two code bases:
+
+- **The RDF edition (May and June 2026)** holds the traceability as RDF named graphs:
+  `ontology/`, `structural/`, `analysis/`, `evidence/`, `traceability/`, `pipeline/`,
+  `compute/`, `interrogate/`, `documents/`, `flexo/`. `notebook.py` and
+  `jaxa_notebook.ipynb` drive it. Most of this README documents it, from
+  [Setup](#setup) down.
+- **The SysML v2 edition (October 2026)** writes the model, evidence and attestation in
+  SysML v2: `sysml/` (model, evidence engine, Flexo SysML v2 client) and `talk/` (slide
+  fragments and assets). `talk.py` drives it, and it reuses `analysis/` for the
+  simulation and the symbolic estimate.
+- `site/` is the landing page. `private/` (gitignored) holds speaker notes and content
+  that is not public.
+
+**Architecture:** see [ARCHITECTURE.md](ARCHITECTURE.md): the three-remote (git + Flexo + local Docker) + fourth-service (CouchDB txnlog) picture of the RDF edition.
+**AI-aided engineering loop:** see [ENGINEERING_LOOP.md](ENGINEERING_LOOP.md): how the LLM agent is constrained by CLIs, p-plan sequencing, and SHACL closure rules, with validation reserved for the accountable engineer.
+
+## Run the talk (the SysML v2 edition)
+
+`talk.py` is one marimo notebook that is both the slide deck and the live demo: one cell is one slide, in file order (slides layout in `layouts/talk.slides.json`). Nineteen slides; the order is in `talk/slides/order.txt`.
+
+```bash
+bash scripts/fetch_tools.sh                             # once: sysml, sysmlv2, plantuml.jar into .tools/
+uv run marimo run talk.py                               # present
+SYSML_DEMO_PRESEED=1 uv run marimo export html talk.py -o output/talk.html   # static fallback
+```
+
+- **Start it ahead of time and let it finish loading.** Everything heavy is computed at load: the evidence for the three designs on all three slew axes, the 3x3 gain grid, the in-model solver-step runs and the z3 box (`sysml.evidence.precompute`, cached under `output/` by a hash of the analysis code; the first cold run takes about 40 s, a warm one a few seconds).
+- **Static slides** are HTML fragments in `talk/slides/` (see `talk/slides/README.md`). Builds on them are CSS-only: click the small numbered circles at the bottom right. Scripts in `mo.Html` are stripped, so there is no keyboard build.
+- **Demo slides (D1, D2, D3)** are precomputed and instant: the step selector (small radio buttons, bottom right), the time slider and the torque-limit and solver-step toggles only read precomputed results. Three things are live, each with a labelled fallback:
+  - the z3 line, `sysmlv2 verify sysml/linear_region_toolkit.sysml --solve` (needs `.tools/sysmlv2` and z3). Fallback: `talk/assets/tool-verify.txt`, labelled "captured";
+  - the Attest click, which writes the person's claim into the model, evaluates it and publishes the snapshot to Flexo (tagged `git-<sha>`). Fallback: a row labelled "local mode";
+  - the regenerated requirement view on D3 (`sysml.views.requirement_view`, then PlantUML; needs Java). Fallback: `talk/assets/tool-req-c3.svg`, labelled "captured".
+- **Flexo.** Set `FLEXO_V2_URL` (default `http://localhost:8083`, see `sysml/FLEXO_LOCAL.md`). The notebook probes it once at load and uses one project per Git SHA, `sysml-talk-<sha7>`. A publish takes about 17 s on the local stack and shows "Publishing…" meanwhile. Without a reachable Flexo it runs in local mode and the commit row says so.
+- **DRAFT wording.** The D2 (4, 25) card and rationale are DRAFT: the card carries a visible DRAFT tag until `C2_TEXT_SIGNED_OFF` in `sysml/model.py` is set to `True`, which is done only when the speaker approves the wording.
+- **Engineer name.** The recorded attestations carry `SYSML_DEMO_ENGINEER` (default: the name in `sysml/model.py`).
+- **Static export.** `SYSML_DEMO_PRESEED=1` shows each demo slide in its final state, pre-signed, and never publishes to Flexo.
+- **Fault injection.** `FLEXO_V2_URL=http://127.0.0.1:1`, `OPENSYSML_SMT=/nonexistent` (no z3) and `SYSML_TOOLS_DIR=/nonexistent` (no `.tools/`) each degrade to a labelled fallback, not a crash.
+- The Kotar captures in `talk/assets/` are screenshots only. `uv run python scripts/talk_check.py --private <private dir>` checks the notes against the slides; `uv run python scripts/speaker_notes.py` regenerates the companion notes.
+
+## The RDF edition
+
+Bidirectional requirements traceability for the ADCS, demonstrating the full lifecycle
+from SysMLv2 structural specification through symbolic analysis, numerical simulation,
+and human expert attestation. The RTM is held as an `rdflib.Dataset` of named
 graphs, verified by a SHACL closure-rule suite, audited forward and backward
 independently, and exportable to disk, to a Flexo MMS instance, or to bare
 Apache Jena Fuseki.
@@ -155,29 +272,6 @@ uv run pytest -m network    # opt-in: reserved for W3C-vocab fetches (no tests t
 Marker filtering is set in `pyproject.toml` via `addopts = "-m 'not live
 and not network'"` so the canonical invocation never hits external
 services. CI opts in explicitly per workflow.
-
-## Run the talk
-
-`talk.py` is one marimo notebook that is both the slide deck and the live demo: one cell is one slide, in file order (slides layout in `layouts/talk.slides.json`). Fourteen slides, then three reserve slides (Q&A) after the last one.
-
-```bash
-bash scripts/fetch_tools.sh                             # once: sysml, sysmlv2, plantuml.jar into .tools/
-uv run marimo run talk.py                               # present
-SYSML_DEMO_PRESEED=1 uv run marimo export html talk.py -o output/talk.html   # static fallback
-```
-
-- **Start it ahead of time and let it finish loading.** Everything heavy is computed at load: the evidence for the three designs on all three slew axes, the 3x3 gain grid, the in-model solver-step runs and the z3 box (`sysml.evidence.precompute`, cached under `output/` by a hash of the analysis code; the first cold run takes about 40 s, a warm one a few seconds).
-- **Static slides** are HTML fragments in `talk/slides/` (see `talk/slides/README.md`). Builds on them are CSS-only: click the small numbered circles at the bottom right. Scripts in `mo.Html` are stripped, so there is no keyboard build.
-- **Demo slides (D1, D2, D3)** are precomputed and instant: the step selector (small radio buttons, bottom right), the time slider and the torque-limit and solver-step toggles only read precomputed results. Three things are live, each with a labelled fallback:
-  - the z3 line, `sysmlv2 verify sysml/linear_region_toolkit.sysml --solve` (needs `.tools/sysmlv2` and z3). Fallback: `talk/assets/tool-verify.txt`, labelled "captured";
-  - the Attest click, which writes the person's claim into the model, evaluates it and publishes the snapshot to Flexo (tagged `git-<sha>`). Fallback: a row labelled "local mode";
-  - the regenerated requirement view on D3 (`sysml.views.requirement_view`, then PlantUML; needs Java). Fallback: `talk/assets/tool-req-c3.svg`, labelled "captured".
-- **Flexo.** Set `FLEXO_V2_URL` (default `http://localhost:8083`, see `sysml/FLEXO_LOCAL.md`). The notebook probes it once at load and uses one project per Git SHA, `sysml-talk-<sha7>`. A publish takes about 17 s on the local stack and shows "Publishing…" meanwhile. Without a reachable Flexo it runs in local mode and the commit row says so.
-- **DRAFT wording.** The D2 (4, 25) card and rationale are DRAFT: the card carries a visible DRAFT tag until `C2_TEXT_APPROVED` in `sysml/model.py` is set to `True`, which is done only when the speaker approves the wording.
-- **Engineer name.** The recorded attestations carry `SYSML_DEMO_ENGINEER` (default: the name in `sysml/model.py`).
-- **Static export.** `SYSML_DEMO_PRESEED=1` shows each demo slide in its final state, pre-signed, and never publishes to Flexo.
-- **Fault injection.** `FLEXO_V2_URL=http://127.0.0.1:1`, `OPENSYSML_SMT=/nonexistent` (no z3) and `SYSML_TOOLS_DIR=/nonexistent` (no `.tools/`) each degrade to a labelled fallback, not a crash.
-- The Kotar captures in `talk/assets/` are screenshots only. `uv run python scripts/talk_check.py --private <private dir>` checks the notes against the slides; `uv run python scripts/speaker_notes.py` regenerates the companion notes.
 
 ## Pipeline Stages
 

@@ -1,7 +1,11 @@
 name: Publish to GitHub Pages
 
+# Builds the site on every PR to main (a broken export or a missing PDF fails the PR);
+# deploys only from main.
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -11,7 +15,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,16 +29,36 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Export notebook to HTML
-        run: uv run marimo export html notebook.py -o output/index.html --include-code
+      # One landing page (site/index.html) with a card per artifact, one folder per presentation.
+      - name: Landing page, JAXA and INCOSE IS slides
+        run: |
+          mkdir -p _site/jaxa
+          cp site/index.html _site/
+          cp site/jaxa-intro-slides.pdf _site/jaxa/slides.pdf   # fails if missing: no dead card
+          mkdir -p _site/incose
+          cp site/incose-is-2026-slides.pdf _site/incose/slides.pdf
+
+      - name: "OpenMBEE community call (2026-05-22): marimo notebook"
+        run: uv run marimo export html notebook.py -o _site/notebook/index.html --include-code
+
+      - name: "JAXA MBSE/MCE Workshop (2026-06-12): Jupyter notebook, recorded outputs"
+        run: uv run --with nbconvert jupyter nbconvert --to html jaxa_notebook.ipynb --output-dir _site/jaxa/notebook --output index
+
+      # Static export: every demo step pre-signed; never probes or publishes to Flexo. The static
+      # viewer ignores the slides layout, so static_deck.py pages it one slide at a time.
+      - name: "OSA Community (2026-10-15): marimo deck"
+        run: |
+          SYSML_DEMO_PRESEED=1 uv run marimo export html talk.py -o _site/osa/index.html --no-include-code
+          uv run python scripts/static_deck.py _site/osa/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: output
+          path: _site
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
