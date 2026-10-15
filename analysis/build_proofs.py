@@ -26,7 +26,7 @@ from analysis.symbolic import (
 def build_stability_proof(model_hash: str) -> ProofScript:
     """REQ-003: Routh-Hurwitz stability proof for PD controller.
 
-    For a second-order system J*s^2 + Kd*s + Kp/2 = 0, Routh-Hurwitz
+    For a second-order system J*s^2 + Kd*s + Kp/4 = 0, Routh-Hurwitz
     requires all coefficients to be positive (and same sign).
     With J, Kp, Kd all positive, this is trivially satisfied.
     """
@@ -44,7 +44,7 @@ def build_stability_proof(model_hash: str) -> ProofScript:
             "characteristic_polynomial_form",
             LemmaKind.EQUALITY,
             expr=characteristic_polynomial_single_axis(Jxx),
-            expected=Jxx * s**2 + Kd * s + Kp / 2,
+            expected=Jxx * s**2 + Kd * s + Kp / 4,
             description="Verify characteristic polynomial has expected form",
         )
         .lemma(
@@ -64,11 +64,11 @@ def build_stability_proof(model_hash: str) -> ProofScript:
         .lemma(
             "routh_row2_positive",
             LemmaKind.QUERY,
-            expr=sp.Q.positive(Kp / 2),
+            expr=sp.Q.positive(Kp / 4),
             assumptions={"K_p": {"positive": True}},
             depends_on=["routh_row0_positive", "routh_row1_positive"],
             description=(
-                "Stiffness coefficient (Kp/2) is positive — "
+                "Stiffness coefficient (Kp/4) is positive — "
                 "all Routh rows positive implies asymptotic stability"
             ),
         )
@@ -80,13 +80,13 @@ def build_pointing_proof(model_hash: str) -> ProofScript:
     """REQ-001: Steady-state pointing error bound.
 
     For PD control with constant disturbance tau_gg:
-        theta_ss = 2 * tau_gg / Kp
+        theta_ss = 4 * tau_gg / Kp
 
     We prove this is bounded and that the bound is below 0.1 degrees
     for any gravity gradient torque below the actuator limit.
     """
     tau_gg = sp.Symbol("tau_gg", positive=True)
-    theta_ss = 2 * tau_gg / Kp
+    theta_ss = 4 * tau_gg / Kp
     # 0.1 degrees in radians
     theta_req = sp.Rational(1, 10) * sp.pi / 180
 
@@ -97,14 +97,14 @@ def build_pointing_proof(model_hash: str) -> ProofScript:
             name="pd_pointing_error_bound",
             claim=(
                 "Steady-state pointing error under constant disturbance "
-                "is 2*tau_gg/Kp, bounded by actuator/gain design"
+                "is 4*tau_gg/Kp, bounded by actuator/gain design"
             ),
         )
         .lemma(
             "steady_state_error_formula",
             LemmaKind.EQUALITY,
             expr=theta_ss,
-            expected=2 * tau_gg / Kp,
+            expected=4 * tau_gg / Kp,
             description="Steady-state error for PD controller with step disturbance",
         )
         .lemma(

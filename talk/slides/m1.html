@@ -1,0 +1,19 @@
+<div class="slide">
+<h2>One .sysml file, two tools, the same model</h2>
+<div class="bld" data-n="2">
+<div data-s="1"><div class="flex" style="margin-top:18px;align-items:center">
+<img src="asset:tool-structure.svg" alt="Structure view drawn by the OpenSysML renderer from the model text" style="width:590px;flex:none;border:1px solid #e5e7eb;border-radius:8px">
+<svg viewBox="0 0 560 330" style="width:560px;flex:none" role="img" aria-label="The requirement as SysML v2 text">
+<rect x="0" y="0" width="560" height="214" rx="8" fill="#f6f8fa" stroke="#e5e7eb"/><text class="mono" x="18" y="34" style="font-size:15px;fill:#111111;white-space:pre" xml:space="preserve">requirement def SettlingRequirement {</text><text class="mono" x="18" y="64" style="font-size:15px;fill:#111111;white-space:pre" xml:space="preserve">    doc /* The ADCS shall maintain pointing accuracy</text><text class="mono" x="18" y="94" style="font-size:15px;fill:#111111;white-space:pre" xml:space="preserve">        within 0.1 degrees (3-sigma) ... within 120 seconds</text><text class="mono" x="18" y="124" style="font-size:15px;fill:#111111;white-space:pre" xml:space="preserve">        of a slew maneuver. */</text><text class="mono" x="18" y="154" style="font-size:15px;fill:#111111;white-space:pre" xml:space="preserve">    require constraint { adcs.settlingTime <= 120 [s] }</text><text class="mono" x="18" y="184" style="font-size:15px;fill:#111111;white-space:pre" xml:space="preserve">}</text>
+<rect x="0" y="236" width="560" height="70" rx="10" class="box"/>
+<text class="h2t anc" x="280" y="266">A design is a pair of gains</text>
+<text class="mono anc" x="280" y="294" style="font-size:22px">Kp, Kd</text>
+</svg></div></div>
+<div data-s="2"><div class="flex" style="margin-top:18px;align-items:flex-start;gap:30px;justify-content:center">
+<div style="width:560px"><img src="asset:tool-structure.svg" alt="OpenSysML render" style="width:560px;border:1px solid #e5e7eb;border-radius:8px"><p class="kap">OpenSysML</p></div>
+<div style="width:560px"><img src="asset:kotar-k1-structure.png" alt="The same model rendered by Kotar" style="width:560px;border:1px solid #e5e7eb;border-radius:8px"><p class="kap">Kotar</p></div></div></div>
+<p class="cap" data-s="1">Computed from the model. Not drawn.</p>
+<p class="cap" data-s="2">Same model, other tool.</p>
+<svg class="src" data-s="2" viewBox="0 0 520 20" role="presentation"><text x="0" y="15">Rendered by Kotar (Planetary Utilities). Screenshot.</text></svg>
+</div>
+</div>

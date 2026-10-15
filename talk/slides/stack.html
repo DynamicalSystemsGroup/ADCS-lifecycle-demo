@@ -1,0 +1,42 @@
+<div class="slide">
+<h2>Where open source fits in systems engineering</h2>
+<svg viewBox="0 0 1180 496" role="img" aria-label="Four layers built from the bottom up: engineering standards, open-source software, engineering environments, engineering organizations; the organizations feed back into each layer below">
+<defs>
+<marker id="st-up" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111111"/></marker>
+<marker id="st-fb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#b45309"/></marker>
+<marker id="st-ax" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker>
+</defs>
+<!-- left axis: stability at the base, accountability at the top -->
+<path class="arrM" d="M40,484 V20" marker-end="url(#st-ax)"/>
+<text class="sub" x="56" y="34">accountable for outcomes</text>
+<text class="sub" x="56" y="490">slow, stable foundation</text>
+<!-- 4: engineering organizations (top) -->
+<rect class="human" x="150" y="48" width="560" height="84" rx="12"/>
+<text class="h1t" x="176" y="84">Engineering organizations</text>
+<text class="lbl mut" x="176" y="114">do the engineering; own the outcome</text>
+<!-- 3: engineering environments -->
+<rect class="hair" x="150" y="160" width="560" height="84" rx="12"/>
+<text class="h1t" x="176" y="196">Engineering environments</text>
+<text class="lbl mut" x="176" y="226">controlled; hosted by the organization or its vendors</text>
+<!-- 2: open-source software (the point of the slide) -->
+<rect x="150" y="272" width="560" height="84" rx="12" fill="#ffffff" stroke="#111111" stroke-width="3"/>
+<text class="h1t" x="176" y="308">Open-source software</text>
+<text class="lbl" x="176" y="338">carries the standards into code anyone can build on</text>
+<!-- 1: engineering standards (bottom) -->
+<rect class="hair" x="150" y="384" width="560" height="84" rx="12"/>
+<text class="h1t" x="176" y="420">Engineering standards</text>
+<text class="lbl mut" x="176" y="450">change slowly; give everything above a stable base</text>
+<!-- upward arrows between layers -->
+<path class="arr" d="M430,382 V362" marker-end="url(#st-up)"/><text class="sub" x="444" y="377">implemented as</text>
+<path class="arr" d="M430,270 V250" marker-end="url(#st-up)"/><text class="sub" x="444" y="265">imported by</text>
+<path class="arr" d="M430,158 V138" marker-end="url(#st-up)"/><text class="sub" x="444" y="153">used by</text>
+<!-- three kinds of feedback from the organizations, one per layer below -->
+<path class="dash" d="M714,112 H760 V202 H716" stroke="#b45309" stroke-width="1.5" fill="none" marker-end="url(#st-fb)"/>
+<path class="dash" d="M714,90 H800 V314 H716" stroke="#b45309" stroke-width="1.5" fill="none" marker-end="url(#st-fb)"/>
+<path class="dash" d="M714,68 H840 V426 H716" stroke="#b45309" stroke-width="1.5" fill="none" marker-end="url(#st-fb)"/>
+<text class="sub amb" x="862" y="208">tool choice and provision</text>
+<text class="sub amb" x="862" y="320">sponsor, contribute and maintain</text>
+<text class="sub amb" x="862" y="420">standards body membership and</text>
+<text class="sub amb" x="862" y="444">working group participation</text>
+</svg>
+</div>

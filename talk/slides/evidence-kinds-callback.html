@@ -1,0 +1,43 @@
+<div class="slide">
+<h2>Blindspots come into focus.</h2>
+<svg viewBox="0 0 1180 498" role="img" aria-label="Five kinds of evidence, in the model, extended through code, and measurement: what each covers and what it cannot see">
+<text class="sub" x="34" y="22" style="font-size:16px;letter-spacing:.08em">KIND</text>
+<text class="sub" x="470" y="22" style="font-size:16px;letter-spacing:.08em">WHAT IT COVERS</text>
+<text class="sub" x="850" y="22" style="font-size:16px;letter-spacing:.08em"></text>
+<text class="blu" x="1180" y="22" text-anchor="end" style="font-size:16px;font-weight:700">all four ran on (4, 25); they disagreed</text>
+<path class="arr" d="M0,36 H1180" style="stroke:#111111"/>
+<text class="sub" x="0" y="80" style="font-size:14px;letter-spacing:.1em;fill:#6b7280">IN THE SYSML V2 MODEL</text>
+<rect x="-10" y="86" width="1200" height="68" rx="8" fill="#dbeafe" opacity=".55"/>
+<rect x="0" y="90" width="8" height="60" rx="2" fill="#2166ac"/>
+<text class="h2t" x="34" y="116">Model checking</text><text class="sub" x="34" y="142">built-in z3 solver, linear model</text>
+<text style="font-size:22px;" x="470" y="128">every design in a box</text>
+<text style="font-size:22px;font-weight:700;" x="850" y="128">the actuator limit and nonlinearity</text>
+<path class="hair" d="M0,154 H1180" style="fill:none"/>
+<rect x="-10" y="154" width="1200" height="68" rx="8" fill="#dbeafe" opacity=".55"/>
+<rect x="0" y="158" width="8" height="60" rx="2" fill="#2166ac"/>
+<text class="h2t" x="34" y="184">In-model simulation</text><text class="sub" x="34" y="210">SysML v2 actions and states</text>
+<text style="font-size:22px;" x="470" y="196">the model's behavior, step by step</text>
+<text style="font-size:22px;font-weight:700;" x="850" y="196">its own step-size error</text>
+<path class="hair" d="M0,222 H1180" style="fill:none"/>
+<text class="sub" x="0" y="248" style="font-size:14px;letter-spacing:.1em;fill:#6b7280">EXTENDED THROUGH CODE (PYTHON HERE; ANY LANGUAGE WORKS)</text>
+<rect x="-10" y="254" width="1200" height="68" rx="8" fill="#dbeafe" opacity=".55"/>
+<rect x="0" y="258" width="8" height="60" rx="2" fill="#2166ac"/>
+<text class="h2t" x="34" y="284">Symbolic analysis</text><text class="sub" x="34" y="310">SymPy, closed form</text>
+<text style="font-size:22px;" x="470" y="296">closed-form estimate, linear model</text>
+<text style="font-size:22px;font-weight:700;" x="850" y="296">torque saturation</text>
+<path class="hair" d="M0,322 H1180" style="fill:none"/>
+<rect x="-10" y="322" width="1200" height="68" rx="8" fill="#dbeafe" opacity=".55"/>
+<rect x="0" y="326" width="8" height="60" rx="2" fill="#2166ac"/>
+<text class="h2t" x="34" y="352">Numerical simulation</text><text class="sub" x="34" y="378">NumPy, SciPy: nonlinear, torque-limited</text>
+<text style="font-size:22px;" x="470" y="354">a battery of scenarios</text><text class="sub" x="470" y="378">here: 3 slew axes, 9 nearby designs</text>
+<text style="font-size:22px;font-weight:700;" x="850" y="364">scenarios outside the battery</text>
+<path class="hair" d="M0,390 H1180" style="fill:none"/>
+<text class="sub" x="0" y="416" style="font-size:14px;letter-spacing:.1em;fill:#6b7280">MEASUREMENT</text>
+<rect x="0" y="426" width="8" height="60" rx="2" fill="#9ca3af"/>
+<text class="h2t" x="34" y="452" style="fill:#6b7280">Hardware-in-the-loop tests</text><text class="sub" x="34" y="478" style="fill:#6b7280">not in this demo</text>
+<text style="font-size:22px;fill:#6b7280;" x="470" y="464">the hardware</text>
+<text style="font-size:22px;font-weight:700;fill:#6b7280;font-style:italic" x="850" y="464">no data here</text>
+<path class="hair" d="M0,490 H1180" style="fill:none"/>
+</svg>
+<p class="cap" style="font-family:Lora,Georgia,serif;font-weight:600;font-size:30px;margin-top:16px">None of them is the spacecraft.</p>
+</div>

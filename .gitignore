@@ -30,3 +30,9 @@ ontology/rtm-robot-report.tsv
 
 # Marimo session state (regenerated on edit; not part of the notebook source)
 __marimo__/
+
+# Private talk context (local-only git repo; never pushed). See scripts/leak_check.sh
+private/
+
+# Downloaded talk tools (scripts/fetch_tools.sh)
+.tools/

@@ -1,0 +1,45 @@
+<div class="slide">
+<h2>Specify down, integrate up, then a person judges</h2>
+<svg viewBox="0 0 1180 424" role="img" aria-label="The V-model: requirements decompose down the left leg, integration and test climb the right leg, and both meet at a person's judgment">
+<defs>
+<marker id="v-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111111"/></marker>
+<marker id="v-ahb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2166ac"/></marker>
+<marker id="v-aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d97706"/></marker>
+</defs>
+<!-- top: both legs meet at the person's judgment -->
+<rect class="human" x="350" y="0" width="480" height="76" rx="12"/>
+<text class="amb anc" x="590" y="32" style="font-size:24px;font-weight:700">Judgment by a qualified engineer</text>
+<text class="lbl anc" x="590" y="62">Will it perform as intended in the field?</text>
+<path class="arr" d="M200,100 C210,60 260,40 344,38" marker-end="url(#v-ah)"/>
+<path d="M980,100 C970,60 920,40 836,38" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#v-aha)"/>
+<!-- left leg: specify -->
+<rect class="box" x="20" y="104" width="250" height="56" rx="10"/><text class="lbl anc" x="145" y="139">System requirements</text>
+<rect class="box" x="150" y="200" width="250" height="56" rx="10"/><text class="lbl anc" x="275" y="235">Subsystem requirements</text>
+<rect class="box" x="280" y="296" width="250" height="56" rx="10"/><text class="lbl anc" x="405" y="331">Component specifications</text>
+<!-- right leg: evidence -->
+<rect class="machT" x="910" y="104" width="250" height="56" rx="10"/><text class="lbl anc" x="1035" y="139">System tests: evidence</text>
+<rect class="mach" x="780" y="200" width="250" height="56" rx="10"/><text class="lbl anc" x="905" y="235">Subsystem integration, test</text>
+<rect class="mach" x="650" y="296" width="250" height="56" rx="10"/><text class="lbl anc" x="775" y="331">Component tests</text>
+<!-- bottom of the V -->
+<rect class="grey" x="465" y="368" width="250" height="52" rx="10" style="fill:#fafafa"/><text class="lbl anc" x="590" y="401">Implementation</text>
+<!-- leg connectors -->
+<path class="arr" d="M150,162 L190,196" marker-end="url(#v-ah)"/>
+<path class="arr" d="M280,258 L320,292" marker-end="url(#v-ah)"/>
+<path class="arr" d="M420,354 L460,388" marker-end="url(#v-ah)"/>
+<path d="M720,388 L760,354" stroke="#2166ac" stroke-width="1.5" fill="none" marker-end="url(#v-ahb)"/>
+<path d="M860,292 L900,258" stroke="#2166ac" stroke-width="1.5" fill="none" marker-end="url(#v-ahb)"/>
+<path d="M990,196 L1030,162" stroke="#2166ac" stroke-width="1.5" fill="none" marker-end="url(#v-ahb)"/>
+<text class="sub" x="20" y="292">decompose ↓</text>
+<text class="sub blu anc" x="1100" y="292">integrate, test ↑</text>
+<!-- traceability across the V -->
+<path class="arrM dash" d="M274,132 H906"/>
+<path class="arrM dash" d="M404,228 H776"/>
+<path class="arrM dash" d="M534,324 H646"/>
+<text class="sub anc" x="590" y="122">traced: each requirement to its test</text>
+</svg>
+<div style="display:flex;gap:28px;margin-top:26px;font-size:22px;line-height:1.3">
+<div style="flex:1"><b>Why</b><br>Trust systems too complex for anyone to hold in their head.</div>
+<div style="flex:1"><b>What</b><br>Ranges of acceptable behavior, under stated operating assumptions.</div>
+<div style="flex:1"><b>How</b><br>Decompose down, integrate and test up, until evidence supports the judgment.</div>
+</div>
+</div>

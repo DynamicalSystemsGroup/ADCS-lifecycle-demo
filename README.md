@@ -156,6 +156,29 @@ Marker filtering is set in `pyproject.toml` via `addopts = "-m 'not live
 and not network'"` so the canonical invocation never hits external
 services. CI opts in explicitly per workflow.
 
+## Run the talk
+
+`talk.py` is one marimo notebook that is both the slide deck and the live demo: one cell is one slide, in file order (slides layout in `layouts/talk.slides.json`). Fourteen slides, then three reserve slides (Q&A) after the last one.
+
+```bash
+bash scripts/fetch_tools.sh                             # once: sysml, sysmlv2, plantuml.jar into .tools/
+uv run marimo run talk.py                               # present
+SYSML_DEMO_PRESEED=1 uv run marimo export html talk.py -o output/talk.html   # static fallback
+```
+
+- **Start it ahead of time and let it finish loading.** Everything heavy is computed at load: the evidence for the three designs on all three slew axes, the 3x3 gain grid, the in-model solver-step runs and the z3 box (`sysml.evidence.precompute`, cached under `output/` by a hash of the analysis code; the first cold run takes about 40 s, a warm one a few seconds).
+- **Static slides** are HTML fragments in `talk/slides/` (see `talk/slides/README.md`). Builds on them are CSS-only: click the small numbered circles at the bottom right. Scripts in `mo.Html` are stripped, so there is no keyboard build.
+- **Demo slides (D1, D2, D3)** are precomputed and instant: the step selector (small radio buttons, bottom right), the time slider and the torque-limit and solver-step toggles only read precomputed results. Three things are live, each with a labelled fallback:
+  - the z3 line, `sysmlv2 verify sysml/linear_region_toolkit.sysml --solve` (needs `.tools/sysmlv2` and z3). Fallback: `talk/assets/tool-verify.txt`, labelled "captured";
+  - the Attest click, which writes the person's claim into the model, evaluates it and publishes the snapshot to Flexo (tagged `git-<sha>`). Fallback: a row labelled "local mode";
+  - the regenerated requirement view on D3 (`sysml.views.requirement_view`, then PlantUML; needs Java). Fallback: `talk/assets/tool-req-c3.svg`, labelled "captured".
+- **Flexo.** Set `FLEXO_V2_URL` (default `http://localhost:8083`, see `sysml/FLEXO_LOCAL.md`). The notebook probes it once at load and uses one project per Git SHA, `sysml-talk-<sha7>`. A publish takes about 17 s on the local stack and shows "Publishing…" meanwhile. Without a reachable Flexo it runs in local mode and the commit row says so.
+- **DRAFT wording.** The D2 (4, 25) card and rationale are DRAFT: the card carries a visible DRAFT tag until `C2_TEXT_APPROVED` in `sysml/model.py` is set to `True`, which is done only when the speaker approves the wording.
+- **Engineer name.** The recorded attestations carry `SYSML_DEMO_ENGINEER` (default: the name in `sysml/model.py`).
+- **Static export.** `SYSML_DEMO_PRESEED=1` shows each demo slide in its final state, pre-signed, and never publishes to Flexo.
+- **Fault injection.** `FLEXO_V2_URL=http://127.0.0.1:1`, `OPENSYSML_SMT=/nonexistent` (no z3) and `SYSML_TOOLS_DIR=/nonexistent` (no `.tools/`) each degrade to a labelled fallback, not a crash.
+- The Kotar captures in `talk/assets/` are screenshots only. `uv run python scripts/talk_check.py --private <private dir>` checks the notes against the slides; `uv run python scripts/speaker_notes.py` regenerates the companion notes.
+
 ## Pipeline Stages
 
 ```

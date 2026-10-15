@@ -1,0 +1,247 @@
+{
+ "events": [
+  {
+   "date": "2014-05",
+   "label": "First open-source code",
+   "phase": "MMS · View Editor · MDK",
+   "source": "https://api.github.com/orgs/Open-MBEE ; https://api.github.com/orgs/Open-MBEE/repos?sort=created&direction=asc",
+   "place": {
+    "side": "above",
+    "level": 2,
+    "align": "left"
+   }
+  },
+  {
+   "date": "2015",
+   "label": "OpenMBEE founded",
+   "phase": "MMS · View Editor · MDK",
+   "source": "https://www.linkedin.com/company/openmbee/about/",
+   "place": {
+    "side": "above",
+    "level": 1,
+    "align": "left"
+   }
+  },
+  {
+   "date": "2020",
+   "label": "NumFOCUS sponsored",
+   "phase": "MMS · View Editor · MDK",
+   "source": "https://numfocus.org/project/openmbee",
+   "place": {
+    "side": "above",
+    "level": 2,
+    "align": "left"
+   }
+  },
+  {
+   "date": "2021-12",
+   "label": "Flexo MMS begins",
+   "phase": "Flexo MMS",
+   "source": "https://api.github.com/repos/Open-MBEE/flexo-mms-layer1-service",
+   "place": {
+    "side": "above",
+    "level": 1,
+    "align": "left"
+   }
+  },
+  {
+   "date": "2025-06",
+   "label": "SysML v2 adopted by OMG",
+   "phase": "SysML v2 · OpenSysML stack",
+   "source": "https://github.com/Systems-Modeling/SysML-v2-Release ; https://www.omg.org/news/releases/pr2025/07-21-25.htm",
+   "place": {
+    "side": "below",
+    "level": 1,
+    "align": "left"
+   }
+  },
+  {
+   "date": "2026-03",
+   "label": "SysML v2 submitted to ISO · Flexo SysML v2 API",
+   "phase": "SysML v2 · OpenSysML stack",
+   "source": "https://github.com/Systems-Modeling/SysML-v2-Release ; https://api.github.com/repos/Open-MBEE/flexo-mms-sysmlv2/releases",
+   "place": {
+    "side": "below",
+    "level": 2.6,
+    "align": "right"
+   }
+  },
+  {
+   "date": "2026-08",
+   "label": "OpenSysML REDK (Go runtime)",
+   "phase": "SysML v2 · OpenSysML stack",
+   "source": "https://github.com/Open-MBEE/OpenSysML/releases/tag/v0.1.0 ; https://opensysml.org/",
+   "place": {
+    "side": "below",
+    "level": 4.0,
+    "align": "right"
+   }
+  },
+  {
+   "date": "2026-09",
+   "label": "sysml-toolkit (Rust toolchain)",
+   "phase": "SysML v2 · OpenSysML stack",
+   "source": "https://opensysml.org/ ; https://api.github.com/repos/Open-MBEE/sysml-toolkit",
+   "place": {
+    "side": "below",
+    "level": 5.0,
+    "align": "right"
+   }
+  }
+ ],
+ "phases": [
+  {
+   "name": "MMS · View Editor · MDK",
+   "start": "2014-05",
+   "end": "2021-12"
+  },
+  {
+   "name": "Flexo MMS",
+   "start": "2021-12",
+   "end": "2025-06"
+  },
+  {
+   "name": "SysML v2 · OpenSysML stack",
+   "start": "2025-06",
+   "end": "2026-10"
+  }
+ ],
+ "orgs_heading": "Participants and adopters",
+ "orgs": [
+  {
+   "name": "NASA JPL",
+   "role": "origin; participant and adopter",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://numfocus.org/project/openmbee ; https://www.nist.gov/document/14delppdf"
+  },
+  {
+   "name": "ESO",
+   "role": "origin; COMODO user",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://numfocus.org/project/openmbee"
+  },
+  {
+   "name": "Thirty Meter Telescope",
+   "role": "user",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://numfocus.org/project/openmbee ; https://github.com/Open-MBEE/TMT-SysML-Model"
+  },
+  {
+   "name": "Boeing",
+   "role": "participant and adopter",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://www.nist.gov/document/14delppdf"
+  },
+  {
+   "name": "Lockheed Martin",
+   "role": "participant",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://www.nist.gov/document/14delppdf ; https://conf.researchr.org/details/models-2020/models-2020-industry-days/2/The-MBEE-Core-Framework-MCF-a-platform-for-OpenMBEE-s-next-generation"
+  },
+  {
+   "name": "NAVAIR",
+   "role": "surrogate pilot collaborator",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://csiac.dtic.mil/articles/view-and-viewpoint-based-digital-signoff-using-openmbee-as-an-authoritative-source-of-truth"
+  },
+  {
+   "name": "SERC",
+   "role": "surrogate pilot collaborator",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://csiac.dtic.mil/articles/view-and-viewpoint-based-digital-signoff-using-openmbee-as-an-authoritative-source-of-truth"
+  },
+  {
+   "name": "Georgia Tech",
+   "role": "participant",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://www.nist.gov/document/14delppdf"
+  },
+  {
+   "name": "Ford",
+   "role": "participant",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://www.nist.gov/document/14delppdf"
+  },
+  {
+   "name": "OMG",
+   "role": "participant",
+   "era": "MMS · View Editor · MDK",
+   "source": "https://www.nist.gov/document/14delppdf"
+  },
+  {
+   "name": "NASA JPL",
+   "role": "organizing committee lead (INCOSE IW 2025)",
+   "era": "Flexo MMS",
+   "source": "https://openmbee.atlassian.net/wiki/spaces/OPENMBEE/pages/1183842306"
+  },
+  {
+   "name": "Boeing",
+   "role": "MMS deployment talk and organizing committee lead (INCOSE IW 2025)",
+   "era": "Flexo MMS",
+   "source": "https://openmbee.atlassian.net/wiki/spaces/OPENMBEE/pages/1183842306"
+  },
+  {
+   "name": "Georgia Tech",
+   "role": "organizing committee lead (INCOSE IW 2025)",
+   "era": "Flexo MMS",
+   "source": "https://openmbee.atlassian.net/wiki/spaces/OPENMBEE/pages/1183842306"
+  }
+ ],
+ "velocity": {
+  "title": "Open-MBEE releases per month",
+  "metric": "Non-prerelease GitHub releases per month across all non-fork public repositories of the Open-MBEE organization (156 repositories), by published_at month; prereleases and drafts excluded. October 2026 is partial (to 14 October).",
+  "series": [
+   {
+    "month": "2025-11",
+    "value": 0
+   },
+   {
+    "month": "2025-12",
+    "value": 0
+   },
+   {
+    "month": "2026-01",
+    "value": 2
+   },
+   {
+    "month": "2026-02",
+    "value": 0
+   },
+   {
+    "month": "2026-03",
+    "value": 1
+   },
+   {
+    "month": "2026-04",
+    "value": 0
+   },
+   {
+    "month": "2026-05",
+    "value": 0
+   },
+   {
+    "month": "2026-06",
+    "value": 1
+   },
+   {
+    "month": "2026-07",
+    "value": 0
+   },
+   {
+    "month": "2026-08",
+    "value": 20
+   },
+   {
+    "month": "2026-09",
+    "value": 12
+   },
+   {
+    "month": "2026-10",
+    "value": 6,
+    "partial": true
+   }
+  ],
+  "source": "https://api.github.com/orgs/Open-MBEE/repos and https://api.github.com/repos/Open-MBEE/{repo}/releases",
+  "retrieved": "2026-10-14"
+ }
+}

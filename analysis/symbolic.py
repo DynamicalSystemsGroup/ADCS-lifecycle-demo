@@ -151,13 +151,14 @@ def characteristic_polynomial_single_axis(J_axis):
     """Characteristic polynomial for one axis of PD-controlled rigid body.
 
     Linearized about zero attitude error:
-        J * d²θ/dt² + Kd * dθ/dt + Kp/2 * θ = 0
+        J * d²θ/dt² + Kd * dθ/dt + Kp/4 * θ = 0
 
-    (The 1/2 factor on Kp comes from quaternion error feedback.)
+    (The simulation applies -Kp/2 to the quaternion vector part, which is
+    about θ/2, so the effective stiffness on θ is Kp/4.)
 
     Returns the polynomial in s.
     """
-    return J_axis * s**2 + Kd * s + Kp / 2
+    return J_axis * s**2 + Kd * s + Kp / 4
 
 
 def eigenvalues_single_axis(J_axis):
@@ -232,12 +233,13 @@ def steady_state_error_symbolic():
     """Steady-state pointing error for step disturbance.
 
     For a PD controller with gravity gradient disturbance,
-    the steady-state error is: theta_ss = tau_gg / (Kp/2)
+    the steady-state error is: theta_ss = tau_gg / (Kp/4)
 
-    This is because the PD controller has a finite DC gain of Kp/2.
+    This is because the PD controller has a finite DC gain of Kp/4.
     """
+    # Same effective stiffness as the characteristic polynomial: Kp/4 on theta.
     tau_gg = sp.Symbol("tau_gg", positive=True)
-    return 2 * tau_gg / Kp
+    return 4 * tau_gg / Kp
 
 
 def evaluate_pointing_budget(params: dict[str, float]) -> dict[str, float]:
@@ -252,7 +254,8 @@ def evaluate_pointing_budget(params: dict[str, float]) -> dict[str, float]:
     tau_gg_max = max(gg["tau_gg_x"], gg["tau_gg_y"])
 
     # Steady-state error from gravity gradient (radians)
-    theta_ss_rad = 2 * tau_gg_max / kp_val
+    # Same effective stiffness as the characteristic polynomial: Kp/4 on theta.
+    theta_ss_rad = 4 * tau_gg_max / kp_val
     theta_ss_deg = theta_ss_rad * 180 / 3.141592653589793
 
     # Star tracker noise floor
@@ -276,6 +279,7 @@ def evaluate_pointing_budget(params: dict[str, float]) -> dict[str, float]:
 # Wheel momentum bounds
 # ---------------------------------------------------------------------------
 
+# KNOWN ISSUE: units are N·m (torque), not N·m·s; not used by the SysML demo. See sysml/FINDINGS.md.
 def wheel_momentum_bound_symbolic():
     """Symbolic bound on peak wheel momentum.
 

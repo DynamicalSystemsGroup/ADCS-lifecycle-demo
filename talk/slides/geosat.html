@@ -1,0 +1,46 @@
+<div class="slide">
+<h2 class="m">Example: Attitude Determination and Control System (ADCS)</h2>
+<div style="display:flex;gap:30px;align-items:flex-start">
+<svg viewBox="0 0 560 470" style="width:50%;flex:none" role="img" aria-label="A communications satellite in geosynchronous orbit, its antenna pointed at Earth; after a slew of angle theta, pointing error must settle within 0.1 degrees in 120 seconds">
+<defs>
+<marker id="gs-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2166ac"/></marker>
+</defs>
+<!-- Earth and the geosynchronous orbit -->
+<circle cx="230" cy="300" r="80" fill="#dbeafe" stroke="#2166ac" stroke-width="1.5"/>
+<text class="sub anc" x="230" y="306">Earth</text>
+<circle cx="230" cy="300" r="215" fill="none" stroke="#9ca3af" stroke-width="1.5" class="dash"/>
+<text class="sub" x="40" y="70">geosynchronous orbit</text>
+<!-- antenna beam to Earth -->
+<path d="M353,151 L258,219 L304,257 Z" fill="#fef3c7" stroke="none" opacity=".9"/>
+<!-- the satellite: body, panels, antenna -->
+<g transform="translate(372,128) rotate(40)">
+<rect x="-90" y="-10" width="64" height="20" fill="#ffffff" stroke="#111111" stroke-width="1.5"/>
+<rect x="26" y="-10" width="64" height="20" fill="#ffffff" stroke="#111111" stroke-width="1.5"/>
+<path d="M-82,-10 V10 M-66,-10 V10 M-50,-10 V10 M34,-10 V10 M50,-10 V10 M66,-10 V10" stroke="#9ca3af" stroke-width="1"/>
+<rect x="-24" y="-22" width="48" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<path d="M-16,22 Q0,40 16,22" fill="#ffffff" stroke="#111111" stroke-width="1.5"/>
+</g>
+<!-- the slew: a 10 degree commanded turn -->
+<path d="M430,60 A110,110 0 0 1 480,110" fill="none" stroke="#2166ac" stroke-width="2" marker-end="url(#gs-ah)"/>
+<text class="lbl blu" x="470" y="66">slew θ</text>
+<!-- the requirement, in one line -->
+<rect x="262" y="350" width="294" height="112" rx="10" fill="#ffffff" stroke="#111111" stroke-width="1.5"/>
+<text class="h2t" x="278" y="380">REQ-001</text>
+<text class="lbl" x="278" y="412">pointing error within 0.1°</text><text class="lbl" x="278" y="442">within 120 s of a slew</text>
+</svg>
+<div style="flex:1;font-size:22px;line-height:1.35">
+<p style="margin:6px 0 4px;font-weight:700">A geosynchronous communications satellite</p>
+<p style="margin:0 0 22px;color:#4b5563">550 kg; antenna pointed at Earth; reaction wheels limited to 0.1 N·m of torque.</p>
+<p style="margin:0 0 4px;font-weight:700">The ADCS is a PD controller</p>
+<p style="margin:0 0 26px;color:#4b5563">Two controller gains, Kp and Kd, are the design.</p>
+<div style="border-left:4px solid #e5e7eb;padding:2px 0 2px 16px;margin-bottom:14px">
+<div style="font-size:18px;color:#6b7280">June 2026 · JAXA MBSE/MCE Workshop</div>
+<div>First built in RDF: PROV, EARL, GSN</div>
+</div>
+<div style="border-left:4px solid #111111;padding:2px 0 2px 16px">
+<div style="font-size:18px;color:#6b7280">Today</div>
+<div>The same satellite and requirement, in SysML v2</div>
+</div>
+</div>
+</div>
+</div>
