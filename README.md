@@ -30,6 +30,19 @@ invitation came from the JAXA talk and the OpenMBEE work, so the public abstract
 JAXA title. The tools changed too: OpenMBEE released OpenSysML in August 2026, so JAXA is
 the RDF edition and OSA is the SysML v2 edition (see below).
 
+### The framework
+
+The OSA talk frames the record in four layers, **DEER: Declaration, Execution, Evidence,
+Realization**. Declaration covers architecture and requirements (SysML v2, stored in
+Flexo MMS). Execution covers scenarios and analysis pipelines (software, in Git). Evidence
+covers data from measurements, simulations and analyses (datasets, in append-only
+stores). Realization covers infrastructure and images (build artifacts, in an artifact
+registry; see [Governed Compute, End to End](https://docs.dynamicalsystemsgroup.com/governed-compute/)).
+Open-source software is the layer that carries engineering standards into code that
+engineering environments import and organizations use; organizations feed back by
+choosing and provisioning tools, by sponsoring and maintaining the software, and through
+standards working groups. The site's Framework tab has both pictures.
+
 ### The take-away
 
 **A tool says pass. A person says satisfied.** The tool's formal result is about the

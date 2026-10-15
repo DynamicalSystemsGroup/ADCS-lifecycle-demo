@@ -45,6 +45,26 @@ ul.cards h3 { margin:0 0 6px; font-size:20px; }
 ul.cards .tools { font-size:15px; color:var(--faint); margin:0 0 8px; }
 ul.cards p { margin:0 0 10px; color:var(--mut); }
 ul.cards a.go { font-weight:600; text-decoration:none; }
+nav.tabs { display:flex; gap:4px; border-bottom:1px solid var(--rule); margin:8px 0 8px; flex-wrap:wrap; }
+nav.tabs a { padding:10px 16px; text-decoration:none; color:var(--mut); border-bottom:3px solid transparent; margin-bottom:-1px; font-weight:600; }
+nav.tabs a[aria-selected="true"] { color:var(--fg); border-bottom-color:var(--fg); }
+body.js section.panel { display:none; }
+body.js section.panel.on { display:block; }
+table.deer { width:100%; border-collapse:collapse; margin:10px 0 8px; font-size:16px; }
+table.deer th, table.deer td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--rule); vertical-align:top; }
+table.deer th { color:var(--faint); font-weight:600; }
+table.deer td:first-child { font-weight:700; white-space:nowrap; }
+.wide { overflow-x:auto; }
+.stack { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,2fr); gap:0 18px; margin:12px 0 8px; align-items:center; }
+.layer { border:1px solid var(--rule); border-radius:12px; padding:12px 16px; background:var(--card); }
+.layer b { display:block; font-size:18px; }
+.layer span { color:var(--mut); font-size:15px; }
+.layer.oss { border:3px solid var(--fg); background:var(--bg); }
+.layer.org { border-color:#b45309; }
+.arrow { text-align:center; color:var(--faint); font-size:14px; padding:4px 0; }
+.fbh { color:#b45309; font-size:15px; font-weight:600; }
+.fb { color:#b45309; font-size:15px; border-left:3px dashed #b45309; padding:2px 0 2px 10px; }
+@media (max-width:600px) { .stack { grid-template-columns:1fr; } .fb { margin:4px 0 0; } .fbh { margin:6px 0 0; } }
 footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px solid var(--rule); color:var(--faint); font-size:16px; }
 @media (max-width:600px) { h1 { font-size:30px; } .sub { font-size:19px; } }
 </style>
@@ -55,6 +75,12 @@ footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px 
 <p class="sub">Evidence, attestation and requirements traceability, one satellite at a time</p>
 <p class="by">Michael Zargham · Dynamical Systems Group · OpenMBEE</p>
 
+<nav class="tabs" role="tablist">
+<a href="#overview" role="tab" aria-controls="overview">Overview</a>
+<a href="#framework" role="tab" aria-controls="framework">Framework</a>
+<a href="#presentations" role="tab" aria-controls="presentations">Presentations</a>
+</nav>
+<section class="panel" id="overview" role="tabpanel">
 <svg class="hero" viewBox="0 0 560 360" role="img" aria-label="A communications satellite in geosynchronous orbit, its antenna pointed at Earth; after a slew, pointing error must settle within 0.1 degrees in 120 seconds">
 <circle cx="230" cy="230" r="80" fill="var(--sky)" stroke="#2166ac" stroke-width="1.5"/>
 <text x="230" y="236" text-anchor="middle">Earth</text>
@@ -84,16 +110,49 @@ footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px 
 <li><b>Every kind of evidence has a blind spot.</b> Model checking, simulation, symbolic analysis and tests each cover something and miss something. None of them is the spacecraft. Contradictory evidence is expected, not a failure of the process.</li>
 <li><b>Continuous analysis, continuous publication (CA/CP).</b> Every design change re-runs the analyses and republishes the model, as CI/CD does for code. Automation alone is an open loop. A qualified engineer closes it, and their judgment, with rationale, becomes part of the model.</li>
 </ol>
-<table class="bridge">
+
+<p>More in <a href="#framework">Framework</a>: how open source fits into engineering, the DEER framework, and CI/CD next to CA/CP.</p>
+<blockquote>This is how engineering delivers trusted and trustworthy systems, despite an incomplete and uncertain world.</blockquote>
+
+</section>
+<section class="panel" id="framework" role="tabpanel">
+<h2 class="big">How open source fits into engineering</h2>
+<p>Engineering rests on slow, stable standards, and accountable organizations sit on top. Open-source software is the layer in between: it carries the standards into code anyone can build on. The arrows run up, and the organizations feed back into every layer below them.</p>
+<div class="stack">
+<div class="layer org"><b>Engineering organizations</b><span>do the engineering; own the outcome</span></div><div class="fbh">organizations feed back into each layer:</div>
+<div class="arrow">↑ used by</div><div></div>
+<div class="layer"><b>Engineering environments</b><span>controlled; hosted by the organization or its vendors</span></div><div class="fb">tool choice and provision</div>
+<div class="arrow">↑ imported by</div><div></div>
+<div class="layer oss"><b>Open-source software</b><span>carries the standards into code anyone can build on</span></div><div class="fb">sponsor, contribute and maintain</div>
+<div class="arrow">↑ implemented as</div><div></div>
+<div class="layer"><b>Engineering standards</b><span>change slowly; give everything above a stable base</span></div><div class="fb">standards body membership and working group participation</div>
+</div>
+<p>In this demo, the standard is SysML v2. OpenSysML and sysml-toolkit implement it as open-source software, and OpenMBEE's Flexo MMS stores models through the standard SysML v2 API.</p>
+
+<h2 class="big">The DEER framework</h2>
+<p><b>Declaration, Execution, Evidence, Realization.</b> Four layers of an engineering record, each implemented and stored in its own way. Together they keep the computational record reproducible, so that the evidence about the engineered system can be trusted.</p>
+<div class="wide"><table class="deer">
+<tr><th>Layer</th><th>What it holds</th><th>Implemented as</th><th>Stored in</th><th>In this demo</th></tr>
+<tr><td>Declaration</td><td>architecture and requirements</td><td>SysML v2</td><td>Flexo MMS</td><td><code>satellite.sysml</code>, authored and evaluated with OpenSysML</td></tr>
+<tr><td>Execution</td><td>scenarios, behavioral modeling and analysis pipelines</td><td>software</td><td>a Git repo</td><td>SymPy, NumPy/SciPy, z3 and the model's own simulation</td></tr>
+<tr><td>Evidence</td><td>data generated from measurements, simulations and analyses executed</td><td>datasets</td><td>append-only databases</td><td>carried in the model commits, each tagged with its Git SHA</td></tr>
+<tr><td>Realization</td><td>cloud infrastructure and Docker images</td><td>build artifacts</td><td>an artifact registry</td><td>a reusable Docker image and a locally hosted Flexo service</td></tr>
+</table></div>
+<p>Two realizations are worth keeping apart. One is the realization of the computational materials: the images and services the analysis runs in, which is what this layer covers. The other is the engineered artifact itself, the satellite that gets built and flown. The model is not the system.</p>
+<p>For how a compute run is authorized, built and verified, each step pinned to content hashes and recorded so an outside auditor can replay it, see <a href="https://docs.dynamicalsystemsgroup.com/governed-compute/">Governed Compute, End to End</a>.</p>
+
+<h2 class="big">From CI/CD to CA/CP</h2>
+<p>Engineering at the speed of software. The two loops have the same steps. Automation alone is an open loop, and a person closes it: first for software, then for engineering. In CI/CD a red check blocks the merge. In CA/CP contradictory evidence is expected, and the engineer's judgment, with rationale, becomes part of the model.</p>
+<div class="wide"><table class="bridge">
 <tr><th>CI/CD, with pull requests</th><th>CA/CP: continuous analysis, continuous publication</th></tr>
 <tr><td>commit and push a change on a branch</td><td>revise the design (Kp, Kd)</td></tr>
 <tr><td>CI builds and tests, automated</td><td>re-analysis, automated: several kinds of evidence</td></tr>
 <tr><td>status checks: a red check blocks the merge</td><td>evidence concurring or contradictory: disagreement is expected</td></tr>
 <tr><td>a reviewer approves, with comments</td><td>a qualified engineer judges, with rationale</td></tr>
 <tr><td>the approval is recorded, then deployed</td><td>the attestation is recorded in the model and republished</td></tr>
-</table>
-<blockquote>This is how engineering delivers trusted and trustworthy systems, despite an incomplete and uncertain world.</blockquote>
-
+</table></div>
+</section>
+<section class="panel" id="presentations" role="tabpanel">
 <h2 class="big">Two audiences, one example</h2>
 <p>This repository is a running workspace: the same satellite and requirement, built anew for each venue, and every version stays runnable. The two big talks are duals of each other.</p>
 <div class="dual">
@@ -141,7 +200,28 @@ footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px 
 <a class="go" href="osa/">Open the slides →</a>
 </li>
 </ul>
+</section>
 </main>
 <footer>Source for everything on this page: <a href="https://github.com/DynamicalSystemsGroup/ADCS-lifecycle-demo">github.com/DynamicalSystemsGroup/ADCS-lifecycle-demo</a></footer>
+<script>
+(function () {
+  var ids = ["overview", "framework", "presentations"];
+  document.body.classList.add("js");
+  function show() {
+    var id = location.hash.slice(1);
+    if (ids.indexOf(id) < 0) {
+      var el = id && document.getElementById(id);
+      var p = el && el.closest ? el.closest("section.panel") : null;
+      id = p ? p.id : "overview";
+    }
+    ids.forEach(function (k) {
+      document.getElementById(k).classList.toggle("on", k === id);
+      document.querySelector('nav.tabs a[href="#' + k + '"]').setAttribute("aria-selected", k === id ? "true" : "false");
+    });
+  }
+  addEventListener("hashchange", function () { show(); scrollTo(0, 0); });
+  show();
+})();
+</script>
 </body>
 </html>
