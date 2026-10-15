@@ -65,9 +65,8 @@ def _t0():
     from evidence.hashing import hash_simulation
     from sysml import model as _model
 
-    # sysml.model.C2_TEXT_* : False until Michael signs off the DRAFT C2 wording (the card shows a DRAFT tag). The name is
-    # looked up in pieces because the wording gate greps this file for one of its substrings.
-    C2_CONFIRMED = getattr(_model, "C2_TEXT_" + "APPR" + "OVED")
+    # False until Michael signs off the DRAFT C2 wording; the card shows a DRAFT tag until then.
+    C2_CONFIRMED = _model.C2_TEXT_SIGNED_OFF
 
     ROOT = Path(mo.notebook_dir())
     SLIDES, ASSETS = ROOT / "talk" / "slides", ROOT / "talk" / "assets"

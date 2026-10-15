@@ -72,7 +72,7 @@ SUFFICIENCY_DISAGREE_DRAFT = (
     "Too close to call: I attest not satisfied for this design."
 )
 # False until Michael approves the two DRAFT texts above and below: the card shows a DRAFT tag meanwhile.
-C2_TEXT_APPROVED = False
+C2_TEXT_SIGNED_OFF = False
 # DRAFT (DL-36): optional per-axis sentence, authored by the WP19 author; not approved text.
 PER_AXIS_DRAFT_SENTENCE = (
     "The simulation settles in {x} s about x, {y} s about y and {z} s about z; the worst axis governs."

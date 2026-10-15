@@ -218,8 +218,8 @@ def test_draft_texts_are_marked_and_format():
     card = card_disagree(120.498)  # the margin (0.5 s) is computed, never typed
     assert "misses by 0.5 s" in card and "Too close to call: I attest not satisfied." in card and len(card.split()) <= 20
     assert "Too close to call: I attest not satisfied" in text
-    from sysml.model import C2_TEXT_APPROVED
-    assert C2_TEXT_APPROVED is False  # flips to True only on Michael's approval; the card shows DRAFT until then
+    from sysml.model import C2_TEXT_SIGNED_OFF
+    assert C2_TEXT_SIGNED_OFF is False  # flips to True only on Michael's approval; the card shows DRAFT until then
     assert "{" not in per_axis_sentence(1, 2, 3) and "{x}" in PER_AXIS_DRAFT_SENTENCE
 
 
