@@ -327,6 +327,31 @@ def _p1(K):
 
 
 @app.cell(hide_code=True)
+def _w1(K):
+    # <!-- SLIDE:W1 --> What is systems engineering? INCOSE's own page, cited. The screenshot carries
+    # INCOSE's stock photo, so it lives in the gitignored private/ folder; without it, a paraphrase.
+    _shot = K.ROOT / "private" / "talk" / "assets_in" / "incose-what-is-se.png"
+    if _shot.is_file():
+        _body = ('<img alt="INCOSE: What is Systems Engineering?" style="display:block;width:100%;max-height:520px;'
+                 'object-fit:contain;border-radius:10px" src="data:image/png;base64,'
+                 + K.base64.b64encode(_shot.read_bytes()).decode() + '">')
+    else:
+        _body = ('<p class="cap">INCOSE: a transdisciplinary, integrative approach to realizing engineered systems, '
+                 'across their whole life cycle.</p>')
+    K.slide("se-what", INCOSE=_body)
+    # <!-- SLIDE:W1 -->
+    return
+
+
+@app.cell(hide_code=True)
+def _w2(K):
+    # <!-- SLIDE:W2 --> The V-model: specify down, integrate and test up, a person judges at the top.
+    K.slide("se-v")
+    # <!-- SLIDE:W2 -->
+    return
+
+
+@app.cell(hide_code=True)
 def _h1(K):
     # <!-- SLIDE:H1 --> History: era one, then the recent era with the releases sparkline.
     _h = K.json.loads((K.ROOT / "talk" / "history.json").read_text())

@@ -1,5 +1,7 @@
 h0
 thesis
+se-what
+se-v
 stack
 m1
 evidence-kinds
