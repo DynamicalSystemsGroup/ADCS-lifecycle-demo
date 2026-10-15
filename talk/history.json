@@ -29,8 +29,8 @@
    "source": "https://numfocus.org/project/openmbee",
    "place": {
     "side": "above",
-    "level": 1,
-    "align": "right"
+    "level": 2,
+    "align": "left"
    }
   },
   {
@@ -52,28 +52,28 @@
    "place": {
     "side": "below",
     "level": 1,
-    "align": "right"
+    "align": "left"
    }
   },
   {
    "date": "2026-03",
-   "label": "SysML v2 ISO edition · Flexo SysML v2 API",
+   "label": "SysML v2 submitted to ISO · Flexo SysML v2 API",
    "phase": "SysML v2 · OpenSysML stack",
    "source": "https://github.com/Systems-Modeling/SysML-v2-Release ; https://api.github.com/repos/Open-MBEE/flexo-mms-sysmlv2/releases",
    "place": {
     "side": "below",
-    "level": 2,
+    "level": 2.6,
     "align": "right"
    }
   },
   {
-   "date": "2026-07",
+   "date": "2026-08",
    "label": "OpenSysML REDK (Go runtime)",
    "phase": "SysML v2 · OpenSysML stack",
-   "source": "https://opensysml.org/ ; https://api.github.com/repos/Open-MBEE/OpenSysML",
+   "source": "https://github.com/Open-MBEE/OpenSysML/releases/tag/v0.1.0 ; https://opensysml.org/",
    "place": {
     "side": "below",
-    "level": 3,
+    "level": 4.0,
     "align": "right"
    }
   },
@@ -84,7 +84,7 @@
    "source": "https://opensysml.org/ ; https://api.github.com/repos/Open-MBEE/sysml-toolkit",
    "place": {
     "side": "below",
-    "level": 4,
+    "level": 5.0,
     "align": "right"
    }
   }
@@ -146,12 +146,6 @@
   },
   {
    "name": "SERC",
-   "role": "surrogate pilot collaborator",
-   "era": "MMS · View Editor · MDK",
-   "source": "https://csiac.dtic.mil/articles/view-and-viewpoint-based-digital-signoff-using-openmbee-as-an-authoritative-source-of-truth"
-  },
-  {
-   "name": "Altair",
    "role": "surrogate pilot collaborator",
    "era": "MMS · View Editor · MDK",
    "source": "https://csiac.dtic.mil/articles/view-and-viewpoint-based-digital-signoff-using-openmbee-as-an-authoritative-source-of-truth"
