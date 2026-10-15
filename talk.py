@@ -463,9 +463,10 @@ def _d1(K, btn_c1, d1_step, mo):
     if K.should_fire("c1", btn_c1.value):
         mo.output.replace(_page(busy=True))
         K.sign("c1", "C1: person attests not satisfied", "initial", False, K.SUFFICIENCY_NOT_SATISFIED, K.EVB["initial"])
+    pub_c1 = K.store.get("c1")  # read by the lineage slide, so it refreshes after this step signs
     _page()
     # <!-- SLIDE:D1 -->
-    return
+    return (pub_c1,)
 
 
 @app.cell(hide_code=True)
@@ -564,9 +565,10 @@ def _d2(K, btn_c2, btn_z3, d2_dt, d2_limit, d2_step, d2_time, mo):
         _busy[0] = False
         K.sign("c2", "C2: person attests not satisfied", K.NEAR, False,
                K.sufficiency_disagree(_d["kp"], _d["kd"], _d["symbolic_s"], _sim, _axis, K.LIMIT), K.EVB[K.NEAR])
+    pub_c2 = K.store.get("c2")  # read by the lineage slide, so it refreshes after this step signs
     _page()
     # <!-- SLIDE:D2 -->
-    return
+    return (pub_c2,)
 
 
 @app.cell(hide_code=True)
@@ -692,8 +694,21 @@ def _d3(K, btn_c3, btn_rev, d3_step, mo):
         _rec["groups"] = K.group_diff(_old, _new)
         _rec["how"] = "computed from the two model snapshots (the regenerated model, then the signed model)"
         _rec["udiff"] = K.text_diff(_rev["pending"], _rec["text"], n=1)
+    pub_c3 = K.store.get("c3")  # read by the lineage slide, so it refreshes after this step signs
     _page()
     # <!-- SLIDE:D3 -->
+    return (pub_c3,)
+
+
+@app.cell(hide_code=True)
+def _l1(K, pub_c1, pub_c2, pub_c3):
+    # <!-- SLIDE:L1 --> One tag ties the model to its source: the commits the demo just made.
+    _tags = [("git-" + p["tag"][len(K.TAG_PREFIX):][:7]) if (p or {}).get("tag") else "not published"
+             for p in (pub_c1, pub_c2, pub_c3)]
+    _foot = ("Same source, so one tag. The design change lives in the model, not the source."
+             if not K.DIRTY else "The design change lives in the model. The source tree had local changes at load.")
+    K.slide("lineage", SHA=K.GIT_SHA[:7], T1=_tags[0], T2=_tags[1], T3=_tags[2], FOOT=K.esc(_foot))
+    # <!-- SLIDE:L1 -->
     return
 
 
@@ -731,49 +746,6 @@ def _c1(K):
     # <!-- SLIDE:C1 --> Call to action: start modeling, get involved, teaming with DSG.
     K.slide("cta")
     # <!-- SLIDE:C1 -->
-    return
-
-
-@app.cell(hide_code=True)
-def _r1(K):
-    # <!-- SLIDE:R1 --> Reserve: (4, 30) and the y axis.
-    from sysml import evidence as _ev
-
-    _s = _ev.slew_settling(4, 30)
-    K.deck('<div class="slide">' + K.title(f"(4, 30): the y axis settles at {_s['y']:.1f} s")
-           + '<div class="fig" style="margin-top:30px;width:700px">'
-           + K.fg.axis_bars_svg({a: _s[a] for a in "xyz"}, K.LIMIT, t_max=140, width=700, height=210) + "</div>"
-           + '<p class="cap">Evidence changed. So did the design.</p></div>')
-    # <!-- SLIDE:R1 -->
-    return
-
-
-@app.cell(hide_code=True)
-def _r2(K):
-    # <!-- SLIDE:R2 --> Reserve: one tag ties the model to its source.
-    _tags = [("git-" + (K.store.get(k) or {})["tag"][len(K.TAG_PREFIX):][:7]) if (K.store.get(k) or {}).get("tag") else "not published"
-             for k in ("c1", "c2", "c3")]
-    _foot = ("Same source, so one tag. The design change lives in the model, not the source."
-             if not K.DIRTY else "The design change lives in the model. The source tree had local changes at load.")
-    K.slide("lineage", SHA=K.GIT_SHA[:7], T1=_tags[0], T2=_tags[1], T3=_tags[2], FOOT=K.esc(_foot))
-    # <!-- SLIDE:R2 -->
-    return
-
-
-@app.cell(hide_code=True)
-def _r3(K, mo):
-    # <!-- SLIDE:R3 --> Reserve: the RDF edition, the same pattern.
-    from sysml.lanes import lanes_mermaid
-
-    _d = K.D["tuned"]
-    _att = K.attestation_block("revised", True, K.ENGINEER, "done", K.sufficiency_satisfied(_d["kp"], _d["kd"], _d["settling"]["worst"], _d["symbolic_s"], K.LIMIT), "vc001_revised")
-    _text = K.assemble(K.STRUCT, K.EVB["tuned"], _att, K.ADEQ)
-    _lanes = lanes_mermaid(K.to_elements(_text), compact=True, terms={"S": "≈ sysml:", "E": "≈ prov:", "A": "≈ earl:, gsn:"})
-    _m = mo.mermaid(_lanes).text
-    K.deck('<div class="slide">' + K.title("First built in RDF. Same pattern.")
-           + f'<div style="width:760px;max-width:100%;margin:10px auto 0">{_m}</div>'
-           + '<p class="src">PROV, EARL, GSN: provenance, outcome and argument vocabularies.</p></div>')
-    # <!-- SLIDE:R3 -->
     return
 
 

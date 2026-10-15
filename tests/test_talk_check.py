@@ -106,7 +106,7 @@ def test_missing_slide_marker_flags_only_that_module(talk: Path, tmp_path: Path)
 import re  # noqa: E402
 
 TALK = (Path(__file__).resolve().parent.parent / "talk.py").read_text()
-ORDER = "T0 H0 P1 W1 W2 H1 H2 G1 M1 E1 M2 D1 D2 D3 F2 X1 T1 C1 R1 R2 R3".split()  # STORYBOARD.md order, then the reserve
+ORDER = "T0 H0 P1 W1 W2 H1 H2 G1 M1 E1 M2 D1 D2 D3 L1 F2 X1 T1 C1".split()  # deck order
 
 
 def test_slides_are_in_storyboard_order_one_cell_each() -> None:
