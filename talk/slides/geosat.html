@@ -1,7 +1,7 @@
 <div class="slide">
 <h2 class="m">Example: Attitude Determination and Control System (ADCS)</h2>
 <div style="display:flex;gap:30px;align-items:flex-start">
-<svg viewBox="0 0 560 470" style="width:50%;flex:none" role="img" aria-label="A communications satellite in geosynchronous orbit, its antenna pointed at Earth; a 10 degree slew must settle within 0.1 degrees in 120 seconds">
+<svg viewBox="0 0 560 470" style="width:50%;flex:none" role="img" aria-label="A communications satellite in geosynchronous orbit, its antenna pointed at Earth; after a slew of angle theta, pointing error must settle within 0.1 degrees in 120 seconds">
 <defs>
 <marker id="gs-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2166ac"/></marker>
 </defs>
@@ -22,11 +22,11 @@
 </g>
 <!-- the slew: a 10 degree commanded turn -->
 <path d="M430,60 A110,110 0 0 1 480,110" fill="none" stroke="#2166ac" stroke-width="2" marker-end="url(#gs-ah)"/>
-<text class="lbl blu" x="470" y="66">10° slew</text>
+<text class="lbl blu" x="470" y="58">slew θ</text><text class="sub blu" x="470" y="82">θ = 10° here</text>
 <!-- the requirement, in one line -->
-<rect x="282" y="372" width="270" height="84" rx="10" fill="#ffffff" stroke="#111111" stroke-width="1.5"/>
-<text class="h2t" x="298" y="404">REQ-001</text>
-<text class="lbl" x="298" y="436">within 0.1° in 120 s</text>
+<rect x="262" y="350" width="294" height="112" rx="10" fill="#ffffff" stroke="#111111" stroke-width="1.5"/>
+<text class="h2t" x="278" y="380">REQ-001</text>
+<text class="lbl" x="278" y="412">pointing error within 0.1°</text><text class="lbl" x="278" y="442">within 120 s of a slew</text>
 </svg>
 <div style="flex:1;font-size:22px;line-height:1.35">
 <p style="margin:6px 0 4px;font-weight:700">A geosynchronous communications satellite</p>
