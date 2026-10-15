@@ -46,10 +46,10 @@ def _status(results, name):
 
 def test_clean_skeleton_passes(talk: Path, tmp_path: Path) -> None:
     nb = tmp_path / "nb.py"
-    nb.write_text("# BEAT:B1\n")
+    nb.write_text("# BEAT:B1 SLIDE:S0 SLIDE:S2\n")
     results = talk_check.run_checks(talk, nb, 50, root=tmp_path)
     assert {r.check: r.status for r in results} == {
-        "facts": "passed", "beats": "passed", "handoff": "passed",
+        "facts": "passed", "beats": "passed", "slides": "passed", "handoff": "passed",
         "minutes": "passed", "public": "passed",
     }
 
@@ -92,3 +92,38 @@ def test_non_public_fact_in_tracked_file_fails(talk: Path, tmp_path: Path) -> No
 def test_missing_private_dir_is_all_open(tmp_path: Path) -> None:
     results = talk_check.run_checks(tmp_path / "nope", tmp_path / "nb.py", 50, root=tmp_path)
     assert {r.status for r in results} == {"open"}
+
+
+def test_missing_slide_marker_flags_only_that_module(talk: Path, tmp_path: Path) -> None:
+    nb = tmp_path / "nb.py"
+    nb.write_text("# BEAT:B1 SLIDE:S0\n")  # S1 is covered by its beat; S2 has no marker
+    res = _status(talk_check.run_checks(talk, nb, 50, root=tmp_path), "slides")
+    assert res.status == "failed" and res.details == ["S2: no SLIDE:S2 marker in nb.py"]
+
+
+# ---- guards on talk.py itself (source level: the notebook needs a live stack to run) ----------
+
+TALK = (Path(__file__).resolve().parent.parent / "talk.py").read_text()
+
+
+def test_talk_has_one_diagram_sizing_mechanism_and_no_script_hack() -> None:
+    for banned in ("setInterval", "onerror", "clientWidth", 'replace("flowchart LR"', "zoom="):
+        assert banned not in TALK, banned
+    assert TALK.count("def mer(") == 1
+
+
+def test_talk_probes_flexo_once_with_a_long_timeout_and_one_project_per_sha() -> None:
+    assert TALK.count("httpx.get(") == 1 and "timeout=20" in TALK
+    assert 'f"sysml-talk-{GIT_SHA[:7]}"' in TALK and "uuid" not in TALK
+
+
+def test_talk_callouts_are_neutral_only_and_tags_are_not_looked_up_while_rendering() -> None:
+    import re
+    kinds = set(re.findall(r'kind="(\w+)"', TALK))
+    assert kinds == {"neutral"}, kinds  # amber is the human, red is the FAIL pill; callouts are neither
+    assert "git_sha(" not in TALK and "tag_of" not in TALK
+
+
+def test_talk_uses_group_diff_names_not_private_model_helpers() -> None:
+    for banned in ("_in_model", "_lib_reach", "_top", "in_model", "lib_reach", "top_of", "group_names"):
+        assert banned not in TALK, banned

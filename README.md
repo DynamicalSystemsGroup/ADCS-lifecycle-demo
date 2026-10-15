@@ -156,17 +156,19 @@ Marker filtering is set in `pyproject.toml` via `addopts = "-m 'not live
 and not network'"` so the canonical invocation never hits external
 services. CI opts in explicitly per workflow.
 
-## Run the SysML demo
+## Run the talk
+
+`talk.py` is one marimo notebook that is both the slide deck and the live demo: one cell is one slide, in file order (slides layout in `layouts/talk.slides.json`).
 
 ```bash
 uv sync
-uv run marimo run sysml_notebook.py                     # live: the speaker clicks Attest
-SYSML_DEMO_PRESEED=1 uv run marimo export html sysml_notebook.py -o output/sysml-talk-fallback.html
+uv run marimo run talk.py                               # present; the speaker clicks Attest
+SYSML_DEMO_PRESEED=1 uv run marimo export html talk.py -o output/talk.html   # static fallback
 ```
 
-Git versions the `.sysml` source and shows text diffs of the model; Flexo (set `FLEXO_V2_URL`, see `sysml/FLEXO_LOCAL.md`) versions the model elements, each commit tagged with the Git SHA. Without a reachable Flexo the notebook runs in local mode (Flexo not reachable).
+Git versions the `.sysml` source and shows text diffs of the model; Flexo (set `FLEXO_V2_URL`, see `sysml/FLEXO_LOCAL.md`) versions the model elements, each commit tagged with the Git SHA. The notebook probes Flexo once at load (allow up to 20 s; a local listing takes about 3 s) and uses one project per Git SHA, `sysml-talk-<sha7>`, created at load and reused if it exists. Without a reachable Flexo it runs in local mode. The footer of the first demo slide says which mode this run is in and the Git SHA it read at load.
 
-`SYSML_DEMO_PRESEED=1` (used for the fallback export) never publishes to Flexo; the live demo is `uv run marimo run sysml_notebook.py` with the local Flexo stack up (see `sysml/FLEXO_LOCAL.md`).
+All simulations and figures are computed once at load; start `marimo run` before the talk and let it finish. `SYSML_DEMO_PRESEED=1` (the static export) pre-seeds the human attestations and never publishes to Flexo. The Kotar captures in `talk/assets/` are screenshots only.
 
 ## Pipeline Stages
 

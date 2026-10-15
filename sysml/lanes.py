@@ -58,7 +58,13 @@ def _status(i: str, s: dict) -> str | None:
     return walk(i)
 
 
-def lanes_mermaid(elements: list[dict]) -> str:
+def lanes_mermaid(elements: list[dict], compact: bool = False, terms: dict | None = None) -> str:
+    """The three lanes. `compact=True` is the presentation mode (projector scale): one node per
+    human judgement, one per evidence source, the design part and the requirement; the elements
+    behind each node are not drawn (the audit trail lists them). `terms` ({"S": .., "E": .., "A": ..},
+    compact mode only) adds a third line to a band's header, so a label sits level with its band."""
+    if compact:
+        return _compact(elements, terms or {})
     s = {e["@id"]: e for e in elements}
     top = [e for e in elements if (e.get("owner") or {}).get("@id") == PACKAGE
            and e["@type"] not in ("OwningMembership", "NamespaceImport")]
@@ -149,22 +155,148 @@ def lanes_mermaid(elements: list[dict]) -> str:
         out += ["    " + x for x in lane[k]]
         out.append("  end")
     out += ["  " + x for x in edges]
-    h, m, p = PALETTE["human"], PALETTE["machine"], PALETTE["prescribed"]
-    out += [
-        # prescribed: neutral grey fill, the neutral stroke, thick, and a different shape (stadium)
-        f"  classDef req fill:#f1f3f4,stroke:{p},stroke-width:3px",
-        "  classDef struct fill:#f1f3f4,stroke:#5f6368",
-        "  classDef neutral fill:#ffffff,stroke:#9ca3af",
-        # blue only for machine output
-        f"  classDef machine fill:#e8f0fe,stroke:{m},stroke-width:2px",
-        f"  classDef human fill:#fff4d6,stroke:{h},stroke-width:4px",
-        # a negated claim is still a person's act (amber), but filled solid, label prefixed NOT satisfied
-        f"  classDef negated fill:#fbd38d,stroke:{h},stroke-width:4px,color:{p}",
-        # pending (status tbc): dashed. Amber when a person is named on it, grey when no one is.
-        f"  classDef pendingNamed fill:#ffffff,stroke:{h},stroke-width:3px,stroke-dasharray:6 4",
-        "  classDef pending fill:#ffffff,stroke:#6b7280,stroke-width:3px,stroke-dasharray:6 4",
-    ]
+    out += _CLASSDEFS
     out += [f"  class {k} {c}" for k, c in cls.items()]
+    return "\n".join(out)
+
+
+_H, _M, _P = PALETTE["human"], PALETTE["machine"], PALETTE["prescribed"]
+_CLASSDEFS = [
+    # prescribed: neutral grey fill, the neutral stroke, thick, and a different shape (stadium)
+    f"  classDef req fill:#f1f3f4,stroke:{_P},stroke-width:3px",
+    "  classDef struct fill:#f1f3f4,stroke:#5f6368",
+    "  classDef neutral fill:#ffffff,stroke:#9ca3af",
+    # blue only for machine output
+    f"  classDef machine fill:#e8f0fe,stroke:{_M},stroke-width:2px",
+    f"  classDef human fill:#fff4d6,stroke:{_H},stroke-width:4px",
+    # a negated claim is still a person's act (amber), but filled solid, label prefixed NOT satisfied
+    f"  classDef negated fill:#fbd38d,stroke:{_H},stroke-width:4px,color:{_P}",
+    # pending (status tbc): dashed. Amber when a person is named on it, grey when no one is.
+    f"  classDef pendingNamed fill:#ffffff,stroke:{_H},stroke-width:3px,stroke-dasharray:6 4",
+    "  classDef pending fill:#ffffff,stroke:#6b7280,stroke-width:3px,stroke-dasharray:6 4",
+]
+
+
+_COMPACT_INIT = (
+    "%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '24px', 'lineColor': '#6b7280', "
+    "'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1', 'edgeLabelBackground': '#ffffff'}, "
+    "'flowchart': {'nodeSpacing': 14, 'rankSpacing': 26, 'padding': 8, 'wrappingWidth': 700}}}%%"
+)
+_TOOL_NAMES = (("scipy", "scipy<br/>simulation"), ("sympy", "SymPy<br/>estimate"))
+
+
+def _first_id(node: str) -> str:
+    return node.split("[")[0].split("(")[0].split("{")[0]
+
+
+def _compact(elements: list[dict], terms: dict) -> str:
+    """Presentation mode. Three horizontal bands, top to bottom: structure, evidence, attestation.
+    Each band has a header node (its title on its own line, so no node can overlap it). Invisible
+    links order the bands; the visible links join a judgement to the element it is about and are
+    drawn without arrowheads so that they do not fight the band order."""
+    s = {e["@id"]: e for e in elements}
+    top = [e for e in elements if (e.get("owner") or {}).get("@id") == PACKAGE
+           and e["@type"] not in ("OwningMembership", "NamespaceImport")]
+    name = lambda i: s[i].get("declaredName") or s[i].get("qualifiedName") or i  # noqa: E731
+    lib = lambda e: [s[t["@id"]].get("qualifiedName", "") for t in e.get("type", []) if t["@id"] in s]  # noqa: E731
+    about_of = lambda e: [a["@id"] for a in e.get("annotatedElement", []) if a["@id"] in s]  # noqa: E731
+    kind_of = lambda e: (lib(e) or [""])[0].split("::")[-1]  # noqa: E731
+
+    meta = [e for e in top if e["@type"] == "MetadataUsage"]
+    satisfies = {e["@id"] for e in top if e["@type"] == "SatisfyRequirementUsage"}
+    # A StatusInfo that names a person is that person's judgement. The Rationale about the same
+    # element is folded into the same node; so is a StatusInfo about a `satisfy` claim.
+    judged = {}  # annotated element id -> (who, status)
+    for e in meta:
+        if kind_of(e) == "StatusInfo":
+            txt = _strings(e["@id"], s, [])
+            status = _status(e["@id"], s) or "?"
+            for a in about_of(e):
+                if txt and status != "tbc":
+                    judged[a] = (_clip(txt[0], 30), status)
+
+    lane = {"S": [], "E": [], "A": []}
+    edges, cls, about_edges, claims = [], {}, [], []
+    for e in top:
+        i, t = e["@id"], e["@type"]
+        n = _nid(i)
+        if t == "PartDefinition":
+            lane["S"].append(f'{n}["<b>{name(i)}</b><br/>part def"]')
+            cls[n] = "struct"
+        elif t == "RequirementUsage":
+            lane["S"].append(f'{n}(["<b>{name(i)}</b><br/>requirement"])')
+            cls[n] = "req"
+        elif t == "PartUsage":
+            lane["E"].append(f'{n}["<b>{name(i)}</b><br/>the design"]')
+            cls[n] = "machine"
+        elif t == "SatisfyRequirementUsage":
+            neg = bool(e.get("isNegated"))
+            who = judged.get(i, ("", ""))[0]
+            lane["A"].append(f'{n}{{{{"{"<b>" + who + "</b><br/>" if who else ""}{"NOT satisfied" if neg else "satisfied"}"}}}}')
+            cls[n] = "negated" if neg else "human"
+            if e.get("subsets"):  # a person's claim: drawn in amber (see `_bands`), dotted when negated
+                edges.append(f"{_nid(e['subsets']['@id'])} {'-.-' if neg else '==='} {n}")
+                claims.append(len(edges) - 1)
+        elif t == "MetadataUsage":
+            kind, about, txt = kind_of(e), about_of(e), _strings(i, s, [])
+            if kind == "ToolExecution":
+                tool = (txt[0] if txt else "").split(" (")[0]
+                label = next((v for k, v in _TOOL_NAMES if tool.lower().startswith(k)), _clip(tool, 24))
+                lane["E"].append(f'{n}["{label}"]')
+                cls[n] = "machine"
+                continue
+            if kind == "StatusInfo":
+                status = _status(i, s) or "?"
+                who = _clip(txt[0], 30) if txt else None
+                if status == "tbc":
+                    lane["A"].append(f'{n}["tbc · by {who}"]' if who else f'{n}["tbc · no one has judged"]')
+                    cls[n] = "pendingNamed" if who else "pending"
+                elif set(about) & satisfies:
+                    continue
+                elif who:
+                    lane["A"].append(f'{n}["<b>{who}</b><br/>{status} · adequacy"]')
+                    cls[n] = "human"
+                else:
+                    lane["A"].append(f'{n}["status={status}<br/><i>no originator</i>"]')
+                    cls[n] = "neutral"
+            elif kind == "Rationale":
+                if set(about) & set(judged):
+                    continue
+                lane["A"].append(f'{n}["Rationale<br/><i>{_clip(txt[0] if txt else "", 30)}</i>"]')
+                cls[n] = "neutral"
+            else:
+                continue
+            about_edges += [(n, a) for a in about]
+
+    drawn = {_first_id(x) for k in lane for x in lane[k]}
+
+    def target(a):
+        while a and _nid(a) not in drawn:
+            a = (s.get(a, {}).get("owner") or {}).get("@id")
+        return a
+
+    for n, a in about_edges:
+        if (t := target(a)) and t not in satisfies:
+            edges.append(f"{_nid(t)} -.- {n}")
+    return _bands(lane, edges, cls, claims, terms)
+
+
+def _bands(lane, edges, cls, claims, terms) -> str:
+    out = [_COMPACT_INIT, "flowchart TB"]
+    order, prev = [], None
+    for k, title in (("S", "STRUCTURE<br/>in Git"), ("E", "EVIDENCE<br/>computed"), ("A", "ATTESTATION<br/>a person")):
+        ids = [f"h{k}"] + [_first_id(x) for x in lane[k]]
+        out.append(f'  subgraph {k}[" "]')
+        out.append(f'    h{k}["{title}{"<br/><i>" + terms[k] + "</i>" if terms.get(k) else ""}"]')
+        out += ["    " + x for x in lane[k]]
+        out.append("  end")
+        order += [f"{prev} ~~~ {b}" for b in ids] if prev else []  # a band is one rank, below the last
+        prev = f"h{k}"
+    out += ["  " + x for x in order + edges]
+    out += [f"  linkStyle {len(order) + i} stroke:{_H},stroke-width:4px" for i in claims]
+    out += _CLASSDEFS + ["  classDef hdr fill:none,stroke:none,color:#374151,font-weight:bold"]
+    out += [f"  class {k} {c}" for k, c in cls.items()]
+    out.append("  class hS,hE,hA hdr")
     return "\n".join(out)
 
 
@@ -176,29 +308,29 @@ def _label(text: str) -> str:
 
 def two_store_mermaid() -> str:
     """S4: Git holds the source, OpenSysML evaluates it, Flexo holds the evaluated model with
-    each commit tagged by the Git SHA. Who reads each store is drawn under it."""
+    each commit tagged by the Git SHA. The engineer reads the source side."""
     m, p = PALETTE["machine"], PALETTE["prescribed"]
     return "\n".join([
-        "%%{init: {'themeVariables': {'fontSize': '20px'}}}%%",
+        "%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '24px', 'lineColor': '#6b7280', "
+        "'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1'}, "
+        "'flowchart': {'nodeSpacing': 24, 'rankSpacing': 36, 'padding': 8}}}%%",
         "flowchart LR",
         '  subgraph G["GIT · source"]',
         '    g1["<b>.sysml</b> text<br/>analysis code<br/>notebook"]',
         "  end",
         '  X{{"<b>OpenSysML</b><br/>evaluates"}}',
         '  subgraph F["FLEXO · model"]',
-        '    f1["model elements<br/>commits tagged with the Git SHA<br/><b>git-&lt;sha&gt;</b>"]',
+        '    f1["model elements<br/>tagged <b>git-&lt;sha&gt;</b>"]',
         "  end",
-        '  rg["engineer: reads diffs and history"]',
-        '  rf["reviewer and tools: query the model, find the Git commit by its tag"]',
+        '  rg["engineer reads<br/>diffs, history"]',
         "  G --> X --> F",
         "  rg -.-> G",
-        "  rf -.-> F",
         f"  classDef src fill:#f1f3f4,stroke:{p},stroke-width:3px",
         f"  classDef machine fill:#e8f0fe,stroke:{m},stroke-width:2px",
         "  classDef reader fill:#ffffff,stroke:#9ca3af",
         "  class g1 src",
         "  class X,f1 machine",
-        "  class rg,rf reader",
+        "  class rg reader",
     ])
 
 
@@ -208,7 +340,9 @@ def sandwich_mermaid(layers) -> str:
     if len(layers) != 3 or not all(layers):
         raise ValueError(f"sandwich_mermaid takes exactly three non-empty labels, got {layers!r}")
     p = PALETTE["prescribed"]
-    out = ["flowchart TB"]
+    out = ["%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '26px', 'lineColor': '#6b7280'}, "
+           "'flowchart': {'rankSpacing': 36, 'wrappingWidth': 700}}}%%",
+           "flowchart TB"]
     out += [f'  L{i}["{x}"]' for i, x in enumerate(layers)]
     out += ["  L0 --- L1 --- L2", f"  classDef layer fill:#f1f3f4,stroke:{p},stroke-width:3px",
             "  class L0,L1,L2 layer"]
