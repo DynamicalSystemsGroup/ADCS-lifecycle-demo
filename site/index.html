@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ADCS Lifecycle Demo</title>
-<meta name="description" content="One satellite, one requirement, three presentations: evidence, attestation and requirements traceability for a satellite attitude control system.">
+<meta name="description" content="One satellite, one requirement, several presentations: requirements as behavioral envelopes, evidence with blind spots, and human judgment on the record, made continuous like CI/CD.">
 <style>
 :root { --bg:#ffffff; --fg:#111111; --mut:#4b5563; --faint:#6b7280; --rule:#e5e7eb; --card:#f9fafb; --link:#2166ac; --sky:#dbeafe; --beam:#fef3c7; }
 @media (prefers-color-scheme: dark) {
@@ -23,6 +23,20 @@ a { color:var(--link); }
 blockquote { margin:18px 0; padding:4px 0 4px 18px; border-left:4px solid var(--fg); font-weight:600; }
 h2 { font-size:24px; margin:40px 0 6px; }
 .venue { color:var(--faint); margin:0 0 14px; }
+h2.big { font-size:28px; margin:44px 0 10px; }
+ol.take { padding-left:22px; margin:8px 0 18px; }
+ol.take li { margin:0 0 12px; }
+ol.take b { color:var(--fg); }
+table.bridge { width:100%; border-collapse:collapse; margin:10px 0 18px; font-size:16px; }
+table.bridge th, table.bridge td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--rule); vertical-align:top; }
+table.bridge th { color:var(--faint); font-weight:600; }
+table.bridge td:first-child { color:var(--mut); }
+.thesis { font-size:26px; font-weight:700; margin:6px 0 8px; }
+.dual { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:12px 0 8px; }
+.dual div { border:1px solid var(--rule); border-radius:12px; padding:14px 16px; }
+.dual b { display:block; margin-bottom:4px; }
+.dual p { margin:0; color:var(--mut); font-size:16px; }
+@media (max-width:600px) { .dual { grid-template-columns:1fr; } }
 .note { border-left:4px solid var(--link); padding:6px 0 6px 16px; margin:0 0 16px; color:var(--mut); }
 .note b { color:var(--fg); }
 ul.cards { list-style:none; padding:0; margin:0; display:grid; gap:14px; }
@@ -59,12 +73,37 @@ footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px 
 <text x="316" y="340">within 120 s of a slew</text>
 </svg>
 
-<p>The subject never changes. A geosynchronous communications satellite has an attitude determination and control system (ADCS): a PD controller with two gains, Kp and Kd. One requirement, REQ-001, says the pointing error must settle within 0.1° within 120 seconds of a slew. Symbolic analysis and simulation produce evidence about it. Sometimes the two disagree, and a person still has to judge whether the requirement is satisfied.</p>
-<blockquote>Evidence does not verify requirements; evidence supports a human judgment that requirements are satisfied.</blockquote>
-<p>This repository is a running workspace. The same example has been built for three audiences with three toolchains, and each version stays runnable: first a marimo notebook over RDF, then a Jupyter walkthrough, then a marimo deck with the model in SysML v2 itself. Start wherever suits you.</p>
+<h2 class="big">The example</h2>
+<p>A geosynchronous communications satellite has an attitude determination and control system (ADCS): a PD controller whose two gains, Kp and Kd, are the design. One system-level requirement, REQ-001, says the pointing error must settle within 0.1° within 120 seconds of a slew. Several kinds of evidence speak to it: a symbolic estimate (SymPy), a torque-limited simulation (SciPy), model checking (z3) and the model's own simulation. They don't always agree. At one design the linear estimate says 105 s, and the simulation misses the limit by half a second. A qualified engineer has to judge whether the requirement is satisfied, and say why, on the record.</p>
+
+<h2 class="big">The take-away</h2>
+<p class="thesis">A tool says pass. A person says satisfied.</p>
+<p>The tool produced a formal result about the model. The human attestation is about the system the model represents. Bridging the two is where systems engineering practice meets software engineering agility.</p>
+<ol class="take">
+<li><b>Requirements declare behavioral envelopes.</b> A system-level requirement states ranges of acceptable behavior, under stated operating assumptions. Without that specification, "working as intended?" has no answer. Every automated system needs a behavioral envelope.</li>
+<li><b>Every kind of evidence has a blind spot.</b> Model checking, simulation, symbolic analysis and tests each cover something and miss something. None of them is the spacecraft. Contradictory evidence is expected, not a failure of the process.</li>
+<li><b>Continuous analysis, continuous publication (CA/CP).</b> Every design change re-runs the analyses and republishes the model, as CI/CD does for code. Automation alone is an open loop. A qualified engineer closes it, and their judgment, with rationale, becomes part of the model.</li>
+</ol>
+<table class="bridge">
+<tr><th>CI/CD, with pull requests</th><th>CA/CP: continuous analysis, continuous publication</th></tr>
+<tr><td>commit and push a change on a branch</td><td>revise the design (Kp, Kd)</td></tr>
+<tr><td>CI builds and tests, automated</td><td>re-analysis, automated: several kinds of evidence</td></tr>
+<tr><td>status checks: a red check blocks the merge</td><td>evidence concurring or contradictory: disagreement is expected</td></tr>
+<tr><td>a reviewer approves, with comments</td><td>a qualified engineer judges, with rationale</td></tr>
+<tr><td>the approval is recorded, then deployed</td><td>the attestation is recorded in the model and republished</td></tr>
+</table>
+<blockquote>This is how engineering delivers trusted and trustworthy systems, despite an incomplete and uncertain world.</blockquote>
+
+<h2 class="big">Two audiences, one example</h2>
+<p>This repository is a running workspace: the same satellite and requirement, built anew for each venue, and every version stays runnable. The two big talks are duals of each other.</p>
+<div class="dual">
+<div><b>JAXA, June 2026</b><p>For systems engineers, about open-source software: how a vendor-neutral, open-source spine (RDF standards, Python, Flexo MMS) keeps evidence and judgment traceable across heterogeneous tools.</p></div>
+<div><b>OSA, October 2026</b><p>For open-source software architects, about systems engineering: requirements as behavioral envelopes, evidence with blind spots, and a person's judgment on the record, made continuous like CI/CD.</p></div>
+</div>
+<p>Start wherever suits you.</p>
 
 <h2>OpenMBEE community call</h2>
-<p class="venue">Flexo / SysML v2 dev meeting · May 22, 2026</p>
+<p class="venue">Flexo / SysML v2 dev meeting · May 22, 2026 · for OpenMBEE developers: the first build of the example</p>
 <ul class="cards">
 <li>
 <h3>ADCS lifecycle notebook</h3>
@@ -75,7 +114,7 @@ footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px 
 </ul>
 
 <h2>JAXA MBSE/MCE Workshop</h2>
-<p class="venue">Presentations from Industry · Tsukuba · June 12, 2026</p>
+<p class="venue">Presentations from Industry · Tsukuba · June 12, 2026 · for systems engineers: open-source software practice</p>
 <ul class="cards">
 <li>
 <h3>Intro slides</h3>
@@ -92,8 +131,8 @@ footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px 
 </ul>
 
 <h2>Open Source Architects (OSA) Community</h2>
-<p class="venue">October 15, 2026</p>
-<p class="note"><b>Same title as the JAXA talk, different talk.</b> The invitation to speak came from the JAXA talk and the OpenMBEE work, so the public abstract kept the JAXA title. Between June and October, OpenMBEE released OpenSysML (August 2026), and the talk moved with it. At JAXA the traceability was RDF (PROV, EARL and GSN named graphs pushed to Flexo's RDF layer). At OSA the requirement, the evidence and the person's judgment live in the SysML v2 model itself: OpenSysML evaluates it, and Flexo stores it through the SysML v2 API. The question and the principle are unchanged. The representation, the tools and the demo are new.</p>
+<p class="venue">October 15, 2026 · for open-source software architects: systems engineering practice</p>
+<p class="note"><b>Same title as the JAXA talk, different talk.</b> The invitation came from the JAXA talk and the OpenMBEE work, so the public abstract kept the JAXA title. The audience changed, and so did the emphasis (see above). So did the tools: OpenMBEE released OpenSysML in August 2026. At JAXA the traceability was RDF named graphs pushed to Flexo's RDF layer. At OSA the requirement, the evidence and the person's judgment live in the SysML v2 model itself: OpenSysML evaluates it, and Flexo stores it through the SysML v2 API.</p>
 <ul class="cards">
 <li>
 <h3>Evidence, Attestation, and Requirements Traceability with Python and Flexo MMS</h3>

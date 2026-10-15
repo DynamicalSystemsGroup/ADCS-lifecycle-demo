@@ -20,12 +20,30 @@ new artifact with a new toolchain, and the earlier ones stay runnable.
 | 2026-06-12 | JAXA MBSE/MCE Workshop, Presentations from Industry (Tsukuba) | intro slides (PDF, [`site/jaxa-intro-slides.pdf`](site/jaxa-intro-slides.pdf)) + [`jaxa_notebook.ipynb`](jaxa_notebook.ipynb) | Jupyter, rdflib, Flexo MMS (Layer 1), behavior-model oracle | `uv run jupyter lab jaxa_notebook.ipynb` | [slides](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/jaxa/slides.pdf), [notebook](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/jaxa/notebook/) |
 | 2026-10-15 | Open Source Architects (OSA) Community | [`talk.py`](talk.py), slides and live demo in one marimo app | marimo, SysML v2 (OpenSysML), Flexo MMS SysML v2 API, z3, PlantUML, Git | `uv run marimo run talk.py` ([Run the talk](#run-the-talk-the-sysml-v2-edition)) | [deck](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/osa/), a static pre-signed export |
 
-**JAXA and OSA share a title but not a talk.** The OSA invitation came from the JAXA talk
-and the OpenMBEE work, so the public abstract reused the JAXA title. Between June and
-October, OpenMBEE released OpenSysML (August 2026), and the talk moved with it. JAXA is
-the RDF edition: PROV, EARL and GSN named graphs pushed to Flexo's RDF layer. OSA is
-the SysML v2 edition: the requirement, the evidence and the person's judgment live in the
-model itself, evaluated by OpenSysML and stored in Flexo through the SysML v2 API.
+**Two audiences, one example.** The two big talks are duals. JAXA was for systems
+engineers learning open-source software practice: a vendor-neutral, open-source spine
+(RDF standards, Python, Flexo MMS) keeps evidence and judgment traceable across tools.
+OSA was for open-source software architects learning systems engineering practice:
+requirements as behavioral envelopes, evidence with blind spots, and a person's judgment
+on the record, made continuous like CI/CD. They share a title because the OSA
+invitation came from the JAXA talk and the OpenMBEE work, so the public abstract kept the
+JAXA title. The tools changed too: OpenMBEE released OpenSysML in August 2026, so JAXA is
+the RDF edition and OSA is the SysML v2 edition (see below).
+
+### The take-away
+
+**A tool says pass. A person says satisfied.** The tool's formal result is about the
+model; the human attestation is about the system the model represents.
+
+1. **Requirements declare behavioral envelopes**: ranges of acceptable behavior, under
+   stated operating assumptions. Without one, "working as intended?" has no answer.
+2. **Every kind of evidence has a blind spot.** Model checking, simulation, symbolic
+   analysis and tests each miss something, and none of them is the spacecraft.
+   Contradictory evidence is expected.
+3. **CI/CD becomes CA/CP: continuous analysis, continuous publication.** Every design
+   change re-runs the analyses and republishes the model. Automation alone is an open
+   loop. A qualified engineer closes it, as a reviewer does for a pull request, and their
+   judgment, with rationale, becomes part of the model.
 
 The site is built by [`.github/workflows/publish.yml`](.github/workflows/publish.yml) on
 every push to `main`. The landing page is [`site/index.html`](site/index.html), and each
