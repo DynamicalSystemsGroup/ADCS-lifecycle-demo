@@ -9,7 +9,7 @@ import pytest
 from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
-from sysml.lanes import lanes_mermaid, sandwich_mermaid, two_store_mermaid
+from sysml.lanes import lanes_mermaid, sandwich_mermaid, stack_mermaid, two_store_mermaid
 from sysml.model import (DEFAULT_ADEQUACY, DEMO_ENGINEER, assemble, attestation_block, evidence_block, load_structure,
                          status_block, symbolic_settling, to_elements)
 
@@ -210,6 +210,19 @@ def test_sandwich_mermaid_stacks_three_labels():
         sandwich_mermaid(["a", "b"])
     with pytest.raises(ValueError):
         sandwich_mermaid(["a", "", "c"])
+
+
+def test_stack_mermaid_four_layers_three_arrows_and_feedback():
+    m = stack_mermaid()
+    assert "\nflowchart TB\n" in m
+    for part in ("Standards", "OMG SysML v2", "KerML", "Systems Modeling API", "Open-source software", "OpenSysML REDK",
+                 "sysml-toolkit", "Flexo MMS", "OMG Pilot", "Commercial software", "Kotar", "hosted Flexo MMS",
+                 "Engineering organizations"):
+        assert part in m
+    for edge in ("L0 -- implemented as --> L1", "L1 -- imported by --> L2", "L2 -- used by --> L3",
+                 "L3 -. feedback .-> L0"):
+        assert edge in m
+    assert "#e8f0fe" not in m and "#fff4d6" not in m  # neutral: no machine blue, no human amber
 
 
 # ---------- compact (presentation) mode ----------
