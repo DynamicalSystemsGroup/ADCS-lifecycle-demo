@@ -1,36 +1,39 @@
 <div class="slide">
 <h2>Every kind of evidence has a blind spot</h2>
-<svg viewBox="0 0 1180 470" role="img" aria-label="Four kinds of evidence: what each covers and what it cannot see">
-<!-- header -->
-<text class="sub" x="40"  y="30" style="font-size:18px;letter-spacing:.08em">KIND</text>
-<text class="sub" x="400" y="30" style="font-size:18px;letter-spacing:.08em">WHAT IT COVERS</text>
-<text class="sub" x="800" y="30" style="font-size:18px;letter-spacing:.08em">WHAT IT CANNOT SEE</text>
-<path class="arr" d="M0,46 H1180" style="stroke:#111111"/>
-<!-- formal -->
-<rect x="0" y="62" width="8" height="76" rx="2" fill="#2166ac"/>
-<text class="h1t" x="40" y="94">Formal</text><text class="sub" x="40" y="124">z3 over the linear model</text>
-<text style="font-size:24px" x="400" y="109">every design in a box</text>
-<text x="800" y="109" style="font-size:30px;font-weight:700;fill:#9ca3af">?</text>
-<path class="hair" d="M0,150 H1180" style="fill:none"/>
-<!-- symbolic -->
-<rect x="0" y="162" width="8" height="76" rx="2" fill="#2166ac"/>
-<text class="h1t" x="40" y="194">Symbolic</text><text class="sub" x="40" y="224">SymPy, closed form</text>
-<text style="font-size:24px" x="400" y="209">closed-form estimate, linear model</text>
-<text x="800" y="209" style="font-size:30px;font-weight:700;fill:#9ca3af">?</text>
-<path class="hair" d="M0,250 H1180" style="fill:none"/>
-<!-- simulation -->
-<rect x="0" y="262" width="8" height="76" rx="2" fill="#2166ac"/>
-<text class="h1t" x="40" y="294">Simulation</text><text class="sub" x="40" y="324">nonlinear, torque-limited</text>
-<text style="font-size:24px" x="400" y="309">one scenario at a time</text>
-<text x="800" y="309" style="font-size:30px;font-weight:700;fill:#9ca3af">?</text>
-<path class="hair" d="M0,350 H1180" style="fill:none"/>
-<!-- measurement, greyed -->
-<g>
-<rect x="0" y="362" width="8" height="76" rx="2" fill="#9ca3af"/>
-<text class="h1t gry" x="40" y="394" style="fill:#6b7280">Measurement</text><text class="sub" x="40" y="424" style="fill:#6b7280">not in this demo</text>
-<text style="font-size:24px;fill:#6b7280" x="400" y="409">the hardware</text>
-<text x="800" y="409" style="font-size:30px;font-weight:700;fill:#d1d5db">?</text>
-</g>
+<svg viewBox="0 0 1180 498" role="img" aria-label="Five kinds of evidence, in the model, extended through code, and measurement: what each covers and what it cannot see">
+<text class="sub" x="34" y="22" style="font-size:16px;letter-spacing:.08em">KIND</text>
+<text class="sub" x="470" y="22" style="font-size:16px;letter-spacing:.08em">WHAT IT COVERS</text>
+<text class="sub" x="850" y="22" style="font-size:16px;letter-spacing:.08em">WHAT IT CANNOT SEE</text>
+
+<path class="arr" d="M0,36 H1180" style="stroke:#111111"/>
+<text class="sub" x="0" y="80" style="font-size:14px;letter-spacing:.1em;fill:#6b7280">IN THE SYSML V2 MODEL</text>
+<rect x="0" y="90" width="8" height="60" rx="2" fill="#2166ac"/>
+<text class="h2t" x="34" y="116">Model checking</text><text class="sub" x="34" y="142">built-in z3 solver, linear model</text>
+<text style="font-size:22px;" x="470" y="128">every design in a box</text>
+<text x="850" y="130" style="font-size:28px;font-weight:700;fill:#9ca3af">?</text>
+<path class="hair" d="M0,154 H1180" style="fill:none"/>
+<rect x="0" y="158" width="8" height="60" rx="2" fill="#2166ac"/>
+<text class="h2t" x="34" y="184">In-model simulation</text><text class="sub" x="34" y="210">SysML v2 actions and states</text>
+<text style="font-size:22px;" x="470" y="196">the model's behavior, step by step</text>
+<text x="850" y="198" style="font-size:28px;font-weight:700;fill:#9ca3af">?</text>
+<path class="hair" d="M0,222 H1180" style="fill:none"/>
+<text class="sub" x="0" y="248" style="font-size:14px;letter-spacing:.1em;fill:#6b7280">EXTENDED THROUGH CODE (PYTHON HERE; ANY LANGUAGE WORKS)</text>
+<rect x="0" y="258" width="8" height="60" rx="2" fill="#2166ac"/>
+<text class="h2t" x="34" y="284">Symbolic analysis</text><text class="sub" x="34" y="310">SymPy, closed form</text>
+<text style="font-size:22px;" x="470" y="296">closed-form estimate, linear model</text>
+<text x="850" y="298" style="font-size:28px;font-weight:700;fill:#9ca3af">?</text>
+<path class="hair" d="M0,322 H1180" style="fill:none"/>
+<rect x="0" y="326" width="8" height="60" rx="2" fill="#2166ac"/>
+<text class="h2t" x="34" y="352">Numerical simulation</text><text class="sub" x="34" y="378">NumPy, SciPy: nonlinear, torque-limited</text>
+<text style="font-size:22px;" x="470" y="354">a battery of scenarios</text><text class="sub" x="470" y="378">here: 3 slew axes, 9 nearby designs</text>
+<text x="850" y="366" style="font-size:28px;font-weight:700;fill:#9ca3af">?</text>
+<path class="hair" d="M0,390 H1180" style="fill:none"/>
+<text class="sub" x="0" y="416" style="font-size:14px;letter-spacing:.1em;fill:#6b7280">MEASUREMENT</text>
+<rect x="0" y="426" width="8" height="60" rx="2" fill="#9ca3af"/>
+<text class="h2t" x="34" y="452" style="fill:#6b7280">Hardware-in-the-loop tests</text><text class="sub" x="34" y="478" style="fill:#6b7280">not in this demo</text>
+<text style="font-size:22px;fill:#6b7280;" x="470" y="464">the hardware</text>
+<text x="850" y="466" style="font-size:28px;font-weight:700;fill:#d1d5db">?</text>
+<path class="hair" d="M0,490 H1180" style="fill:none"/>
 </svg>
-<p class="cap" style="font-family:Lora,Georgia,serif;font-weight:600;font-size:32px;margin-top:26px">None of them is the spacecraft.</p>
+<p class="cap" style="font-family:Lora,Georgia,serif;font-weight:600;font-size:30px;margin-top:16px">None of them is the spacecraft.</p>
 </div>
