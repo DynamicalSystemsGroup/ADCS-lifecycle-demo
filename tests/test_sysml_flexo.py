@@ -45,6 +45,16 @@ def test_publish_identical_snapshot_raises_no_change():
         flexo.publish("p", [el("1", "A")], "m", "0" * 40)
 
 
+
+def test_head_reads_default_branch_head():
+    routes = {"/projects/p": {"defaultBranch": {"@id": "b"}},
+              "/projects/p/branches/b": {"head": {"@id": "c3"}}}
+    def handler(request):
+        return httpx.Response(200, json=routes[request.url.path])
+    flexo = FlexoV2("http://x")
+    flexo._http = httpx.Client(base_url="http://x", transport=httpx.MockTransport(handler))
+    assert flexo.head("p") == "c3"
+
 # ---------- offline: git_source ----------
 
 def test_text_diff():

@@ -120,7 +120,8 @@ def test_slides_are_in_storyboard_order_one_cell_each() -> None:
 
 def test_talk_probes_flexo_once_with_a_long_timeout_and_one_project_per_sha() -> None:
     assert TALK.count("httpx.get(") == 1 and "timeout=20" in TALK
-    assert "sysml-talk-{GIT_SHA[:7]}-" in TALK and "uuid" not in TALK
+    # reused across sessions: the local store never frees a project (sysml/FLEXO_LOCAL.md, Store growth)
+    assert 'f"sysml-talk-{GIT_SHA[:7]}"' in TALK and "strftime" not in TALK and "uuid" not in TALK
 
 
 def test_talk_has_no_notebook_chrome_banners_and_no_script_hacks() -> None:

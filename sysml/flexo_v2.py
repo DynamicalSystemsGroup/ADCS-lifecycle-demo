@@ -69,8 +69,14 @@ class FlexoV2:
                 return t["name"][len(TAG_PREFIX):]
         return None
 
+    def head(self, project_id: str) -> str:
+        """Head commit id of the project's default branch."""
+        branch = self._json("GET", f"/projects/{project_id}")["defaultBranch"]["@id"]
+        return self._json("GET", f"/projects/{project_id}/branches/{branch}")["head"]["@id"]
+
     def delete_project(self, project_id: str) -> None:
-        """Delete a project (raises on HTTP error)."""
+        """Delete a project (raises on HTTP error). Identity-only: the local stack keeps the
+        project's commit graphs, so this frees no store space (FLEXO_LOCAL.md, Store growth)."""
         self._http.delete(f"/projects/{project_id}").raise_for_status()
 
 
