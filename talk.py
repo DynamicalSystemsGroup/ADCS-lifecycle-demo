@@ -408,7 +408,7 @@ def _s2(head):
 
 
 @app.cell(hide_code=True)
-def _b1(D, STATUS, head, mer, mo, structure):
+def _b1(D, STATUS, asset, head, mer, mo, structure):
     # <!-- BEAT:B1 --> only the structure band is filled.
     mo.vstack([
         head(
@@ -417,7 +417,11 @@ def _b1(D, STATUS, head, mer, mo, structure):
             "The design prescribes only Kp and Kd."
         ),
         mer(D["lanes_b1"], 600),
-        mo.accordion({"Audit trail": mo.md(f"```text\n{structure}\n```")}),
+        mo.accordion({"Audit trail": mo.vstack([
+            mo.md(f"```text\n{structure}\n```"),
+            mo.md("<small><i>the final model, rendered by Kotar (Planetary Utilities)</i></small>"),
+            asset("sat-00-overview.png", width=900),
+        ])}),
         mo.md(f'<small style="color:#6b7280">{STATUS}</small>'),
     ])
     return
