@@ -58,12 +58,13 @@ def _status(i: str, s: dict) -> str | None:
     return walk(i)
 
 
-def lanes_mermaid(elements: list[dict], compact: bool = False) -> str:
+def lanes_mermaid(elements: list[dict], compact: bool = False, terms: dict | None = None) -> str:
     """The three lanes. `compact=True` is the presentation mode (projector scale): one node per
     human judgement, one per evidence source, the design part and the requirement; the elements
-    behind each node are not drawn (the audit trail lists them)."""
+    behind each node are not drawn (the audit trail lists them). `terms` ({"S": .., "E": .., "A": ..},
+    compact mode only) adds a third line to a band's header, so a label sits level with its band."""
     if compact:
-        return _compact(elements)
+        return _compact(elements, terms or {})
     s = {e["@id"]: e for e in elements}
     top = [e for e in elements if (e.get("owner") or {}).get("@id") == PACKAGE
            and e["@type"] not in ("OwningMembership", "NamespaceImport")]
@@ -188,7 +189,7 @@ def _first_id(node: str) -> str:
     return node.split("[")[0].split("(")[0].split("{")[0]
 
 
-def _compact(elements: list[dict]) -> str:
+def _compact(elements: list[dict], terms: dict) -> str:
     """Presentation mode. Three horizontal bands, top to bottom: structure, evidence, attestation.
     Each band has a header node (its title on its own line, so no node can overlap it). Invisible
     links order the bands; the visible links join a judgement to the element it is about and are
@@ -277,16 +278,16 @@ def _compact(elements: list[dict]) -> str:
     for n, a in about_edges:
         if (t := target(a)) and t not in satisfies:
             edges.append(f"{_nid(t)} -.- {n}")
-    return _bands(lane, edges, cls, claims)
+    return _bands(lane, edges, cls, claims, terms)
 
 
-def _bands(lane, edges, cls, claims) -> str:
+def _bands(lane, edges, cls, claims, terms) -> str:
     out = [_COMPACT_INIT, "flowchart TB"]
     order, prev = [], None
     for k, title in (("S", "STRUCTURE<br/>in Git"), ("E", "EVIDENCE<br/>computed"), ("A", "ATTESTATION<br/>a person")):
         ids = [f"h{k}"] + [_first_id(x) for x in lane[k]]
         out.append(f'  subgraph {k}[" "]')
-        out.append(f'    h{k}["{title}"]')
+        out.append(f'    h{k}["{title}{"<br/><i>" + terms[k] + "</i>" if terms.get(k) else ""}"]')
         out += ["    " + x for x in lane[k]]
         out.append("  end")
         order += [f"{prev} ~~~ {b}" for b in ids] if prev else []  # a band is one rank, below the last
@@ -307,30 +308,29 @@ def _label(text: str) -> str:
 
 def two_store_mermaid() -> str:
     """S4: Git holds the source, OpenSysML evaluates it, Flexo holds the evaluated model with
-    each commit tagged by the Git SHA. Who reads each store is drawn under it."""
+    each commit tagged by the Git SHA. The engineer reads the source side."""
     m, p = PALETTE["machine"], PALETTE["prescribed"]
     return "\n".join([
-        "%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '20px', 'lineColor': '#6b7280', "
-        "'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1'}}}%%",
+        "%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '24px', 'lineColor': '#6b7280', "
+        "'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1'}, "
+        "'flowchart': {'nodeSpacing': 24, 'rankSpacing': 36, 'padding': 8}}}%%",
         "flowchart LR",
         '  subgraph G["GIT · source"]',
         '    g1["<b>.sysml</b> text<br/>analysis code<br/>notebook"]',
         "  end",
         '  X{{"<b>OpenSysML</b><br/>evaluates"}}',
         '  subgraph F["FLEXO · model"]',
-        '    f1["model elements<br/>commits tagged with the Git SHA<br/><b>git-&lt;sha&gt;</b>"]',
+        '    f1["model elements<br/>tagged <b>git-&lt;sha&gt;</b>"]',
         "  end",
-        '  rg["engineer: reads diffs and history"]',
-        '  rf["reviewer and tools: query the model, find the Git commit by its tag"]',
+        '  rg["engineer reads<br/>diffs, history"]',
         "  G --> X --> F",
         "  rg -.-> G",
-        "  rf -.-> F",
         f"  classDef src fill:#f1f3f4,stroke:{p},stroke-width:3px",
         f"  classDef machine fill:#e8f0fe,stroke:{m},stroke-width:2px",
         "  classDef reader fill:#ffffff,stroke:#9ca3af",
         "  class g1 src",
         "  class X,f1 machine",
-        "  class rg,rf reader",
+        "  class rg reader",
     ])
 
 

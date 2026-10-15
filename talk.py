@@ -76,6 +76,7 @@ def _s0():
     # One Flexo project per Git SHA (sysml-talk-<sha7>): reused when it exists, created here at
     # load so that a click only publishes. It is never deleted; remove with FlexoV2().delete_project(id).
     flexo = None
+    why = ""
     if not PRESEED:
         _url = os.environ.get("FLEXO_V2_URL", "http://localhost:8083").rstrip("/")
         _name = f"sysml-talk-{GIT_SHA[:7]}"
@@ -87,13 +88,14 @@ def _s0():
             project["id"] = _have[0] if _have else _client.ensure_project(_name)
             project["name"] = _name
             flexo = _client
-        except (httpx.HTTPError, httpx.InvalidURL):
+        except Exception as _e:  # any failure at all (HTTP, URL, JSON, a missing field): run in local mode
             flexo = None
+            why = f" ({type(_e).__name__})"
 
     if PRESEED:
         STATUS = "Export mode: nothing published to Flexo"
     elif flexo is None:
-        STATUS = "Local mode: Flexo not reachable"
+        STATUS = f"Local mode: Flexo not available{why}"
     else:
         STATUS = f"Flexo reachable · project {project['name']}"
     STATUS += f" · source git {GIT_SHA[:7]}" + (" · uncommitted source changes" if DIRTY else "")
@@ -131,7 +133,8 @@ def _s0():
 
     def publish_snapshot(label: str, text: str):
         """Return (commit_id or None, tag or None, note or None). Never raises on an HTTP problem.
-        The tag is stored here, at publish time, so rendering never calls Flexo."""
+        The tag is stored here, at publish time, so rendering never calls Flexo. If only the tag
+        POST fails, the commit exists: it is returned (it is the branch head) with tag None and a note."""
         if flexo is None:
             return None, None, None
         try:
@@ -140,7 +143,39 @@ def _s0():
         except NoChangeError:
             return None, None, "No change: the snapshot is identical to the head, so Flexo made no commit."
         except httpx.HTTPError as e:
+            try:
+                _tag_step = e.request.url.path.endswith("/tags")
+            except RuntimeError:  # the error carries no request
+                _tag_step = False
+            if _tag_step:
+                try:
+                    _head = flexo._json("GET", f"/projects/{project['id']}/branches")[0]["head"]["@id"]
+                    return _head, None, f"Published, but Flexo did not tag the commit ({type(e).__name__})."
+                except Exception:  # noqa: BLE001 the head is unknown too: report the publish as failed
+                    pass
             return None, None, f"Flexo publish failed ({type(e).__name__}); this step continues without it."
+
+    def publish_line(label: str, rec: dict):
+        """One neutral line under a beat: "Published C1 to Flexo, tagged git-xxxxxxx", or the note."""
+        parts = []
+        if rec.get("commit"):
+            parts.append(f"Published {label} to Flexo" + (f", tagged `git-{rec['tag'][len(TAG_PREFIX):][:7]}`" if rec.get("tag") else ""))
+        if rec.get("note"):
+            parts.append(rec["note"])
+        return mo.callout(mo.md(" · ".join(parts)), kind="neutral") if parts else mo.md("")
+
+    def publishing_line(label: str):
+        """Shown the moment Attest is clicked, before the slow publish returns."""
+        return mo.callout(mo.md(f"Publishing {label} to Flexo…"), kind="neutral")
+
+    # Top-anchor: marimo centres a slide's content vertically, so titles would jump from slide to
+    # slide. The rule rides inside each slide's title markdown (a virtual swiper drops slides that
+    # are far from view, and their style tags with them).
+    TOP = "<style>.mo-slide-content{justify-content:flex-start!important}</style>"
+
+    def head(text: str):
+        """A slide's title block: markdown, with the top-anchor rule attached."""
+        return mo.md(text + TOP)
 
     def png(fig, dpi=110):
         """A matplotlib figure as an image: bytes render identically under run and export."""
@@ -154,7 +189,7 @@ def _s0():
 
     def mer(diagram: str, width: int = 720):
         """A Mermaid diagram scaled to a fixed CSS width: the one sizing mechanism. The svg fills a
-        centred box of `width` px (up or down), so every diagram is sized here and nowhere else;
+        centered box of `width` px (up or down), so every diagram is sized here and nowhere else;
         the diagram text only sets its own base font (20 px or more)."""
         return mo.Html(
             "<style>.mer svg{display:block;margin:0 auto;width:100%!important;max-width:none!important}</style>"
@@ -256,7 +291,7 @@ def _s0():
             )
         return mo.vstack(parts)
 
-    mo.md(
+    head(
         "# A tool says pass. A person says satisfied.\n\n"
         "- Evidence supports a human judgement.\n"
         "- Written before OpenSysML existed; now it runs on it.\n\n"
@@ -286,6 +321,7 @@ def _s0():
         group_diff,
         groups_view,
         hash_simulation,
+        head,
         httpx,
         lanes_mermaid,
         load_params,
@@ -296,7 +332,9 @@ def _s0():
         once,
         png,
         project,
+        publish_line,
         publish_snapshot,
+        publishing_line,
         re,
         run_step_response,
         sandwich_mermaid,
@@ -313,16 +351,16 @@ def _s0():
 
 
 @app.cell(hide_code=True)
-def _s1(asset, mo):
+def _s1(asset, head, mo):
     mo.hstack([
         mo.vstack([
-            mo.md(
+            head(
                 "## OpenMBEE → OpenSysML <!-- SLIDE:S1 -->\n\n"
                 "- Code since 2014; NumFOCUS 2020\n"
                 "- Apache-2.0; pip install opensysml\n"
                 "- Task: render API returns data, not pictures"
             ),
-            mo.md("<small><i>rendered by Kotar (Planetary Utilities); not colour-coded</i></small>"),
+            mo.md("<small><i>rendered by Kotar (Planetary Utilities); not color-coded</i></small>"),
         ], justify="center"),
         asset("toaster-states.png", width=560, rounded=True),
     ], widths=[1, 1], align="center")
@@ -330,28 +368,22 @@ def _s1(asset, mo):
 
 
 @app.cell(hide_code=True)
-def _s2(asset, mo):
-    mo.hstack([
-        mo.vstack([
-            mo.md(
-                "## The pattern <!-- SLIDE:S2 -->\n\n"
-                "- A machine-checkable requirement\n"
-                "- A verdict: pass, fail or inconclusive\n"
-                "- A person's named sign-off, with reasons"
-            ),
-            mo.md("<small><i>rendered by Kotar (Planetary Utilities); not colour-coded</i></small>"),
-        ], justify="center"),
-        asset("sat-01-requirement-design-satisfy.png", width=440, rounded=True),
-    ], widths=[1, 1], align="center")
+def _s2(head):
+    head(
+        "## The pattern <!-- SLIDE:S2 -->\n\n"
+        "- A machine-checkable requirement\n"
+        "- A verdict: pass, fail or inconclusive\n"
+        "- A person's named sign-off, with reasons"
+    )
     return
 
 
 @app.cell(hide_code=True)
-def _b1(D, STATUS, mer, mo, structure):
+def _b1(D, STATUS, head, mer, mo, structure):
     # <!-- BEAT:B1 --> only the structure band is filled.
     mo.vstack([
-        mo.md(
-            "## A behavioural requirement <!-- BEAT:B1 -->\n\n"
+        head(
+            "## A behavioral requirement <!-- BEAT:B1 -->\n\n"
             f"Point within {D['band']:g}° by {D['limit']:.0f} s of a {D['slew']:.0f}° slew. "
             "The design prescribes only Kp and Kd."
         ),
@@ -374,6 +406,7 @@ def _b2(
     evidence_block,
     fg,
     frozen,
+    head,
     lanes_mermaid,
     mo,
     name_in,
@@ -397,7 +430,7 @@ def _b2(
     verdict_b2 = _res["verdicts"]["vc001_initial"]
     lanes_b2 = lanes_mermaid(to_elements(model_b2), compact=True)
     mo.vstack([
-        mo.md(
+        head(
             "## Two models, two answers <!-- BEAT:B2 -->\n\n"
             f"Linear estimate {_r['t_sym']:.0f} s, simulation {_r['t_sim']:.0f} s, limit {D['limit']:.0f} s."
         ),
@@ -439,14 +472,17 @@ def _b3(
     ev1,
     fg,
     frozen,
+    flexo,
+    head,
     lanes_b2,
     lanes_mermaid,
     mer,
     mo,
     model_b2,
     name_in,
-    note_line,
+    publish_line,
     publish_snapshot,
+    publishing_line,
     seed_label,
     should_fire,
     store,
@@ -456,7 +492,15 @@ def _b3(
     verdict_b2,
 ):
     # <!-- BEAT:B3 --> a person says not satisfied; Flexo commit C1.
+    _thumb = mo.image(D["png"]["b2t"], width=440)
+    _controls = mo.hstack([name_in, btn_b3, seed_label("Attest")], justify="start", align="end")
+    _pre = [
+        head(f"## A person judges the design <!-- BEAT:B3 -->\n\nThe tool said {verdict_b2}."),
+        mo.hstack([mer(lanes_b2, 740), _thumb], widths=[3, 2], align="center"),
+    ]
     if should_fire("b3", btn_b3.value):
+        if flexo is not None:  # no dead air: say so at once, before the publish returns
+            mo.output.replace(mo.vstack([*_pre, _controls, publishing_line("C1")]))
         try:
             _who = name_in.value.strip()
             _att = attestation_block("initial", False, _who, "done", SUFFICIENCY_NOT_SATISFIED, "vc001_initial")
@@ -471,24 +515,20 @@ def _b3(
     _done = c1 is not None and "error" not in c1
     _trail = [mo.md("The attestation block is written only by the Attest click, under the name below. "
                     "The sufficiency text is the approved wording, not editable here.")]
-    _thumb = mo.image(D["png"]["b2t"], width=440)
     if not _done:
-        _parts = [
-            mo.md(f"## A person judges the design <!-- BEAT:B3 -->\n\nThe tool said {verdict_b2}."),
-            mo.hstack([mer(lanes_b2, 740), _thumb], widths=[3, 2], align="center"),
-        ]
+        _parts = list(_pre)
         if c1 is not None:
             _parts.append(mo.callout(mo.md(f"Not recorded: {c1['error']}"), kind="neutral"))
-        _parts.append(mo.hstack([name_in, btn_b3, seed_label("Attest")], justify="start", align="end"))
+        _parts.append(_controls)
     else:
         _parts = [
-            mo.md(
+            head(
                 "## A person says not satisfied <!-- BEAT:B3 -->\n\n"
                 f"The tool said {verdict_b2}. I say not satisfied, and here is why."
             ),
             mo.hstack([mer(c1["lanes"], 740), _thumb], widths=[3, 2], align="center"),
             mo.Html(fg.human_card(c1["who"], "NOT SATISFIED", CARD_NOT_SATISFIED)),
-            note_line(c1["note"]),
+            publish_line("C1", c1),
         ]
         _trail += [
             mo.md(f"**Attestation block** written by {c1['who']}:"),
@@ -521,17 +561,16 @@ def _b4(
     evidence_block,
     fg,
     frozen,
-    lanes_mermaid,
+    head,
     mo,
     name_in,
-    note_line,
     once,
+    publish_line,
     publish_snapshot,
     status_block,
     store,
     structure,
     text_diff,
-    to_elements,
 ):
     # <!-- BEAT:B4 --> retune: the evidence changed, so the prior attestation is removed. Flexo C2.
     _r = D["runs"][D["tuned"]]
@@ -546,7 +585,6 @@ def _b4(
     pending = status_block("req001")
     model_b4 = assemble(structure, ev2 + pending)
     verdict_b4 = evaluate(model_b4)["verdicts"]["vc001_tuned"]
-    lanes_b4 = lanes_mermaid(to_elements(model_b4), compact=True)  # S5 shows it only without an attestation
     # Live mode only (publish_snapshot is a no-op without Flexo). Runs once, after C1 exists, so
     # C2 always follows C1 and there is no separate click.
     if c1 is not None and "error" not in c1 and once("c2"):
@@ -570,19 +608,20 @@ def _b4(
     if c2 and c2["commit"]:
         _trail.append(mo.md(f"Published to Flexo as **C2**, tagged `{c2['tag']}`."))
     mo.vstack([
-        mo.md(
+        head(
             "## Retune: old attestation removed <!-- BEAT:B4 -->\n\n"
-            f"Both under the limit: {_r['t_sym']:.0f} s and {_r['t_sim']:.0f} s."
+            f"Tuned design: estimate {_r['t_sym']:.0f} s, simulation {_r['t_sim']:.0f} s, "
+            f"both under {D['limit']:.0f} s."
         ),
         mo.hstack([
             mo.Html(fg.pill(verdict_b4.upper(), verdict_b4)),
             mo.Html(fg.pill("tbc · no one has judged", "tbc")),
         ], justify="start"),
-        mo.hstack([mo.image(D["png"]["b4"], width=900)], justify="center"),
-        note_line(c2["note"] if c2 else None),
+        mo.hstack([mo.image(D["png"]["b4"], width=780)], justify="center"),
+        publish_line("C2", c2) if c2 else mo.md(""),
         audit(*_trail),
     ])
-    return c2, ev2, lanes_b4, model_b4
+    return c2, ev2, model_b4
 
 
 @app.cell(hide_code=True)
@@ -602,15 +641,17 @@ def _b5(
     flexo,
     group_diff,
     groups_view,
+    head,
     httpx,
     lanes_mermaid,
     mer,
     mo,
     model_b4,
     name_in,
-    note_line,
     project,
+    publish_line,
     publish_snapshot,
+    publishing_line,
     seed_label,
     should_fire,
     store,
@@ -619,11 +660,21 @@ def _b5(
     text_diff,
     to_elements,
 ):
-    # <!-- BEAT:B5 --> the neighbourhood, then the human clicks Attest. Flexo C3.
+    # <!-- BEAT:B5 --> the neighborhood, then the human clicks Attest. Flexo C3.
     _r = D["runs"][D["tuned"]]
     _suff = sufficiency_satisfied(f"{_r['params']['Kp']:g}", f"{_r['params']['Kd']:g}",
                                   _r["t_sim"], _r["t_sym"], f"{D['limit']:g}")
+    _strip = mo.image(D["png"]["b5"], width=780)
+    _head = (
+        "## Judging the neighborhood <!-- BEAT:B5 -->\n\n"
+        f"Tuned design: both under the limit. Neighbors where they split: {D['n_flip']} of {D['n_nb']}."
+    )
+    _pill_row = mo.hstack([mo.Html(fg.pill("tbc · no one has judged", "tbc")), btn_b5, seed_label("Attest")],
+                          justify="start", align="center")
     if should_fire("b5", btn_b5.value):
+        if flexo is not None:  # no dead air: say so at once, before the publish returns
+            mo.output.replace(mo.vstack([head(_head), mo.hstack([_strip], justify="center"), _pill_row,
+                                         publishing_line("C3")]))
         try:
             _who = name_in.value.strip()
             _att = attestation_block("tuned", True, _who, "done", _suff, "vc001_tuned")
@@ -650,32 +701,23 @@ def _b5(
             store["c3"] = {"error": str(_e)}
     c3 = store.get("c3")
     _done = c3 is not None and "error" not in c3
-    _strip = mo.image(D["png"]["b5"], width=900)
-    _head = (
-        "## Judging the neighbourhood <!-- BEAT:B5 -->\n\n"
-        f"Tuned design: both under the limit. Neighbours where they split: {D['n_flip']} of {D['n_nb']}."
-    )
     _trail = [mo.md("The attestation block is written only by the Attest click, under the engineer name from B3. "
                     "The sufficiency text is the approved wording with live numbers.")]
     if not _done:
-        _parts = [
-            mo.md(_head),
-            mo.hstack([_strip], justify="center"),
-            mo.hstack([mo.Html(fg.pill("tbc · no one has judged", "tbc")), btn_b5, seed_label("Attest")],
-                      justify="start", align="center"),
-        ]
+        _parts = [head(_head), mo.hstack([_strip], justify="center"), _pill_row]
         if c3 is not None:
             _parts.append(mo.callout(mo.md(f"Not recorded: {c3['error']}"), kind="neutral"))
         _trail.append(mo.md(f"Attesting as: {name_in.value.strip() or '(enter the engineer name in B3)'}"))
     else:
         _parts = [
-            mo.md(_head),
-            mer(c3["lanes"], 800),
+            head(_head),
+            # the lanes at C3 are primary (60%); the strip the judgement rests on is the 40% thumbnail
+            mo.hstack([mer(c3["lanes"], 700), mo.image(D["png"]["b5t"], width=470)], widths=[3, 2], align="center"),
             mo.Html(fg.human_card(c3["who"], "SATISFIED", CARD_SATISFIED)),
-            note_line(c3["note"]),
+            publish_line("C3", c3),
         ]
         _trail += [
-            mo.md("The neighbourhood the judgement rests on:"),
+            mo.md("The neighborhood the judgement rests on:"),
             _strip,
             mo.md(f"**Attestation block** written by {c3['who']}:"),
             code(c3["att"]),
@@ -683,7 +725,7 @@ def _b5(
         ]
         if c3["commit"]:
             _tags = [f"- {_n}: tag `{_s['tag']}`"
-                     for _n, _s in (("C1", c1), ("C2", c2), ("C3", c3)) if _s and _s.get("commit")]
+                     for _n, _s in (("C1", c1), ("C2", c2), ("C3", c3)) if _s and _s.get("commit") and _s.get("tag")]
             _same = ("\n\nThe tags are the same Git SHA because the source did not change during the demo."
                      if len(_tags) > 1 and len({t.split("`")[1] for t in _tags}) == 1 else "")
             _trail.append(mo.md("Each Flexo commit is tagged with the Git SHA of the source that produced it:\n\n"
@@ -698,14 +740,14 @@ def _b5(
 
 
 @app.cell(hide_code=True)
-def _b7(PRESEED, btn_b7, c3, evaluate, fg, mo, seed_label, store):
+def _b7(PRESEED, btn_b7, c3, evaluate, fg, head, mo, seed_label, store):
     # <!-- BEAT:B7 --> (optional, cut first) checking the claim: verification of the claim, not attestation.
     # The result is kept in `store`, so a re-run of this cell shows it again instead of clearing it.
     _ready = c3 is not None and "error" not in c3
     if _ready and (btn_b7.value or PRESEED) and "b7" not in store:
         store["b7"] = evaluate(c3["text"])["claims"]["att_tuned"]["holds"]
     _holds = store.get("b7") if _ready else None
-    _body = [mo.md("## Checking the claim <!-- BEAT:B7 -->")]
+    _body = [head("## Checking the claim <!-- BEAT:B7 -->")]
     if _holds is None:
         _body += [
             mo.md("Check the attested claim against the evaluated model."
@@ -728,44 +770,40 @@ def _b7(PRESEED, btn_b7, c3, evaluate, fg, mo, seed_label, store):
 
 
 @app.cell(hide_code=True)
-def _s4(D, mer, mo):
+def _s4(D, head, mer, mo):
     mo.vstack([
-        mo.md(
+        head(
             "## Git: source. Flexo: model. <!-- SLIDE:S4 -->\n\n"
             "- Git merged two individually valid changes into an invalid design\n"
             "- Flexo stored any type unchecked\n"
             "- Flexo commits carry the Git SHA"
         ),
-        mer(D["two_store"], 900),
+        mer(D["two_store"], 1000),
     ])
     return
 
 
 @app.cell(hide_code=True)
-def _s5(c3, lanes_b4, mer, mo):
-    # The lanes diagram at C3 again, with the RDF terms labelling the same three lanes.
-    _lanes = c3["lanes"] if c3 is not None and "lanes" in c3 else lanes_b4
+def _s5(c3, head, lanes_mermaid, mer, mo, model_b4, to_elements):
+    # The lanes diagram at C3 again. Each band's header carries its RDF term, so the label is level
+    # with its band by construction.
+    _text = c3["text"] if c3 is not None and "text" in c3 else model_b4
+    _lanes = lanes_mermaid(to_elements(_text), compact=True,
+                           terms={"S": "≈ sysml:", "E": "≈ prov:", "A": "≈ earl:, gsn:"})
     mo.vstack([
-        mo.md(
+        head(
             "## First built in RDF <!-- SLIDE:S5 -->\n\n"
             "- PROV, EARL, GSN: the same pattern\n"
             "- Opinion: SysML v2 is the better home now"
         ),
-        mo.hstack([
-            mer(_lanes, 780),
-            mo.vstack([
-                mo.md("**Structure** ≈ `sysml:`"),
-                mo.md("**Evidence** ≈ `prov:`"),
-                mo.md("**Attestation** ≈ `earl:`, `gsn:`"),
-            ], justify="space-around"),
-        ], widths=[2, 1], align="center"),
+        mer(_lanes, 760),
     ])
     return
 
 
 @app.cell(hide_code=True)
-def _s6(mo):
-    mo.md("""
+def _s6(head):
+    head("""
     ## The pattern beyond satellites <!-- SLIDE:S6 -->
 
     - Contextual AI Evaluation (CAIE): machine-verified or human-validated
@@ -776,10 +814,10 @@ def _s6(mo):
 
 
 @app.cell(hide_code=True)
-def _s7(D, mer, mo):
+def _s7(D, head, mer, mo):
     mo.vstack([
-        mo.md("## Dynamical Systems Group: executable across the board <!-- SLIDE:S7 -->"),
-        mer(D["sandwich"], 560),
+        head("## Dynamical Systems Group: executable across the board <!-- SLIDE:S7 -->"),
+        mo.hstack([mer(D["sandwich"], 560)], justify="center"),
     ])
     return
 
@@ -787,6 +825,7 @@ def _s7(D, mer, mo):
 @app.cell(hide_code=True)
 def _s8(
     DEMO_ENGINEER,
+    head,
     assemble,
     counter_button,
     fg,
@@ -836,8 +875,11 @@ def _s8(
             "b2": png(fg.settling_figure(_a["sim"], _a["t_sym"], _limit)),
             # the thumbnail keeps the 15 pt text: a smaller canvas at lower dpi, shown at its natural 440 px
             "b2t": png(fg.settling_figure(_a["sim"], _a["t_sym"], _limit, title="", figsize=(6.4, 4.4)), dpi=69),
-            "b4": png(fg.overlay_figure(_a["sim"], _b["sim"], (_name(FIRST), _name(TUNED)), _limit, _band)),
-            "b5": png(fg.neighbour_strip(_rows, _limit)),
+            # sized in inches so that the PNG's natural width is its display width: 15 pt text stays 18 px
+            "b4": png(fg.overlay_figure(_a["sim"], _b["sim"], (_name(FIRST), _name(TUNED)), _limit, _band,
+                                        figsize=(9, 4.2)), dpi=87),
+            "b5": png(fg.neighbour_strip(_rows, _limit, figsize=(9, 3.9)), dpi=87),
+            "b5t": png(fg.neighbour_strip(_rows, _limit, figsize=(6.4, 4.2)), dpi=73),
         },
         # a neighbour "splits" when exactly one of the two estimates is within the limit
         "n_flip": sum((r[1] <= _limit) != (r[2] <= _limit) for r in _rows[1:]),
@@ -856,10 +898,13 @@ def _s8(
     btn_b5 = counter_button("Attest: satisfied")
     btn_b7 = mo.ui.run_button(label="Check the claim")
 
-    mo.md(
+    head(
         "# Use it. Help build it. <!-- SLIDE:S8 -->\n\n"
         "- pip install opensysml\n"
-        "- Replicate or fix three open issues\n"
+        "- Replicate or fix three open issues:\n"
+        "    - [github.com/Open-MBEE/sysmlv2-testing/issues/3](https://github.com/Open-MBEE/sysmlv2-testing/issues/3)\n"
+        "    - [github.com/Open-MBEE/sysmlv2-testing/issues/4](https://github.com/Open-MBEE/sysmlv2-testing/issues/4)\n"
+        "    - [github.com/Open-MBEE/OpenSysML/issues/1125](https://github.com/Open-MBEE/OpenSysML/issues/1125)\n"
         "- Join: openmbee.org. Demo: github.com/DynamicalSystemsGroup/ADCS-lifecycle-demo"
     )
     return D, btn_b3, btn_b5, btn_b7, name_in, structure

@@ -193,12 +193,12 @@ def test_two_store_mermaid_names_both_stores_and_the_tag():
     m = two_store_mermaid()
     assert "flowchart LR" in m
     for part in ("GIT · source", ".sysml", "analysis code", "notebook", "OpenSysML", "evaluates",
-                 "FLEXO · model", "model elements", "git-&lt;sha&gt;", "reads diffs", "query the model"):
+                 "FLEXO · model", "model elements", "git-&lt;sha&gt;", "reads", "diffs"):
         assert part in m
     assert "G --> X --> F" in m
     assert "same commit" not in m and not re.search(r"\bF -[.-]*> G\b", m)  # flow is Git -> OpenSysML -> Flexo only
-    assert "commits tagged with the Git SHA" in m
-    assert m.startswith("%%{init") and "'fontSize': '20px'" in m
+    assert "tagged <b>git-" in m and "reviewer" not in m
+    assert m.startswith("%%{init") and "'fontSize': '24px'" in m
 
 
 def test_sandwich_mermaid_stacks_three_labels():
@@ -294,3 +294,11 @@ def test_compact_no_link_points_at_an_undrawn_node(compact):
 
 def test_full_mode_is_unchanged_by_the_flag(states):
     assert states["c3"].startswith("flowchart LR") and "ToolExecution" in states["c3"]
+
+
+def test_compact_terms_go_in_the_band_headers(compact):
+    s = load_structure()
+    m = lanes_mermaid(to_elements(s), compact=True, terms={"S": "≈ sysml:", "E": "≈ prov:", "A": "≈ earl:, gsn:"})
+    for k, t in (("S", "≈ sysml:"), ("E", "≈ prov:"), ("A", "≈ earl:, gsn:")):
+        assert f"<br/><i>{t}</i>" in _lane_c(m, k)
+    assert "<i>≈" not in compact["c0"]  # no terms asked for: headers are unchanged

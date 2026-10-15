@@ -180,6 +180,7 @@ def test_pill_kinds_and_escaping():
     for kind in ("pass", "fail", "inconclusive", "tbc"):
         assert f"pill-{kind}" in F.pill("x", kind)
     assert "dashed" in F.pill("tbc · no one has judged", "tbc")
+    assert F.PALETTE["human"] not in F.pill("tbc · no one has judged", "tbc")  # amber is a person's words
     assert "&lt;b&gt;" in F.pill("<b>", "pass")
     with pytest.raises(ValueError):
         F.pill("x", "warn")

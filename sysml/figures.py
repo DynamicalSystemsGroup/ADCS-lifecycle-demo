@@ -110,14 +110,14 @@ def settling_figure(sim, t_sym: float, t_limit: float = 120,
         ax.text(t_limit + xmax * 0.01, ax.get_ylim()[1] / 1.5, f"{t_limit:g} s limit", ha="left", va="top",
                 color=PALETTE["prescribed"])
         y_tick = band_deg / 30  # the SymPy tick runs down to near the axis floor, where the curve is not
-        ax.plot([t_sym, t_sym], [y_tick, band_deg * 2.5], color=PALETTE["machine"], ls="--", lw=2.5)
+        ax.plot([t_sym, t_sym], [y_tick, band_deg * 2], color=PALETTE["machine"], ls="--", lw=2.5)
         t_sim = float(sim.summary()["settling_time_s"])
         y_sim = float(np.interp(t_sim, sim.t, err))
         box = dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.9)
         ax.annotate(f"SymPy: {t_sym:.0f} s", (t_sym, y_tick), xytext=(6 if t_sym < 0.75 * xmax else -6, -3),
                     textcoords="offset points", ha="left" if t_sym < 0.75 * xmax else "right", va="top",
                     color=PALETTE["machine"], bbox=box)
-        sim_off, sim_ha, sim_va = ((-14, -22), "right", "top") if t_sym >= t_sim else ((14, 26), "right", "bottom")
+        sim_off, sim_ha, sim_va = ((-14, -22), "right", "top") if t_sym >= t_sim else ((14, 34), "right", "bottom")
         ax.plot([t_sim], [y_sim], "o", ms=13, color=PALETTE["machine"], mec="white", mew=2, zorder=5)
         ax.annotate(f"simulation:{' ' if figsize[0] >= 8 else chr(10)}{t_sim:.0f} s", (t_sim, y_sim), xytext=sim_off,
                     textcoords="offset points", ha=sim_ha, va=sim_va, color=PALETTE["machine"],
@@ -128,10 +128,11 @@ def settling_figure(sim, t_sym: float, t_limit: float = 120,
         return _finish(fig)
 
 
-def overlay_figure(sim_a, sim_b, labels, t_limit: float, band: float) -> Figure:
+def overlay_figure(sim_a, sim_b, labels, t_limit: float, band: float,
+                   figsize: tuple[float, float] = (11, 5.4)) -> Figure:
     """Two designs on one pointing-error axis: the first faded, the second solid."""
     with screen_style():
-        fig = _new((11, 5.4))
+        fig = _new(figsize)
         ax = fig.subplots()
         ea, eb = pointing_error_deg(sim_a), pointing_error_deg(sim_b)
         ax.plot(sim_a.t, ea, color=PALETTE["machine"], alpha=0.3, label=labels[0])
@@ -147,12 +148,13 @@ def overlay_figure(sim_a, sim_b, labels, t_limit: float, band: float) -> Figure:
         return _finish(fig)
 
 
-def neighbour_strip(rows, t_limit: float) -> Figure:
+def neighbour_strip(rows, t_limit: float, figsize: tuple[float, float] | None = None) -> Figure:
     """One dumbbell per design joining the SymPy estimate (open diamond) and the simulated
     settling time (filled dot). `rows` is [(label, t_sym, t_sim, highlight)]. Left of the
-    limit line is within the requirement, right of it is not."""
+    limit line is within the requirement, right of it is not. `figsize` (inches) lets a thumbnail
+    keep the same text size."""
     with screen_style():
-        fig = _new((11, 0.62 * len(rows) + 2.4))
+        fig = _new(figsize or (11, 0.62 * len(rows) + 2.4))
         ax = fig.subplots()
         n = len(rows)
         for i, (label, t_sym, t_sim, highlight) in enumerate(rows):
@@ -235,13 +237,14 @@ _PILL = {  # kind -> (background, text colour, border)
     "pass": (PALETTE["pass"], "#fff", PALETTE["pass"]),
     "fail": (PALETTE["fail"], "#fff", PALETTE["fail"]),
     "inconclusive": (PALETTE["inconclusive"], "#fff", PALETTE["inconclusive"]),
-    "tbc": ("transparent", PALETTE["human"], PALETTE["human"]),
+    "tbc": ("transparent", PALETTE["inconclusive"], PALETTE["inconclusive"]),
 }
 
 
 def pill(text: str, kind: str) -> str:
-    """A verdict or status badge. `kind` is pass, fail, inconclusive or tbc (amber outline,
-    for 'no person has judged yet')."""
+    """A verdict or status badge. `kind` is pass, fail, inconclusive or tbc (grey, dashed outline,
+    for 'no person has judged yet'). Amber is reserved for a person's words, so a pending pill that
+    names nobody is grey."""
     if kind not in _PILL:
         raise ValueError(f"pill kind must be one of {sorted(_PILL)}, got {kind!r}")
     bg, fg, border = _PILL[kind]
