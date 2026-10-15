@@ -1,0 +1,7 @@
+$ sysmlv2 verify sysml/linear_region_toolkit.sysml --solve
+sysml/linear_region_toolkit.sysml:7:9  AxisSettles (ConstraintDefinition): undecided (result is indeterminate over unbound features) — z3: satisfiable, e.g. Kd = 0, J = 0, Kp = 0
+sysml/linear_region_toolkit.sysml:11:9  LinearSettles (ConstraintDefinition): undecided (result is indeterminate over unbound features) — z3: satisfiable, e.g. Kp = 5467951/2250000, Kd = 3271367/150000
+sysml/linear_region_toolkit.sysml:19:9  Unsaturated (ConstraintDefinition): undecided (result is indeterminate over unbound features) — z3: satisfiable, e.g. Kp = 0
+sysml/linear_region_toolkit.sysml:23:9  RegionPasses (ConstraintDefinition): satisfied (z3: holds for all values of unbound features)
+sysml/linear_region_toolkit.sysml:30:9  ValidAndSettles (ConstraintDefinition): VIOLATED (z3: unsatisfiable — no assignment can make this hold)
+1 satisfied, 1 violated, 3 undecided
