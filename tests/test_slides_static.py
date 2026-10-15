@@ -10,7 +10,7 @@ SLIDES = Path(__file__).resolve().parent.parent / "talk" / "slides"
 FRAGMENTS = sorted(SLIDES.glob("*.html"))
 CONTRIBUTE = "https://github.com/Open-MBEE/open-mbee.github.io/wiki/Contribute"
 BANNED = re.compile(r"proof|proved|verified satisfied|the truth|neighbo|human-validated", re.I)
-BUDGET = {"cta": 34, "f2": 36, "thesis": 40, "se-v": 42}  # cta: three numbered tasks; f2: its four builds together; thesis: Michael's three-line caption; others 20
+BUDGET = {"cta": 34, "f2": 36, "thesis": 40, "se-v": 42, "geosat": 70}  # cta: three numbered tasks; f2: its four builds together; thesis: Michael's three-line caption; others 20
 
 
 class _Scan(HTMLParser):

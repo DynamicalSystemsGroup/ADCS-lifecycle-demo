@@ -3,6 +3,7 @@ thesis
 se-what
 se-v
 stack
+geosat
 m1
 evidence-kinds
 m2

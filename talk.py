@@ -384,6 +384,14 @@ def _h2(K):
 
 
 @app.cell(hide_code=True)
+def _g1(K):
+    # <!-- SLIDE:G1 --> Context switch: GeoSat, the satellite and requirement we already have (first shown at JAXA, June 2026).
+    K.slide("geosat")
+    # <!-- SLIDE:G1 -->
+    return
+
+
+@app.cell(hide_code=True)
 def _m1(K):
     # <!-- SLIDE:M1 --> One text file, two renderers.
     K.slide("m1")
