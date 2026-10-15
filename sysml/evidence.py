@@ -13,7 +13,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -45,6 +49,17 @@ def _params(kp, kd) -> dict:
 def _sim(kp, kd, axis: int):
     """One 10 degree slew about body axis `axis` (0, 1, 2): the SimResult."""
     cfg = make_config_from_params(_params(kp, kd), t_end=T_END, initial_error_deg=SLEW_DEG)
+    half = np.radians(SLEW_DEG) / 2
+    q0 = [0.0, 0.0, 0.0, float(np.cos(half))]
+    q0[axis] = float(np.sin(half))
+    cfg.q0 = tuple(q0)
+    return simulate_adcs(cfg)
+
+
+def _sim_nolimit(kp, kd, axis: int = 0):
+    """The same slew with the torque limit switched off (the actuator can deliver any command)."""
+    cfg = make_config_from_params(_params(kp, kd), t_end=T_END, initial_error_deg=SLEW_DEG)
+    cfg.max_torque = 1e9
     half = np.radians(SLEW_DEG) / 2
     q0 = [0.0, 0.0, 0.0, float(np.cos(half))]
     q0[axis] = float(np.sin(half))
@@ -103,6 +118,83 @@ def inmodel_settling(kp, kd, dt: float, axis: str = "x") -> float:
         conn.close()
 
 
+ROOT = Path(__file__).resolve().parent.parent
+VERIFY_MODEL = "sysml/linear_region_toolkit.sysml"
+VERIFY_CAPTURE = ROOT / "talk" / "assets" / "tool-verify.txt"
+
+
+def _z3_dir() -> str | None:
+    """Directory holding a z3 binary, or None. $OPENSYSML_SMT, when set, names the binary (the same
+    variable the opensysml API reads); a path that does not exist means no z3."""
+    exe = "z3.exe" if os.name == "nt" else "z3"
+    env = os.environ.get("OPENSYSML_SMT")
+    if env:
+        return str(Path(env).parent) if Path(env).is_file() else None
+    for d in (Path(sys.executable).parent, Path(sys.prefix) / "bin"):
+        if (d / exe).is_file():
+            return str(d)
+    found = shutil.which("z3")
+    return str(Path(found).parent) if found else None
+
+
+def tools_dir() -> Path:
+    return Path(os.environ.get("SYSML_TOOLS_DIR") or ROOT / ".tools")
+
+
+def tool_verify(timeout: float = 10.0) -> dict:
+    """Run `sysmlv2 verify sysml/linear_region_toolkit.sysml --solve` (sysml-toolkit with z3).
+
+    Returns {engine, text}: engine "live" with the tool's own output (command line first, as in the
+    capture), or "captured" with talk/assets/tool-verify.txt when the tool or z3 is missing, times
+    out or prints nothing recognisable. `verify` exits nonzero when a constraint is violated; that is
+    a verdict, not a failure."""
+    cmd = ["sysmlv2", "verify", VERIFY_MODEL, "--solve"]
+    exe, z3 = tools_dir() / "sysmlv2", _z3_dir()
+    if exe.is_file() and z3:
+        try:
+            env = dict(os.environ, PATH=f"{z3}{os.pathsep}{os.environ.get('PATH', '')}")
+            done = subprocess.run([str(exe), *cmd[1:]], cwd=ROOT, env=env, capture_output=True, text=True,
+                                  timeout=timeout)
+            out = done.stdout + done.stderr
+            if done.returncode in (0, 1) and "RegionPasses" in out and "z3" in out:
+                return {"engine": "live", "text": "$ " + " ".join(cmd) + "\n" + out}
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return {"engine": "captured", "text": VERIFY_CAPTURE.read_text()}
+
+
+def java_bin() -> str | None:
+    """A working `java` (macOS's /usr/bin/java is a stub): $JAVA_HOME, PATH, then Homebrew's openjdk."""
+    cands = [Path(os.environ["JAVA_HOME"]) / "bin" / "java"] if os.environ.get("JAVA_HOME") else []
+    cands += [Path(c) for c in (shutil.which("java"), "/opt/homebrew/opt/openjdk/bin/java",
+                                "/usr/local/opt/openjdk/bin/java") if c]
+    for c in cands:
+        try:
+            if c.is_file() and subprocess.run([str(c), "-version"], capture_output=True, timeout=10).returncode == 0:
+                return str(c)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return None
+
+
+def plantuml_svg(source: str, timeout: float = 20.0) -> str:
+    """Render PlantUML source to SVG with .tools/plantuml.jar; raises RuntimeError when it cannot."""
+    jar, java = tools_dir() / "plantuml.jar", java_bin()
+    if not jar.is_file() or not java:
+        raise RuntimeError("plantuml or java not available")
+    done = subprocess.run([java, "-Djava.awt.headless=true", "-jar", str(jar), "-tsvg", "-pipe"],
+                          input=source.encode(), capture_output=True, timeout=timeout)
+    if done.returncode != 0 or not done.stdout:
+        raise RuntimeError(f"plantuml failed ({done.returncode})")
+    return done.stdout.decode()
+
+
+def grid_counts(bundle: dict, limit: float = 120.0) -> tuple[int, int]:
+    """(points over the limit, points) in the precomputed gain box, from the simulation results."""
+    pts = bundle["grid"]
+    return sum(p["worst"] > limit for p in pts), len(pts)
+
+
 # ---- precomputed bundle for the deck (heavy work at load, instant sliders on stage) ------------
 
 DESIGNS = {"initial": INITIAL, "neighbour": NEIGHBOUR, "tuned": TUNED}
@@ -134,6 +226,7 @@ def precompute(use_cache: bool = True) -> dict:
     """Everything the deck needs, as plain data (JSON-serialisable):
     designs[name] = {kp, kd, settling (slew_settling dict), symbolic_s, symbolic_hash,
                      series[axis] = {t, error_deg, torque}},
+    nolimit = {settling_s, series} (design NEIGHBOUR, x axis, torque limit off),
     grid = [{kp, kd, worst}], region = region_check(), inmodel = {dt: seconds at NEIGHBOUR}.
     Cached under output/ keyed by a hash of the analysis code and the parameters."""
     f = OUTPUT_DIR / f"precompute_{_precompute_key()}.json"
@@ -147,7 +240,9 @@ def precompute(use_cache: bool = True) -> dict:
         designs[name] = {"kp": kp, "kd": kd, "settling": _combine([_axis_run(r) for r in sims]),
                          "symbolic_s": t_sym, "symbolic_hash": h,
                          "series": {AXES[a]: _series(sims[a], a) for a in range(3)}}
-    out = {"designs": designs,
+    nl = _sim_nolimit(*NEIGHBOUR)
+    nolimit = {"settling_s": nl.summary()["settling_time_s"], "series": _series(nl, 0)}
+    out = {"designs": designs, "nolimit": nolimit,
            "grid": [{"kp": kp, "kd": kd, "worst": w} for (kp, kd), w in grid().items()],
            "region": region_check(),
            "inmodel": {str(dt): inmodel_settling(*NEIGHBOUR, dt=dt) for dt in INMODEL_DTS}}

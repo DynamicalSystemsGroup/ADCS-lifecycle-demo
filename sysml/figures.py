@@ -405,3 +405,122 @@ def machine_card(text: str) -> str:
     return (f'<div class="machine-card" style="border-left:8px solid {PALETTE["machine"]};'
             f'background:rgba(33,102,172,.07);padding:.8rem 1.2rem;border-radius:6px;'
             f'font-size:1.3rem">{html.escape(text)}</div>')
+
+
+# ---------- inline SVG for the deck (strings; styled by talk/slides/deck.css under .slide) ----------
+
+def _fmt(v: float) -> str:
+    return f"{v:.1f}".rstrip("0").rstrip(".") if abs(v) >= 1 else f"{v:g}"
+
+
+def error_plot_svg(curves, t0: float = 0.0, t1: float = 360.0, y0: float = 0.01, y1: float = 10.0,
+                   limit: float = 120.0, band: float = 0.1, cursor: float | None = None,
+                   width: int = 700, height: int = 340, x_step: float = 60.0) -> str:
+    """Pointing error (degrees, log axis) against time, with the requirement's band and the time limit.
+
+    `curves` is a list of dicts {t, error_deg, color, dash(optional), label(optional)}; the first curve
+    carries the optional time `cursor` (a vertical line and a dot). The 0.1 degree band and the limit
+    line are the requirement; nothing here marks an estimate from another model (different metric)."""
+    import math
+    L, R, T, B = 66, 24, 14, 62
+    pw, ph = width - L - R, height - T - B
+    ly0, ly1 = math.log10(y0), math.log10(y1)
+
+    def X(t):
+        return L + (t - t0) / (t1 - t0) * pw
+
+    def Y(e):
+        return T + (1 - (math.log10(max(e, y0 / 10)) - ly0) / (ly1 - ly0)) * ph
+
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="Pointing error against time on a log axis, '
+           f'with the {band:g} degree band and the {limit:g} second limit">',
+           f'<defs><clipPath id="clip{int(t0)}{int(t1)}"><rect x="{L}" y="{T}" width="{pw}" height="{ph}"/></clipPath></defs>']
+    d = 10 ** math.ceil(ly0)
+    while d <= y1 * 1.0001:  # decade gridlines
+        out.append(f'<path d="M{L},{Y(d):.1f} H{L + pw}" stroke="#e5e7eb" stroke-width="1"/>'
+                   f'<text x="{L - 8}" y="{Y(d) + 6:.1f}" text-anchor="end" style="font-size:18px;fill:#4b5563">{d:g}</text>')
+        d *= 10
+    t = math.ceil(t0 / x_step) * x_step
+    while t <= t1 + 1e-9:
+        out.append(f'<path d="M{X(t):.1f},{T + ph} v6" stroke="#4b5563"/>'
+                   f'<text x="{X(t):.1f}" y="{T + ph + 28}" text-anchor="middle" style="font-size:18px;fill:#4b5563">{t:g}</text>')
+        t += x_step
+    out.append(f'<path d="M{L},{T} V{T + ph} H{L + pw}" fill="none" stroke="#4b5563" stroke-width="1.5"/>'
+               f'<text x="{L + pw / 2}" y="{height - 6}" text-anchor="middle" style="font-size:18px;fill:#4b5563">time (s)</text>')
+    out.append(f'<text transform="translate(18,{T + ph / 2:.0f}) rotate(-90)" text-anchor="middle" '
+               f'style="font-size:18px;fill:#4b5563">pointing error (degrees)</text>')
+    if y0 < band < y1:
+        out.append(f'<path d="M{L},{Y(band):.1f} H{L + pw}" stroke="#111111" stroke-width="2" stroke-dasharray="9 7"/>'
+                   f'<text x="{L + pw - 6}" y="{Y(band) - 8:.1f}" text-anchor="end" style="font-size:18px">{band:g}° band</text>')
+    if t0 < limit < t1:
+        out.append(f'<path d="M{X(limit):.1f},{T} V{T + ph}" stroke="#111111" stroke-width="2" stroke-dasharray="9 7"/>'
+                   f'<text x="{X(limit) + 8:.1f}" y="{T + 20}" style="font-size:18px">{limit:g} s limit</text>')
+    for c in curves:
+        pts = " ".join(f"{X(a):.1f},{Y(b):.1f}" for a, b in zip(c["t"], c["error_deg"]) if t0 - 5 <= a <= t1 + 5)
+        dash = f' stroke-dasharray="{c["dash"]}"' if c.get("dash") else ""
+        out.append(f'<polyline points="{pts}" fill="none" stroke="{c["color"]}" stroke-width="3.5" '
+                   f'stroke-linejoin="round" clip-path="url(#clip{int(t0)}{int(t1)})"{dash}/>')
+    if cursor is not None and curves:
+        c0 = curves[0]
+        e = float(np.interp(cursor, c0["t"], c0["error_deg"]))
+        out.append(f'<path d="M{X(cursor):.1f},{T} V{T + ph}" stroke="{c0["color"]}" stroke-width="1.5"/>'
+                   f'<circle cx="{X(cursor):.1f}" cy="{Y(e):.1f}" r="7" fill="{c0["color"]}" stroke="#ffffff" stroke-width="2"/>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def grid_svg(points, kps, kds, limit: float = 120.0, box_label: str = "z3 box", width: int = 520,
+             height: int = 340, mark: tuple | None = None) -> str:
+    """The Kp x Kd gain box as a grid: each cell is a verdict pill carrying that design's simulated
+    settling time (worst slew axis). `points` is [{kp, kd, worst}]. The outline is the box z3 searched."""
+    w = {(p["kp"], p["kd"]): p["worst"] for p in points}
+    L, T, cw, ch = 96, 40, (width - 96 - 14) / len(kds), (height - 40 - 54) / len(kps)
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="Simulated settling time at each design in the gain box">']
+    out.append(f'<rect x="{L - 8}" y="{T - 8}" width="{cw * len(kds) + 16:.0f}" height="{ch * len(kps) + 16:.0f}" rx="12" '
+               f'fill="none" stroke="#2166ac" stroke-width="3" stroke-dasharray="3 0"/>')
+    out.append(f'<text x="{L - 8}" y="{T - 16}" style="font-size:18px;fill:#2166ac;font-weight:700">{box_label}</text>')
+    for j, kd in enumerate(kds):
+        out.append(f'<text x="{L + cw * (j + .5):.0f}" y="{height - 32}" text-anchor="middle" style="font-size:20px">{kd:g}</text>')
+    out.append(f'<text x="{L + cw * len(kds) / 2:.0f}" y="{height - 6}" text-anchor="middle" style="font-size:18px;fill:#4b5563">Kd</text>')
+    for i, kp in enumerate(kps):
+        yy = T + ch * (i + .5)
+        out.append(f'<text x="{L - 22}" y="{yy + 7:.0f}" text-anchor="end" style="font-size:20px">{kp:g}</text>')
+        for j, kd in enumerate(kds):
+            v = w[(kp, kd)]
+            ok = v <= limit
+            col = PALETTE["pass"] if ok else PALETTE["fail"]
+            cx = L + cw * (j + .5)
+            ring = (f'<rect x="{cx - 46:.0f}" y="{yy - 24:.0f}" width="92" height="48" rx="24" fill="none" '
+                    f'stroke="#111111" stroke-width="3"/>' if mark == (kp, kd) else "")
+            out.append(f'{ring}<rect x="{cx - 40:.0f}" y="{yy - 18:.0f}" width="80" height="36" rx="18" fill="{col}"/>'
+                       f'<text x="{cx:.0f}" y="{yy + 7:.0f}" text-anchor="middle" style="font-size:20px;font-weight:700;'
+                       f'fill:#ffffff">{v:.1f}</text>')
+    out.append(f'<text transform="translate(16,{T + ch * len(kps) / 2:.0f}) rotate(-90)" text-anchor="middle" '
+               f'style="font-size:18px;fill:#4b5563">Kp</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+def axis_bars_svg(values: dict, limit: float = 120.0, t_max: float = 140.0, width: int = 700,
+                  height: int = 200) -> str:
+    """Simulated settling time for a slew about each body axis (x, y, z) against the limit; the worst
+    axis (the one that governs) is drawn solid, the others lighter. Blue throughout: verdict colours
+    belong to verdict pills."""
+    L, R = 40, 90
+    pw = width - L - R
+    worst = max(values, key=values.get)
+    rows = list(values.items())
+    rh = (height - 40) / len(rows)
+    out = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="Settling time about each slew axis against the {limit:g} second limit">']
+    for i, (ax, v) in enumerate(rows):
+        y = 8 + rh * i
+        w = v / t_max * pw
+        fill = PALETTE["machine"] if ax == worst else "#93b4d8"
+        out.append(f'<text x="{L - 12}" y="{y + rh * .55 + 6:.0f}" text-anchor="end" style="font-size:22px;font-weight:700">{ax}</text>'
+                   f'<rect x="{L}" y="{y + 4:.0f}" width="{w:.0f}" height="{rh - 14:.0f}" rx="6" fill="{fill}"/>'
+                   f'<text x="{L + w + 10:.0f}" y="{y + rh * .55 + 6:.0f}" style="font-size:22px;font-weight:{700 if ax == worst else 400}">{v:.1f} s</text>')
+    xl = L + limit / t_max * pw
+    out.append(f'<path d="M{xl:.0f},2 V{height - 34}" stroke="#111111" stroke-width="2" stroke-dasharray="9 7"/>'
+               f'<text x="{xl:.0f}" y="{height - 8}" text-anchor="middle" style="font-size:18px">{limit:g} s limit</text>')
+    out.append("</svg>")
+    return "".join(out)

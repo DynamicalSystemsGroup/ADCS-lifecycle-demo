@@ -12,7 +12,7 @@ from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
 from sysml.model import (ADEQUACY_TEXT, CARD_ADEQUACY, CARD_NOT_SATISFIED, CARD_SATISFIED, DEFAULT_ADEQUACY,
-                         CARD_DISAGREE_DRAFT, DEMO_ENGINEER, NOT_A_HUMAN, PACKAGE, PER_AXIS_DRAFT_SENTENCE, SCOPE,
+                         CARD_DISAGREE_DRAFT, DEMO_ENGINEER, card_disagree, NOT_A_HUMAN, PACKAGE, PER_AXIS_DRAFT_SENTENCE, SCOPE,
                          SUFFICIENCY_DISAGREE_DRAFT, SUFFICIENCY_NOT_SATISFIED, SUFFICIENCY_SATISFIED_TEMPLATE,
                          adequacy_block, assemble, attestation_block, evaluate, evidence_block, group_diff,
                          load_structure, per_axis_sentence, status_block, sufficiency_disagree,
@@ -208,12 +208,16 @@ def test_per_axis_comments_in_evidence_block():
 def test_draft_texts_are_marked_and_format():
     src = (Path(__file__).resolve().parent.parent / "sysml" / "model.py").read_text()
     assert src.count("DRAFT") >= 3
-    assert SUFFICIENCY_DISAGREE_DRAFT.startswith("At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s and Z3")
+    assert SUFFICIENCY_DISAGREE_DRAFT.startswith("At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s and z3")
     assert SUFFICIENCY_DISAGREE_DRAFT.endswith("I attest not satisfied.")
-    assert CARD_DISAGREE_DRAFT in SUFFICIENCY_DISAGREE_DRAFT.replace("governs here. This evidence is not "
-        "sufficient for satisfied: ", "governs here. ")
+    assert "across this box of nearby designs" in SUFFICIENCY_DISAGREE_DRAFT
+    assert "solver step" in SUFFICIENCY_DISAGREE_DRAFT and "{margin}" in SUFFICIENCY_DISAGREE_DRAFT
+    assert "neighbo" not in SUFFICIENCY_DISAGREE_DRAFT.lower() and "Z3 confirms" not in SUFFICIENCY_DISAGREE_DRAFT
     text = sufficiency_disagree(4, 25, 104.7, 120.498, "x")
     assert "{" not in text and "is 104.7 s" in text and "settles in 120.5 s on the x axis" in text
+    # the card is an exact excerpt of the full text, and the margin (0.5 s) is computed
+    card = card_disagree(120.498)
+    assert card in text and "misses by 0.5 s" in card and len(card.split()) <= 20
     assert "{" not in per_axis_sentence(1, 2, 3) and "{x}" in PER_AXIS_DRAFT_SENTENCE
 
 

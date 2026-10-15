@@ -233,3 +233,13 @@ def test_history_timeline_labels_do_not_overlap(history):
     for i, (a, ba) in enumerate(boxes):
         for b, bb in boxes[i + 1:]:
             assert not ba.overlaps(bb), (a, b)
+
+
+def test_deck_svgs_are_well_formed():
+    import xml.dom.minidom as md
+    pts = [{"kp": kp, "kd": kd, "worst": 100.0 + 10 * i} for i, (kp, kd) in enumerate((a, b) for a in (4, 5, 6) for b in (22, 23.5, 25))]
+    curve = {"t": [0, 60, 120, 180], "error_deg": [10, 1, 0.1, 0.01], "color": "#2166ac"}
+    for svg in (F.error_plot_svg([curve], cursor=60.0), F.grid_svg(pts, (4, 5, 6), (22, 23.5, 25), 120.0, mark=(4, 25)),
+                F.axis_bars_svg({"x": 87.4, "y": 53.8, "z": 85.0}, 120.0)):
+        md.parseString(svg)
+    assert "6 of 9" not in F.grid_svg(pts, (4, 5, 6), (22, 23.5, 25), 120.0)  # counts come from the data, not the figure
