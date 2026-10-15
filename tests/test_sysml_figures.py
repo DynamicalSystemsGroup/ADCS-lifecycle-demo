@@ -191,3 +191,44 @@ def test_cards():
     assert F.PALETTE["human"] in h and "Ada · done" in h and "&lt;here&gt;" in h and "evidence 1" in h
     m = F.machine_card("computed")
     assert F.PALETTE["machine"] in m and F.PALETTE["human"] not in m
+
+
+# ---------- history_timeline ----------
+
+HISTORY = __import__("pathlib").Path(__file__).resolve().parent.parent / "talk" / "history.json"
+
+
+@pytest.fixture(scope="module")
+def history():
+    import json
+    return json.loads(HISTORY.read_text())
+
+
+def test_history_every_row_has_a_public_source(history):
+    rows = history["events"] + history["orgs"]
+    assert rows and all(r["source"].strip().startswith("https://") for r in rows)
+    assert history["velocity"]["source"].startswith("https://") and history["velocity"]["retrieved"]
+    assert all(e["phase"] in {p["name"] for p in history["phases"]} for e in history["events"])
+    assert all(o["era"] in {p["name"] for p in history["phases"]} for o in history["orgs"])
+
+
+def test_history_timeline_builds_from_the_data_and_every_label_is_data(history):
+    fig = F.history_timeline(history)
+    assert isinstance(fig, Figure)
+    labels = [t.get_text().replace("\n", " ") for t in _texts(fig)]
+    joined = " | ".join(labels)
+    for e in history["events"]:
+        assert e["label"] in labels
+    for p in history["phases"]:
+        assert p["name"].split(" · ")[0] in joined
+    assert history["velocity"]["title"] in labels
+    assert str(max(pt["value"] for pt in history["velocity"]["series"])) in labels
+    _assert_screen_legible(fig)
+
+
+def test_history_timeline_labels_do_not_overlap(history):
+    fig = F.history_timeline(history)
+    boxes = [(t.get_text(), _bbox(t)) for t in _texts(fig) if t.get_text().strip() and not t.get_text().isdigit()]
+    for i, (a, ba) in enumerate(boxes):
+        for b, bb in boxes[i + 1:]:
+            assert not ba.overlaps(bb), (a, b)

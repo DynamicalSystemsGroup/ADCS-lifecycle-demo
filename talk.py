@@ -20,7 +20,7 @@ app = marimo.App(width="full", layout_file="layouts/talk.slides.json")
 
 @app.cell(hide_code=True)
 def _s0():
-    # <!-- SLIDE:S0 --> Title and hook. Imports, flags, the one Flexo probe and the publishing helpers
+    # <!-- SLIDE:S0 --> Title. Imports, flags, the one Flexo probe and the publishing helpers
     # are folded in here so the deck has no blank slides.
     import html
     import io
@@ -296,9 +296,14 @@ def _s0():
         return mo.vstack(parts)
 
     head(
-        "# A tool says pass. A person says satisfied.\n\n"
-        "- Evidence supports a human judgement.\n"
-        "- Written before OpenSysML existed; now it runs on it.\n\n"
+        '<div style="padding-top:12vh;max-width:1000px">'
+        '<h1 style="font-size:2.6rem;line-height:1.2;margin:0 0 2.2rem 0">'
+        "Evidence, Attestation, and Requirements Traceability with Python and Flexo MMS</h1>"
+        '<p style="font-size:1.7rem;font-weight:600;margin:0 0 .3rem 0">Michael Zargham</p>'
+        '<p style="font-size:1.3rem;margin:0 0 2.2rem 0">'
+        "Chief Engineer, Dynamical Systems Group · Maintainer, OpenMBEE</p>"
+        '<p style="font-size:1.2rem;color:#6b7280;margin:0">'
+        "OpenTeams Open Source Architect Community · October 15, 2026</p></div>"
         "<!-- SLIDE:S0 -->"
     )
     return (
@@ -356,14 +361,40 @@ def _s0():
 
 
 @app.cell(hide_code=True)
+def _s1_history(audit, fg, head, mo, png):
+    # <!-- SLIDE:S1 --> OpenMBEE history: the picture is the slide. Every label is read from
+    # talk/history.json; the audit trail lists each row's public source.
+    import json as _json
+
+    _h = _json.loads((mo.notebook_dir() / "talk" / "history.json").read_text())
+    _v = _h["velocity"]
+    _src = "\n".join(f"- {e['date']} {e['label']}: {e['source']}" for e in _h["events"])
+    _org = "\n".join(f"- {o['name']} ({o['era']}; {o['role']}): {o['source']}" for o in _h["orgs"])
+    mo.vstack([
+        head(
+            "## OpenMBEE: a decade of open engineering tools <!-- SLIDE:S1 -->\n\n"
+            f"{_h['orgs_heading']}, by era"
+        ),
+        mo.image(png(fg.history_timeline(_h), dpi=87)),
+        audit(mo.md(
+            f"**Releases per month.** {_v['metric']} Source: {_v['source']}; retrieved {_v['retrieved']}.\n\n"
+            f"**Milestones.**\n\n{_src}\n\n**{_h['orgs_heading']}.**\n\n{_org}"
+        )),
+    ], gap=0.4)
+    return
+
+
+@app.cell(hide_code=True)
 def _s1(asset, head, mo):
     mo.hstack([
         mo.vstack([
             head(
-                "## OpenMBEE → OpenSysML <!-- SLIDE:S1 -->\n\n"
-                "- Code since 2014; NumFOCUS 2020\n"
-                "- Apache-2.0; pip install opensysml\n"
-                "- Task: render API returns data, not pictures"
+                "## OpenSysML: the stack <!-- SLIDE:S1 -->\n\n"
+                "- REDK (Go runtime)\n"
+                "- sysml-toolkit (Rust)\n"
+                "- Flexo MMS (model store, SysML v2 API)\n"
+                "- OMG Pilot (reference)\n\n"
+                "Apache-2.0 (Pilot: EPL-2.0)"
             ),
             mo.md("<small><i>rendered by Kotar (Planetary Utilities); not color-coded</i></small>"),
         ], justify="center"),
@@ -375,7 +406,10 @@ def _s1(asset, head, mo):
 @app.cell(hide_code=True)
 def _s2(head):
     head(
-        "## The pattern <!-- SLIDE:S2 -->\n\n"
+        "## A tool says pass. A person says satisfied. <!-- SLIDE:S2 -->\n\n"
+        "- Evidence supports a human judgment.\n"
+        "- The pattern predates OpenSysML; today it runs on OpenSysML.\n\n"
+        "### The pattern\n\n"
         "- A machine-checkable requirement\n"
         "- A verdict: pass, fail or inconclusive\n"
         "- A person's named sign-off, with reasons"
