@@ -15,70 +15,10 @@
 <text x="105" y="621" class="anc" style="font-size:40px;font-weight:700;fill:#2166ac">shown</text>
 <text x="105" y="846" class="anc" style="font-size:40px;font-weight:700;fill:#7c3aed">emulated</text>
 </svg></div>
-<div data-s="2 3 4" style="margin-top:6px"><svg viewBox="0 0 1180 500" role="img" aria-label="CI/CD loop gated by a pass/fail rule, beside the CA/CP loop gated by a qualified engineer's judgment">
-<defs>
-<marker id="cp-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111111"/></marker>
-<marker id="cp-ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker>
-<marker id="cp-aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d97706"/></marker>
-</defs>
-<!-- CI/CD: small, muted -->
-<text class="mut" x="0" y="26" style="font-size:24px;font-weight:700">CI/CD</text>
-<rect class="grey" x="0"   y="130" width="150" height="64" rx="10"/><text class="lbl mut anc" x="75"  y="169" style="font-size:19px">commit</text>
-<rect class="grey" x="190" y="130" width="150" height="64" rx="10"/><text class="lbl mut anc" x="265" y="169" style="font-size:19px">build+test</text>
-<rect class="grey" x="190" y="290" width="150" height="64" rx="10"/><text class="lbl mut anc" x="265" y="329" style="font-size:19px">pass/fail rule</text>
-<rect class="grey" x="0"   y="290" width="150" height="64" rx="10"/><text class="lbl mut anc" x="75"  y="329" style="font-size:19px">deploy</text>
-<path class="arrM" d="M152,162 H188" marker-end="url(#cp-ag)"/>
-<path class="arrM" d="M265,196 V288" marker-end="url(#cp-ag)"/>
-<path class="arrM" d="M188,322 H152" marker-end="url(#cp-ag)"/>
-<path class="arrM" d="M75,288 V196" marker-end="url(#cp-ag)"/>
-<g data-s="3 4"><path class="hair" d="M376,0 V480" style="fill:none"/>
-<text x="410" y="26" style="font-size:24px;font-weight:700">CA/CP: continuous analysis, continuous publication</text></g>
-<g data-s="3 4">
-<rect class="box" x="410" y="50" width="236" height="140" rx="10"/>
-<text class="anc" x="528" y="130" style="font-size:24px;font-weight:700">Change</text>
-<rect class="machT" x="682" y="50" width="236" height="140" rx="10"/>
-<text class="anc" x="800" y="88" style="font-size:22px;font-weight:700">Re-analysis</text>
-<text class="sub anc" x="800" y="118">automated</text>
-<text class="lbl anc" x="800" y="148" style="font-size:19px">formal · symbolic</text>
-<text class="lbl anc" x="800" y="173" style="font-size:19px">simulation</text>
-<rect class="mach" x="944" y="50" width="236" height="140" rx="10"/>
-<text class="anc" x="1062" y="88" style="font-size:22px;font-weight:700">Republish</text>
-<text class="lbl anc" x="1062" y="122" style="font-size:19px">Flexo commit tagged</text>
-<text class="lbl anc" x="1062" y="147" style="font-size:19px">with the Git SHA;</text>
-<text class="lbl anc" x="1062" y="172" style="font-size:19px">regenerated views</text>
-<rect class="mach" x="944" y="310" width="236" height="140" rx="10"/>
-<text class="anc" x="1062" y="368" style="font-size:22px;font-weight:700">Evidence</text>
-<text class="lbl anc" x="1062" y="402" style="font-size:19px">concurring or</text>
-<text class="lbl anc" x="1062" y="427" style="font-size:19px">contradictory</text>
-<path class="arr" d="M648,120 H680" marker-end="url(#cp-ah)"/>
-<path class="arr" d="M920,120 H942" marker-end="url(#cp-ah)"/>
-<path class="arr" d="M1062,192 V308" marker-end="url(#cp-ah)"/>
-<path d="M942,380 H920" class="arr" marker-end="url(#cp-ah)"/></g>
-<g data-s="4">
-<rect class="human" x="684" y="290" width="232" height="180" rx="12"/>
-<text class="amb anc" x="800" y="342" style="font-size:24px;font-weight:700">Qualified engineer</text>
-<text class="lbl anc" x="800" y="382" style="font-size:19px">judges the models</text>
-<text class="lbl anc" x="800" y="407" style="font-size:19px">and the evidence,</text>
-<text class="lbl anc" x="800" y="432" style="font-size:19px">with rationale</text>
-<rect class="human" x="410" y="310" width="236" height="140" rx="10"/>
-<text class="amb anc" x="528" y="390" style="font-size:24px;font-weight:700">Attestation</text>
-<path d="M682,380 H650" style="fill:none;stroke:#d97706;stroke-width:3" marker-end="url(#cp-aa)"/>
-<path d="M528,308 V192" style="fill:none;stroke:#d97706;stroke-width:3" marker-end="url(#cp-aa)"/></g>
-<g data-s="4">
-</g>
-<g data-s="4">
-</g>
-<g data-s="4">
-<text class="mono anc" x="528" y="160" style="font-size:18px;fill:#2166ac">every demo step</text>
-<text class="mono anc" x="800" y="212" style="font-size:18px;fill:#2166ac">step 2: z3, sim</text>
-<text class="mono anc" x="1062" y="476" style="font-size:18px;fill:#2166ac">step 2: they differ</text>
-<text class="mono anc" x="800" y="498" style="font-size:18px;fill:#b45309">every step: I sign</text>
-<text class="mono anc" x="528" y="476" style="font-size:18px;fill:#b45309">every demo step</text>
-</g>
-</svg></div>
+<div data-s="2 3 4" style="margin-top:6px"><svg viewBox="0 0 1180 470" role="img" aria-label="CI/CD with pull requests beside CA/CP: the same six steps, automation in the middle and a qualified person at the gate"><defs><marker id="cp-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111111"/></marker><marker id="cp-ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9ca3af"/></marker><marker id="cp-aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d97706"/></marker></defs><text x="0" y="26" style="font-size:22px;font-weight:700;fill:#4b5563">CI/CD, with pull requests</text><rect x="0" y="52" width="166" height="112" rx="10" fill="#ffffff" stroke="#9ca3af" stroke-width="1.5"/><text class="anc" x="83.0" y="88" style="font-size:19px;font-weight:700;fill:#4b5563">Commit, push</text><text class="anc" x="83.0" y="114" style="font-size:15px;fill:#6b7280">a change on a branch</text><rect x="196" y="52" width="166" height="112" rx="10" fill="#ffffff" stroke="#9ca3af" stroke-width="1.5"/><text class="anc" x="279.0" y="88" style="font-size:19px;font-weight:700;fill:#4b5563">CI: build, test</text><text class="anc" x="279.0" y="114" style="font-size:15px;fill:#6b7280">automated</text><rect x="392" y="52" width="166" height="112" rx="10" fill="#ffffff" stroke="#9ca3af" stroke-width="1.5"/><text class="anc" x="475.0" y="88" style="font-size:19px;font-weight:700;fill:#4b5563">Results on the PR</text><text class="anc" x="475.0" y="114" style="font-size:15px;fill:#6b7280">checks, logs,</text><text class="anc" x="475.0" y="136" style="font-size:15px;fill:#6b7280">preview build</text><rect x="392" y="282" width="166" height="112" rx="10" fill="#ffffff" stroke="#9ca3af" stroke-width="1.5"/><text class="anc" x="475.0" y="318" style="font-size:19px;font-weight:700;fill:#4b5563">Status checks</text><text class="anc" x="475.0" y="344" style="font-size:15px;fill:#6b7280">green or red</text><rect x="196" y="282" width="166" height="112" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/><text class="anc" x="279.0" y="318" style="font-size:19px;font-weight:700;fill:#b45309">PR review</text><text class="anc" x="279.0" y="344" style="font-size:15px;fill:#6b7280">a reviewer approves,</text><text class="anc" x="279.0" y="366" style="font-size:15px;fill:#6b7280">with comments</text><rect x="0" y="282" width="166" height="112" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/><text class="anc" x="83.0" y="318" style="font-size:19px;font-weight:700;fill:#b45309">Merge</text><text class="anc" x="83.0" y="344" style="font-size:15px;fill:#6b7280">approval recorded,</text><text class="anc" x="83.0" y="366" style="font-size:15px;fill:#6b7280">then deploy</text><path d="M168,108.0 H194" style="fill:none;stroke:#9ca3af;stroke-width:1.5" marker-end="url(#cp-ag)"/><path d="M364,108.0 H390" style="fill:none;stroke:#9ca3af;stroke-width:1.5" marker-end="url(#cp-ag)"/><path d="M475.0,166 V280" style="fill:none;stroke:#9ca3af;stroke-width:1.5" marker-end="url(#cp-ag)"/><path d="M390,338.0 H364" style="fill:none;stroke:#9ca3af;stroke-width:1.5" marker-end="url(#cp-ag)"/><path d="M194,338.0 H168" style="fill:none;stroke:#d97706;stroke-width:2" marker-end="url(#cp-aa)"/><path d="M83.0,280 V166" style="fill:none;stroke:#d97706;stroke-width:2" marker-end="url(#cp-aa)"/><g data-s="3 4"><path class="hair" d="M590,0 V440" style="fill:none"/><text x="620" y="26" style="font-size:22px;font-weight:700">CA/CP: continuous analysis, continuous publication</text><rect x="620" y="52" width="166" height="112" rx="10" fill="#ffffff" stroke="#111111" stroke-width="1.5"/><text class="anc" x="703.0" y="88" style="font-size:19px;font-weight:700;fill:#111111">Change</text><text class="anc" x="703.0" y="114" style="font-size:15px;fill:#4b5563">revise the design</text><text class="anc" x="703.0" y="136" style="font-size:15px;fill:#4b5563">(Kp, Kd)</text><rect x="816" y="52" width="166" height="112" rx="10" fill="#dbeafe" stroke="#2166ac" stroke-width="1.5"/><text class="anc" x="899.0" y="88" style="font-size:19px;font-weight:700;fill:#111111">Re-analysis</text><text class="anc" x="899.0" y="114" style="font-size:15px;fill:#4b5563">automated:</text><text class="anc" x="899.0" y="136" style="font-size:15px;fill:#4b5563">four kinds of evidence</text><rect x="1012" y="52" width="166" height="112" rx="10" fill="#ffffff" stroke="#2166ac" stroke-width="1.5"/><text class="anc" x="1095.0" y="88" style="font-size:19px;font-weight:700;fill:#111111">Republish</text><text class="anc" x="1095.0" y="114" style="font-size:15px;fill:#4b5563">Flexo commit + Git SHA,</text><text class="anc" x="1095.0" y="136" style="font-size:15px;fill:#4b5563">regenerated views</text><rect x="1012" y="282" width="166" height="112" rx="10" fill="#ffffff" stroke="#2166ac" stroke-width="1.5"/><text class="anc" x="1095.0" y="318" style="font-size:19px;font-weight:700;fill:#111111">Evidence</text><text class="anc" x="1095.0" y="344" style="font-size:15px;fill:#4b5563">concurring or</text><text class="anc" x="1095.0" y="366" style="font-size:15px;fill:#4b5563">contradictory</text><path d="M788,108.0 H814" style="fill:none;stroke:#111111;stroke-width:1.5" marker-end="url(#cp-ah)"/><path d="M984,108.0 H1010" style="fill:none;stroke:#111111;stroke-width:1.5" marker-end="url(#cp-ah)"/><path d="M1095.0,166 V280" style="fill:none;stroke:#111111;stroke-width:1.5" marker-end="url(#cp-ah)"/><path d="M1010,338.0 H984" style="fill:none;stroke:#111111;stroke-width:1.5" marker-end="url(#cp-ah)"/><text class="mono anc" x="1095.0" y="418" style="font-size:16px;fill:#2166ac">step 2: they differ</text></g><g data-s="4"><rect x="816" y="282" width="166" height="112" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="3"/><text class="anc" x="899.0" y="318" style="font-size:19px;font-weight:700;fill:#b45309">Judgment</text><text class="anc" x="899.0" y="344" style="font-size:15px;fill:#4b5563">qualified engineer:</text><text class="anc" x="899.0" y="366" style="font-size:15px;fill:#4b5563">with rationale</text><rect x="620" y="282" width="166" height="112" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="3"/><text class="anc" x="703.0" y="318" style="font-size:19px;font-weight:700;fill:#b45309">Attestation</text><text class="anc" x="703.0" y="344" style="font-size:15px;fill:#4b5563">recorded in</text><text class="anc" x="703.0" y="366" style="font-size:15px;fill:#4b5563">the model</text><path d="M814,338.0 H788" style="fill:none;stroke:#d97706;stroke-width:3" marker-end="url(#cp-aa)"/><path d="M703.0,280 V166" style="fill:none;stroke:#d97706;stroke-width:3" marker-end="url(#cp-aa)"/><text class="mono anc" x="899.0" y="418" style="font-size:16px;fill:#b45309">every step: I sign</text></g></svg></div>
 <p class="cap" data-s="1">Realization, <span style="color:#7c3aed;font-weight:700">emulated</span>: a reusable Docker image and a locally hosted Flexo service.</p>
-<p class="cap" data-s="2">CI/CD gates on pass/fail.</p>
-<p class="cap" data-s="3 4">CI/CD gates on pass/fail. CA/CP gates on a qualified judgment.</p>
+<p class="cap" data-s="2" style="font-size:24px">Automation in the middle; a reviewer at the gate.</p>
+<p class="cap" data-s="3 4" style="font-size:24px">In CI/CD a red check blocks the merge. In CA/CP contradictory evidence is expected, and the engineer's judgment, with rationale, becomes part of the model.</p>
 <svg class="src" data-s="3 4" viewBox="0 0 520 20" role="presentation"><text x="0" y="15">Our framing, extending CI/CD.</text></svg>
 </div>
 </div>
