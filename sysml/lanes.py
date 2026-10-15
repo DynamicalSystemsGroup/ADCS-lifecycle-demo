@@ -310,7 +310,8 @@ def two_store_mermaid() -> str:
     each commit tagged by the Git SHA. Who reads each store is drawn under it."""
     m, p = PALETTE["machine"], PALETTE["prescribed"]
     return "\n".join([
-        "%%{init: {'themeVariables': {'fontSize': '20px'}}}%%",
+        "%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '20px', 'lineColor': '#6b7280', "
+        "'clusterBkg': '#f8fafc', 'clusterBorder': '#cbd5e1'}}}%%",
         "flowchart LR",
         '  subgraph G["GIT · source"]',
         '    g1["<b>.sysml</b> text<br/>analysis code<br/>notebook"]',
@@ -339,7 +340,8 @@ def sandwich_mermaid(layers) -> str:
     if len(layers) != 3 or not all(layers):
         raise ValueError(f"sandwich_mermaid takes exactly three non-empty labels, got {layers!r}")
     p = PALETTE["prescribed"]
-    out = ["%%{init: {'themeVariables': {'fontSize': '26px'}, 'flowchart': {'rankSpacing': 36, 'wrappingWidth': 700}}}%%",
+    out = ["%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '26px', 'lineColor': '#6b7280'}, "
+           "'flowchart': {'rankSpacing': 36, 'wrappingWidth': 700}}}%%",
            "flowchart TB"]
     out += [f'  L{i}["{x}"]' for i, x in enumerate(layers)]
     out += ["  L0 --- L1 --- L2", f"  classDef layer fill:#f1f3f4,stroke:{p},stroke-width:3px",

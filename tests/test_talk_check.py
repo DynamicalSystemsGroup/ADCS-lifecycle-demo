@@ -99,3 +99,31 @@ def test_missing_slide_marker_flags_only_that_module(talk: Path, tmp_path: Path)
     nb.write_text("# BEAT:B1 SLIDE:S0\n")  # S1 is covered by its beat; S2 has no marker
     res = _status(talk_check.run_checks(talk, nb, 50, root=tmp_path), "slides")
     assert res.status == "failed" and res.details == ["S2: no SLIDE:S2 marker in nb.py"]
+
+
+# ---- guards on talk.py itself (source level: the notebook needs a live stack to run) ----------
+
+TALK = (Path(__file__).resolve().parent.parent / "talk.py").read_text()
+
+
+def test_talk_has_one_diagram_sizing_mechanism_and_no_script_hack() -> None:
+    for banned in ("setInterval", "onerror", "clientWidth", 'replace("flowchart LR"', "zoom="):
+        assert banned not in TALK, banned
+    assert TALK.count("def mer(") == 1
+
+
+def test_talk_probes_flexo_once_with_a_long_timeout_and_one_project_per_sha() -> None:
+    assert TALK.count("httpx.get(") == 1 and "timeout=20" in TALK
+    assert 'f"sysml-talk-{GIT_SHA[:7]}"' in TALK and "uuid" not in TALK
+
+
+def test_talk_callouts_are_neutral_only_and_tags_are_not_looked_up_while_rendering() -> None:
+    import re
+    kinds = set(re.findall(r'kind="(\w+)"', TALK))
+    assert kinds == {"neutral"}, kinds  # amber is the human, red is the FAIL pill; callouts are neither
+    assert "git_sha(" not in TALK and "tag_of" not in TALK
+
+
+def test_talk_uses_group_diff_names_not_private_model_helpers() -> None:
+    for banned in ("_in_model", "_lib_reach", "_top", "in_model", "lib_reach", "top_of", "group_names"):
+        assert banned not in TALK, banned

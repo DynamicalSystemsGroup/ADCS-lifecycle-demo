@@ -154,9 +154,11 @@ def _s0():
 
     def mer(diagram: str, width: int = 720):
         """A Mermaid diagram in a centred box of fixed CSS width. The diagram text carries its own
-        font size (20 px or more); the svg fills the box, so this is the only sizing mechanism."""
+        font size (20 px or more); the svg scales down to the box and never up, so this is the only
+        sizing mechanism."""
         return mo.Html(
-            f'<div style="width:{width}px;max-width:100%;margin:0 auto">{mo.mermaid(diagram).text}</div>'
+            f'<div style="width:{width}px;max-width:100%;margin:0 auto;display:flex;justify-content:center">'
+            f"{mo.mermaid(diagram).text}</div>"
         )
 
     def code(text: str):
@@ -339,7 +341,7 @@ def _s2(asset, mo):
             ),
             mo.md("<small><i>rendered by Kotar (Planetary Utilities); not colour-coded</i></small>"),
         ], justify="center"),
-        asset("sat-01-requirement-design-satisfy.png", width=480, rounded=True),
+        asset("sat-01-requirement-design-satisfy.png", width=440, rounded=True),
     ], widths=[1, 1], align="center")
     return
 
