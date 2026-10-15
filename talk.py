@@ -300,10 +300,10 @@ def _t0():
         '<h1 style="font-size:2.6rem;line-height:1.2;margin:0 0 2.2rem 0">'
         "Evidence, Attestation, and Requirements Traceability with Python and Flexo MMS</h1>"
         '<p style="font-size:1.7rem;font-weight:600;margin:0 0 .3rem 0">Michael Zargham</p>'
-        '<p style="font-size:1.3rem;margin:0 0 2.2rem 0">'
-        "Chief Engineer, Dynamical Systems Group · Maintainer, OpenMBEE</p>"
+        '<p style="font-size:1.3rem;line-height:1.5;margin:0 0 2.2rem 0">'
+        "Chief Engineer, Dynamical Systems Group<br>Maintainer, OpenMBEE</p>"
         '<p style="font-size:1.2rem;color:#6b7280;margin:0">'
-        "OpenTeams Open Source Architect Community · October 15, 2026</p></div>"
+        "Open Source Architects (OSA) Community · October 15, 2026</p></div>"
         "<!-- SLIDE:T0 -->"
     )
     return (K, btn_c1, btn_c2, btn_c3, btn_rev, btn_z3, d1_step, d2_dt, d2_limit, d2_step, d2_time, d3_step, mo)
