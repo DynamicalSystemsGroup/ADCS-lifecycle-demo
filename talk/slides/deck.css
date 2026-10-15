@@ -1,0 +1,45 @@
+/* Shared styles for the static slide fragments (ART.md). Every rule is scoped under .slide:
+   a <style> block inside mo.Html applies to the whole notebook page, so nothing may be global. */
+.slide {
+  position: relative; box-sizing: border-box; width: 100%; max-width: 1180px; height: 700px;
+  margin: 0; padding: 0; color: #111111; text-align: left;
+  font-family: "PT Sans", "Helvetica Neue", Arial, sans-serif; font-size: 24px; line-height: 1.3;
+}
+.slide h2 {
+  margin: 0 0 22px; padding: 0; border: 0; height: 52px;
+  font-family: "Lora", Georgia, serif; font-weight: 600; font-size: 40px; line-height: 52px;
+  letter-spacing: -0.01em; color: #111111;
+}
+.slide svg { display: block; width: 100%; height: auto; overflow: visible; }
+.slide svg text { font-family: "PT Sans", "Helvetica Neue", Arial, sans-serif; fill: #111111; }
+.slide .cap { margin: 22px 0 0; font-size: 28px; line-height: 1.3; color: #111111; }
+.slide .cap.muted { color: #4b5563; font-size: 26px; }
+.slide .src { position: absolute; left: 0; bottom: 8px; margin: 0; font-size: 15px; color: #6b7280; }
+.slide svg.src { width: 520px; height: 20px; }
+.slide .src text { fill: #6b7280; font-size: 15px; }
+
+/* shared SVG vocabulary */
+.slide .box   { fill: #ffffff; stroke: #111111; stroke-width: 1.5; }
+.slide .mach  { fill: #ffffff; stroke: #2166ac; stroke-width: 1.5; }
+.slide .machT { fill: #dbeafe; stroke: #2166ac; stroke-width: 1.5; }
+.slide .human { fill: #fef3c7; stroke: #d97706; stroke-width: 3; }
+.slide .grey  { fill: #ffffff; stroke: #6b7280; stroke-width: 1.5; }
+.slide .hair  { fill: #fafafa; stroke: #e5e7eb; stroke-width: 1.5; }
+.slide .arr   { fill: none; stroke: #111111; stroke-width: 1.5; }
+.slide .arrM  { fill: none; stroke: #6b7280; stroke-width: 1.5; }
+.slide .dash  { stroke-dasharray: 7 6; }
+.slide .h1t   { font-size: 24px; font-weight: 700; }
+.slide .h2t   { font-size: 20px; font-weight: 700; }
+.slide .lbl   { font-size: 20px; }
+.slide .sub   { font-size: 18px; fill: #4b5563; }
+.slide .mut   { fill: #4b5563; }
+.slide .gry   { fill: #6b7280; }
+.slide .blu   { fill: #2166ac; }
+.slide .amb   { fill: #b45309; }
+.slide .mono  { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+.slide .anc   { text-anchor: middle; }
+.slide .code  { font-family: "SFMono-Regular", Menlo, Consolas, monospace; background: #f6f8fa;
+  border: 1px solid #e5e7eb; border-radius: 8px; padding: 2px 12px; font-size: 28px; }
+.slide ul.pts { list-style: none; margin: 8px 0 0; padding: 0; }
+.slide ul.pts li { display: flex; align-items: center; gap: 22px; margin: 0 0 46px; font-size: 34px; line-height: 1.25; }
+.slide ul.pts li i { flex: none; width: 14px; height: 14px; border-radius: 50%; background: #111111; }
