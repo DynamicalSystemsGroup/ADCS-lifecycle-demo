@@ -723,7 +723,7 @@ def _t1(K):
 
 @app.cell(hide_code=True)
 def _c1(K):
-    # <!-- SLIDE:C1 --> Three things to do on Monday; the opening line returns, with its answer.
+    # <!-- SLIDE:C1 --> Call to action: start modeling, get involved, teaming; then the opening line returns, with its answer.
     _cap = (K.ASSETS / "tool-verify.txt").read_text()
     _d = K.D[K.NEAR]
     _tail = ('<div class="callout" style="flex:1"><div style="font-size:18px;font-weight:700">z3, for the linear model</div>'
