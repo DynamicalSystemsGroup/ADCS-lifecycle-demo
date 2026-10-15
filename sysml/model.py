@@ -1,7 +1,8 @@
 """Assemble and evaluate the GeoSatADCS SysML v2 model with OpenSysML 0.10.0.
 
-Three blocks, three owners, spliced into one package:
+Four blocks, three owners, spliced into one package:
   structure    hand-authored, static, in Git         (sysml/satellite.sysml)
+  adequacy     written only by a human, once         (adequacy_block; about the analysis scope)
   evidence     generated from scipy results          (evidence_block)
   attestation  written only by a human action        (attestation_block)
 
@@ -60,6 +61,19 @@ SUFFICIENCY_SATISFIED_TEMPLATE = (
     "settling-time clause satisfied for this design."
 )
 
+# DRAFT (DL-36), pending Michael's approval; not approved text. New judgement text for a design
+# where the linear estimate and Z3 pass but the simulation does not (the (4,25) step).
+SUFFICIENCY_DISAGREE_DRAFT = (
+    "At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s and Z3 confirms that bound across the "
+    "neighbouring region, but the simulation, which enforces the actuator torque limit, settles in "
+    "{t_sim} s on the {axis} axis. The models disagree, and the one that carries the torque limit "
+    "governs here. This evidence is not sufficient for satisfied: I attest not satisfied."
+)
+# DRAFT (DL-36): optional per-axis sentence, authored by the WP19 author; not approved text.
+PER_AXIS_DRAFT_SENTENCE = (
+    "The simulation settles in {x} s about x, {y} s about y and {z} s about z; the worst axis governs."
+)
+
 # Exact excerpts of the texts above, for the amber card.
 CARD_ADEQUACY = ("The linear model and the nonlinear simulation are adequate for judging REQ-001's "
                  "settling-time clause at this design stage.")
@@ -67,12 +81,25 @@ CARD_NOT_SATISFIED = ("This evidence is sufficient for me to say this design doe
                       "I attest not satisfied.")
 CARD_SATISFIED = ("This evidence is sufficient: I attest REQ-001's settling-time clause satisfied "
                   "for this design.")
+# DRAFT (DL-36): card excerpt of SUFFICIENCY_DISAGREE_DRAFT.
+CARD_DISAGREE_DRAFT = ("The models disagree, and the one that carries the torque limit governs here. "
+                       "I attest not satisfied.")
 
 
 def sufficiency_satisfied(Kp, Kd, t_sim, t_sym, limit) -> str:
     """The approved C3 sufficiency text with live numbers: times as whole seconds, gains as given."""
     return SUFFICIENCY_SATISFIED_TEMPLATE.format(Kp=Kp, Kd=Kd, t_sim=f"{t_sim:.0f}",
                                                  t_sym=f"{t_sym:.0f}", limit=limit)
+
+
+def sufficiency_disagree(Kp, Kd, t_sym, t_sim, axis) -> str:
+    """DRAFT text (DL-36) with live numbers. Times keep one decimal: a 120.5 s result must not read as 120."""
+    return SUFFICIENCY_DISAGREE_DRAFT.format(Kp=Kp, Kd=Kd, t_sym=f"{t_sym:.1f}", t_sim=f"{t_sim:.1f}", axis=axis)
+
+
+def per_axis_sentence(x, y, z) -> str:
+    """DRAFT per-axis sentence (optional) with live numbers, one decimal."""
+    return PER_AXIS_DRAFT_SENTENCE.format(x=f"{x:.1f}", y=f"{y:.1f}", z=f"{z:.1f}")
 
 
 def _q(text: str) -> str:
@@ -93,24 +120,62 @@ def symbolic_settling(params: dict) -> tuple[float, str]:
                               {"settling_time_s": t})
 
 
-def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adequacy: str,
-                   adequacy_by: str, t_estimate_s: float, est_hash: str) -> str:
-    """The generated block for one design. `params` has Kp, Kd;
-    `summary` is SimResult.summary(); `sim_hash` comes from evidence.hashing.hash_simulation.
-    `t_estimate_s` and `est_hash` come from `symbolic_settling`: a second, independent estimate.
+SCOPE = "SettlingAnalysis"  # the analysis def in satellite.sysml that the adequacy judgement is about
 
-    `adequacy` is the Rationale text: a person's judgement (validation) that the model is
-    adequate for this use, carried with the evidence. The caller supplies it; this function
-    makes no judgement of its own. `adequacy_by` is the person whose judgement it is: it is
-    recorded as the originator of a StatusInfo about the design (a Rationale has no author
-    field) and must pass the NOT_A_HUMAN guard."""
-    _ident("design", design)
-    who = adequacy_by.strip()
+
+def _human(name: str, what: str) -> str:
+    who = name.strip()
     if not who or who.lower() in NOT_A_HUMAN:
-        raise ValueError(f"adequacy_by {adequacy_by!r} is not a named human")
+        raise ValueError(f"{what} {name!r} is not a named human")
+    return who
+
+
+def adequacy_block(by: str, adequacy: str = ADEQUACY_TEXT) -> str:
+    """The person's adequacy judgement, emitted once and about the analysis scope, not any design.
+
+    `adequacy` is a Rationale (validation: the models are adequate for this use). A Rationale
+    has no author field, so the person is the originator of a StatusInfo beside it; `done`
+    means the judgement is recorded, not that any design is accepted. Must pass NOT_A_HUMAN."""
+    who = _human(by, "adequacy_by")
     return f"""\
-    // ----- Rationale and StatusInfo below are {_q(who)}'s adequacy judgement, carried with the evidence -----
-    part {design} : ADCS {{
+    metadata : ModelingMetadata::Rationale about {SCOPE} {{
+        text = "{_q(adequacy)}";
+    }}
+    metadata : ModelingMetadata::StatusInfo about {SCOPE} {{
+        originator = "{_q(who)}";
+        status = StatusKind::done;
+    }}
+"""
+
+
+def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, *rest,
+                   per_axis: dict | None = None) -> str:
+    """The generated block for one design. `params` has Kp, Kd; `summary` is SimResult.summary()
+    (or any dict with settling_time_s: the WORST axis governs); `sim_hash` comes from
+    evidence.hashing.hash_simulation. `t_estimate_s` and `est_hash` come from `symbolic_settling`.
+
+    `per_axis` (optional, the dict from sysml.evidence.slew_settling) is recorded as comments so
+    the audit trail shows each axis and the torque-limit saturation. No adequacy judgement is
+    written here: it is about the analysis scope, see `adequacy_block`.
+
+    Call as `(design, params, summary, sim_hash, t_estimate_s, est_hash)`. The legacy call
+    `(..., sim_hash, adequacy, adequacy_by, t_estimate_s, est_hash)` still works for callers not yet
+    rewired, but its adequacy arguments are ignored (use `adequacy_block`)."""
+    if len(rest) == 4:
+        rest = rest[2:]
+    if len(rest) != 2:
+        raise TypeError("evidence_block takes t_estimate_s and est_hash after sim_hash")
+    t_estimate_s, est_hash = rest
+    _ident("design", design)
+    notes = ""
+    if per_axis:
+        notes = (f"    // {design}: simulated settling per slew axis (s): x={per_axis['x']:.1f}, "
+                 f"y={per_axis['y']:.1f}, z={per_axis['z']:.1f}; worst axis {per_axis['worst_axis']} "
+                 f"governs settlingTime\n"
+                 f"    // {design}: torque limit active until {per_axis['saturated_s']:.1f} s, "
+                 f"peak command {per_axis['peak_torque']:.3g} N m (model-adequacy fact)\n")
+    return f"""\
+{notes}    part {design} : ADCS {{
         attribute :>> Kp = {float(params['Kp'])!r};
         attribute :>> Kd = {float(params['Kd'])!r};
         attribute :>> settlingTime = {float(summary['settling_time_s'])!r} [s];
@@ -123,13 +188,6 @@ def evidence_block(design: str, params: dict, summary: dict, sim_hash: str, adeq
     metadata : AnalysisTooling::ToolExecution about {design}::settlingTimeEstimate {{
         toolName = "SymPy linear analysis (analysis/symbolic.py)";
         uri = "sha256:{est_hash}";
-    }}
-    metadata : ModelingMetadata::Rationale about {design} {{
-        text = "{_q(adequacy)}";
-    }}
-    metadata : ModelingMetadata::StatusInfo about {design} {{
-        originator = "{_q(who)}";
-        status = StatusKind::done;
     }}
     verification vc001_{design} : SettlingVerification {{ subject = {design}; }}
 """
@@ -188,12 +246,14 @@ def _banner(label: str, owner: str) -> str:
     return f"    // ===== {label} block ({owner}) =====\n"
 
 
-def assemble(structure: str, evidence: str = "", attestation: str = "") -> str:
-    """Splice the evidence and attestation blocks before the package's closing brace."""
+def assemble(structure: str, evidence: str = "", attestation: str = "", adequacy: str = "") -> str:
+    """Splice the adequacy, evidence and attestation blocks before the package's closing brace."""
     head, brace, tail = structure.rstrip().rpartition("}")
     if not brace:
         raise ValueError("structure has no closing brace")
     parts = [head.rstrip() + "\n\n"]
+    if adequacy:
+        parts.append(_banner("adequacy", "written only by a human") + adequacy + "\n")
     if evidence:
         parts.append(_banner("evidence", "generated by Python from scipy") + evidence + "\n")
     if attestation:

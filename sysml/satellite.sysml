@@ -16,6 +16,20 @@ package GeoSatADCS {
         attribute settlingTimeEstimate : ISQ::DurationValue;
     }
 
+    // The scope of the settling analysis. The adequacy judgement (a Rationale plus a StatusInfo
+    // naming the person, written by sysml/model.py adequacy_block) is about this element: it judges
+    // the assumptions implicit in how the analysis was scoped, not any design.
+    analysis def SettlingAnalysis {
+        doc /* Scoping assumptions of the settling analysis.
+        Rigid body with constant inertia.
+        Linear model: small-angle linearisation, no actuator limit, settling as 4/|Re s|.
+        Nonlinear simulation: quaternion kinematics, the 0.1 N m torque limit, a 10 degree slew
+        about each body axis, a 1% settling band.
+        No sensor noise.
+        No flexible modes. */
+        subject adcs : ADCS;
+    }
+
     // REQ-001. The doc text is the sysml:text of structural/satellite.ttl, word for word.
     // The constraint encodes only the 120 s clause of that text.
     requirement def SettlingRequirement {
