@@ -162,16 +162,17 @@ def _s0():
             parts.append(f"Published {label} to Flexo" + (f", tagged `git-{rec['tag'][len(TAG_PREFIX):][:7]}`" if rec.get("tag") else ""))
         if rec.get("note"):
             parts.append(rec["note"])
-        return mo.callout(mo.md(" · ".join(parts)), kind="neutral") if parts else mo.md("")
+        return mo.md(f'<small style="color:#6b7280">{" · ".join(parts)}</small>') if parts else mo.md("")
 
     def publishing_line(label: str):
         """Shown the moment Attest is clicked, before the slow publish returns."""
-        return mo.callout(mo.md(f"Publishing {label} to Flexo…"), kind="neutral")
+        return mo.md(f'<small style="color:#6b7280">Publishing {label} to Flexo…</small>')
 
-    # Top-anchor: marimo centres a slide's content vertically, so titles would jump from slide to
-    # slide. The rule rides inside each slide's title markdown (a virtual swiper drops slides that
-    # are far from view, and their style tags with them).
-    TOP = "<style>.mo-slide-content{justify-content:flex-start!important}</style>"
+    # Top-anchor: marimo centers a slide's content vertically (the output box has auto block
+    # margins), so titles would jump from slide to slide. This rule zeroes those margins. It rides
+    # inside each slide's title markdown, because a virtual swiper drops far-away slides, and their
+    # style tags with them.
+    TOP = "<style>.mo-slide-content .output{margin-block:0!important}</style>"
 
     def head(text: str):
         """A slide's title block: markdown, with the top-anchor rule attached."""
@@ -188,13 +189,12 @@ def _s0():
         return mo.image((mo.notebook_dir() / "talk" / "assets" / name).read_bytes(), **kw)
 
     def mer(diagram: str, width: int = 720):
-        """A Mermaid diagram scaled to a fixed CSS width: the one sizing mechanism. The svg fills a
-        centered box of `width` px (up or down), so every diagram is sized here and nowhere else;
-        the diagram text only sets its own base font (20 px or more)."""
-        return mo.Html(
-            "<style>.mer svg{display:block;margin:0 auto;width:100%!important;max-width:none!important}</style>"
-            f'<div class="mer" style="width:{width}px;max-width:100%;margin:0 auto">{mo.mermaid(diagram).text}</div>'
-        )
+        """A Mermaid diagram in a centered box of `width` px. The svg lives in the mermaid element's
+        shadow root, out of reach of page CSS: it fills the box but never grows past its own natural
+        size. So `width` shrinks a diagram that is too big, and a diagram that should read larger is
+        enlarged by its font size in `sysml/lanes.py`; for a small diagram set `width` to its natural
+        width (about 5 px over) so that the box, and with it the diagram, is centered."""
+        return mo.Html(f'<div style="width:{width}px;max-width:100%;margin:0 auto">{mo.mermaid(diagram).text}</div>')
 
     def code(text: str):
         return mo.md("```text\n" + text + "\n```")
@@ -778,7 +778,7 @@ def _s4(D, head, mer, mo):
             "- Flexo stored any type unchecked\n"
             "- Flexo commits carry the Git SHA"
         ),
-        mer(D["two_store"], 1000),
+        mer(D["two_store"], 925),
     ])
     return
 
@@ -817,7 +817,7 @@ def _s6(head):
 def _s7(D, head, mer, mo):
     mo.vstack([
         head("## Dynamical Systems Group: executable across the board <!-- SLIDE:S7 -->"),
-        mo.hstack([mer(D["sandwich"], 560)], justify="center"),
+        mo.hstack([mer(D["sandwich"], 457)], justify="center"),
     ])
     return
 

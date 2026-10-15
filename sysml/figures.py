@@ -143,7 +143,7 @@ def overlay_figure(sim_a, sim_b, labels, t_limit: float, band: float,
         ax.text(xmax * 0.015, band * 1.15, f"{band:g}° band", ha="left", va="bottom", color=_MUTED)
         ax.text(t_limit + xmax * 0.01, ax.get_ylim()[1] / 1.5, f"{t_limit:g} s limit", ha="left", va="top",
                 color=PALETTE["prescribed"])
-        ax.legend(loc="lower left", frameon=False)
+        ax.legend(loc="upper right", frameon=False)
         ax.set_title("Pointing error after the slew", loc="left")
         return _finish(fig)
 
