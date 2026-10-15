@@ -527,7 +527,7 @@ def _d2(K, btn_c2, btn_z3, d2_dt, d2_limit, d2_step, d2_time, mo):
                     f'<div style="flex:none;width:540px"><p style="margin:0 0 2px;font-size:20px;color:#4b5563">same simulation, {_axis} axis</p><div class="zoomctl">{d2_limit}</div>'
                     f'<div class="fig" style="margin-top:4px">{_plot}</div>'
                     f'<p style="margin:6px 0 0;font-size:26px">{_s:.1f} s {K.pill(_kind, _kind.upper())}</p></div>'
-                    f'<div style="flex:1"><p class="kap" style="margin:0 0 2px">zoom: 115 to 125 s, 0.08 to 0.12 degrees (grey: the other setting)</p><div class="fig">{_inset}</div>'
+                    f'<div style="flex:1"><p class="kap" style="margin:0 0 2px">zoom: 115 to 125 s, 0.08 to 0.12 deg. (grey: the other setting)</p><div class="fig">{_inset}</div>'
                     '<p style="margin:8px 0 0;font-size:20px;color:#4b5563">in-model simulation (SysML action), torque limit on</p>'
                     f'<div style="display:flex;align-items:center;gap:18px"><div class="zoomctl">{d2_dt}</div>'
                     f'<span style="font-size:26px">{float(_inm):.1f} s {K.pill(_kind2, _kind2.upper())}</span></div>'

@@ -448,7 +448,7 @@ def error_plot_svg(curves, t0: float = 0.0, t1: float = 360.0, y0: float = 0.01,
     out.append(f'<path d="M{L},{T} V{T + ph} H{L + pw}" fill="none" stroke="#4b5563" stroke-width="1.5"/>'
                f'<text x="{L + pw / 2}" y="{height - 6}" text-anchor="middle" style="font-size:18px;fill:#4b5563">time (s)</text>')
     out.append(f'<text transform="translate(18,{T + ph / 2:.0f}) rotate(-90)" text-anchor="middle" '
-               f'style="font-size:18px;fill:#4b5563">pointing error (degrees)</text>')
+               f'style="font-size:18px;fill:#4b5563">pointing error (deg.)</text>')
     if y0 < band < y1:
         out.append(f'<path d="M{L},{Y(band):.1f} H{L + pw}" stroke="#111111" stroke-width="2" stroke-dasharray="9 7"/>'
                    f'<text x="{L + pw - 6}" y="{Y(band) - 8:.1f}" text-anchor="end" style="font-size:18px">{band:g}° band</text>')
