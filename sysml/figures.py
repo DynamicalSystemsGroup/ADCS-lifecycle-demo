@@ -11,7 +11,10 @@ pills only (so no figure uses them).
 
 from __future__ import annotations
 
+import calendar
 import html
+import math
+import textwrap
 from contextlib import contextmanager
 
 import matplotlib as mpl
@@ -230,6 +233,99 @@ def torque_figure(sim, Kp: float, Kd: float, limit: float, t_max: float = 120.0)
         ax_e.set_ylabel("pointing error [deg]")
         ax_e.set_xlabel("time after slew [s]")
         ax_e.set_xlim(0, t_max)
+        return _finish(fig)
+
+
+def _year(date: str) -> float:
+    """"YYYY" or "YYYY-MM" as a decimal year (a bare year sits at mid-year, a month at mid-month)."""
+    y, _, m = date.partition("-")
+    return int(y) + ((int(m) - 0.5) / 12 if m else 0.5)
+
+
+def _month_label(month: str) -> str:
+    y, m = month.split("-")
+    return f"{calendar.month_abbr[int(m)]} {y}"
+
+
+def history_timeline(data: dict, figsize: tuple[float, float] = (13.4, 5.6)) -> Figure:
+    """The project's history as one picture, drawn from `talk/history.json`; every label is data.
+
+    Top: phase bands (neutral tints), the organizations documented in each era, and milestone dots
+    with short labels. Each event carries a placement hint (`place`: side, level, align) so that
+    labels never overlap. Lower left, in the empty space under the first era: a sparkline of the last twelve months in blue (the series is
+    computed elsewhere; this function only draws it). `figsize` is in inches: at 87 dpi the 15 pt
+    text is 18 px, and the PNG's natural width is its display width."""
+    phases, events, orgs = data["phases"], data["events"], data["orgs"]
+    x0, x1 = _year(phases[0]["start"]) - 0.5, _year(phases[-1]["end"]) + 1.0
+    with screen_style():
+        fig = Figure(figsize=figsize)
+        w_in, h_in = figsize
+        top_in = h_in - 0.05
+        ax = fig.add_axes((0.01, 1 - top_in / h_in, 0.98, top_in / h_in), frameon=False)
+        ax.set_xlim(x0, x1)
+        ax.set_ylim(0, top_in)  # one data unit is one inch
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.grid(False)
+        per_yr = w_in * 0.98 / (x1 - x0)  # inches per year
+        step = 0.42  # inches between label levels
+        n_below = max([e["place"]["level"] for e in events if e["place"]["side"] == "below"] or [0])
+        line_y = 0.35 + 0.2 + step * n_below + 0.15
+        names_y = top_in - 0.05
+        tints = ["#f3f4f6", "#e5e7eb"]
+        for i, ph in enumerate(phases):
+            a, b = _year(ph["start"]), _year(ph["end"])
+            b = x1 if i == len(phases) - 1 else b  # the last era is ongoing: its band runs to the edge
+            ax.axvspan(a, b, color=tints[i % 2], lw=0, zorder=0)
+            chars = int((b - a - 0.1) * per_yr / (MIN_FONT_PT * 0.52 / 72))  # characters that fit across the band
+            ax.text(a + 0.08, names_y, textwrap.fill(ph["name"], width=max(chars - 4, 8)), ha="left", va="top",
+                    fontweight="bold", color=PALETTE["prescribed"], linespacing=1.1, zorder=3)
+            names = [o["name"] for o in orgs if o["era"] == ph["name"]]
+            if names:
+                ax.text(a + 0.08, names_y - 0.75, textwrap.fill(" ".join(n.replace(" ", "\u00a0") + "\u00a0·" for n in names)[:-2], width=max(chars, 12)),
+                        ha="left", va="top", color=_MUTED, linespacing=1.3, zorder=3)
+        for yr in range(math.ceil(x0), int(_year(phases[-1]["end"])) + 1):  # year ticks: faint rules and labels along the bottom
+            ax.plot([yr, yr], [0.3, line_y], color="white", lw=1.5, zorder=1)
+            if yr - x0 > 0.4:
+                ax.text(yr, 0.0, str(yr), ha="center", va="bottom", color=_MUTED, zorder=3)
+        ax.plot([phases[0]["start"] and _year(phases[0]["start"]), _year(phases[-1]["end"])], [line_y] * 2,
+                color=PALETTE["prescribed"], lw=2.5, zorder=2, solid_capstyle="butt")
+        for ev in events:
+            x, pl = _year(ev["date"]), ev["place"]
+            y = line_y + (1 if pl["side"] == "above" else -1) * (0.2 + step * pl["level"])
+            ax.plot([x, x], [line_y, y], color=_MUTED, lw=1.2, zorder=2)
+            ax.plot([x], [line_y], "o", ms=11, color=PALETTE["prescribed"], zorder=4)
+            ax.text(x + (0.06 if pl["align"] == "left" else -0.06), y, ev["label"], ha=pl["align"], va="center",
+                    color=PALETTE["prescribed"], zorder=4)
+        v = data["velocity"]
+        series = v["series"]
+        vals = [pt["value"] for pt in series]
+        card = fig.add_axes((0.085, 0.4 / h_in, 0.37, 1.8 / h_in))  # a white card: the sparkline has its own axis
+        card.set_xticks([])
+        card.set_yticks([])
+        card.grid(False)
+        for sp in card.spines.values():
+            sp.set_edgecolor(_GRID)
+        axs = fig.add_axes((0.1, 0.95 / h_in, 0.34, 0.8 / h_in), frameon=False)
+        axs.plot(range(len(vals)), vals, color=PALETTE["machine"], lw=3, zorder=3)
+        for i, pt in enumerate(series):
+            if pt.get("partial"):  # an open marker: the month is not over
+                axs.plot([i], [pt["value"]], "o", ms=11, mfc="white", mec=PALETTE["machine"], mew=2.5, zorder=4)
+        k = int(np.argmax(vals))
+        axs.plot([k], [vals[k]], "o", ms=9, color=PALETTE["machine"], zorder=4)
+        axs.annotate(f"{vals[k]}", (k, vals[k]), xytext=(10, 4), textcoords="offset points", ha="left",
+                     va="center", color=PALETTE["machine"], fontweight="bold")
+        axs.set_xlim(-0.3, len(vals) - 0.7)
+        axs.set_ylim(0, max(vals) * 1.2)
+        axs.set_yticks([])
+        axs.grid(False)
+        axs.spines["left"].set_visible(False)
+        partial = " (partial)" if series[-1].get("partial") else ""
+        axs.set_xticks([0, len(vals) - 1], [_month_label(series[0]["month"]), _month_label(series[-1]["month"]) + partial])
+        axs.get_xticklabels()[0].set_ha("left")
+        axs.get_xticklabels()[-1].set_ha("right")
+        fig.text(0.1, 1.85 / h_in, v["title"], ha="left", va="top", color=PALETTE["machine"],
+                 fontweight="bold")
         return _finish(fig)
 
 
