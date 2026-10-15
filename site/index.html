@@ -23,6 +23,8 @@ a { color:var(--link); }
 blockquote { margin:18px 0; padding:4px 0 4px 18px; border-left:4px solid var(--fg); font-weight:600; }
 h2 { font-size:24px; margin:40px 0 6px; }
 .venue { color:var(--faint); margin:0 0 14px; }
+.note { border-left:4px solid var(--link); padding:6px 0 6px 16px; margin:0 0 16px; color:var(--mut); }
+.note b { color:var(--fg); }
 ul.cards { list-style:none; padding:0; margin:0; display:grid; gap:14px; }
 ul.cards li { background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:18px 20px; }
 ul.cards h3 { margin:0 0 6px; font-size:20px; }
@@ -91,6 +93,7 @@ footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px 
 
 <h2>Open Source Architects (OSA) Community</h2>
 <p class="venue">October 15, 2026</p>
+<p class="note"><b>Same title as the JAXA talk, different talk.</b> The invitation to speak came from the JAXA talk and the OpenMBEE work, so the public abstract kept the JAXA title. Between June and October, OpenMBEE released OpenSysML (August 2026), and the talk moved with it. At JAXA the traceability was RDF (PROV, EARL and GSN named graphs pushed to Flexo's RDF layer). At OSA the requirement, the evidence and the person's judgment live in the SysML v2 model itself: OpenSysML evaluates it, and Flexo stores it through the SysML v2 API. The question and the principle are unchanged. The representation, the tools and the demo are new.</p>
 <ul class="cards">
 <li>
 <h3>Evidence, Attestation, and Requirements Traceability with Python and Flexo MMS</h3>

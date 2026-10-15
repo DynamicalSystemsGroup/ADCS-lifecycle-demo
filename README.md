@@ -20,6 +20,13 @@ new artifact with a new toolchain, and the earlier ones stay runnable.
 | 2026-06-12 | JAXA MBSE/MCE Workshop, Presentations from Industry (Tsukuba) | intro slides (PDF, [`site/jaxa-intro-slides.pdf`](site/jaxa-intro-slides.pdf)) + [`jaxa_notebook.ipynb`](jaxa_notebook.ipynb) | Jupyter, rdflib, Flexo MMS (Layer 1), behavior-model oracle | `uv run jupyter lab jaxa_notebook.ipynb` | [slides](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/jaxa/slides.pdf), [notebook](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/jaxa/notebook/) |
 | 2026-10-15 | Open Source Architects (OSA) Community | [`talk.py`](talk.py), slides and live demo in one marimo app | marimo, SysML v2 (OpenSysML), Flexo MMS SysML v2 API, z3, PlantUML, Git | `uv run marimo run talk.py` ([Run the talk](#run-the-talk-the-sysml-v2-edition)) | [deck](https://dynamicalsystemsgroup.github.io/ADCS-lifecycle-demo/osa/), a static pre-signed export |
 
+**JAXA and OSA share a title but not a talk.** The OSA invitation came from the JAXA talk
+and the OpenMBEE work, so the public abstract reused the JAXA title. Between June and
+October, OpenMBEE released OpenSysML (August 2026), and the talk moved with it. JAXA is
+the RDF edition: PROV, EARL and GSN named graphs pushed to Flexo's RDF layer. OSA is
+the SysML v2 edition: the requirement, the evidence and the person's judgment live in the
+model itself, evaluated by OpenSysML and stored in Flexo through the SysML v2 API.
+
 The site is built by [`.github/workflows/publish.yml`](.github/workflows/publish.yml) on
 every push to `main`. The landing page is [`site/index.html`](site/index.html), and each
 artifact is exported fresh: marimo `export html`, Jupyter `nbconvert` of the recorded
