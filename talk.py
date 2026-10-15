@@ -160,7 +160,7 @@ def _t0():
 
     def title(text: str, live: bool = False) -> str:
         cls = "" if len(text) <= 50 else "m" if len(text) <= 62 else "s"
-        return f'<h2 class="{cls}">{html.escape(text)}</h2>' + ('<span class="live">LIVE</span>' if live else "")
+        return f'<h2 class="{cls}">{html.escape(text)}</h2>' + ('<span class="live">LIVE</span>' if live and not PRESEED else "")
 
     def esc(t: str) -> str:
         return html.escape(t)
@@ -243,7 +243,9 @@ def _t0():
                 rows.append(f'<div class="r"><b>{label}</b><span>{what}</span><code>{esc(tag)}</code>'
                             f'<code>Flexo {esc(r["commit"][:8])}</code></div>')
             else:
-                msg = "not published: Flexo did not respond (local mode)" if (why or r.get("note")) or flexo is None else "not published"
+                msg = ("static export: not published to Flexo" if PRESEED
+                       else "not published: Flexo did not respond (local mode)" if (why or r.get("note")) or flexo is None
+                       else "not published")
                 rows.append(f'<div class="r"><b>{label}</b><span>{what}</span><span>{esc(msg)}</span></div>')
         if rows:
             rows[-1] = rows[-1].replace('class="r"', 'class="r new"', 1)

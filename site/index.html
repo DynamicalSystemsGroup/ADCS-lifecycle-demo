@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADCS Lifecycle Demo</title>
+<meta name="description" content="One satellite, one requirement, three presentations: evidence, attestation and requirements traceability for a satellite attitude control system.">
+<style>
+:root { --bg:#ffffff; --fg:#111111; --mut:#4b5563; --faint:#6b7280; --rule:#e5e7eb; --card:#f9fafb; --link:#2166ac; --sky:#dbeafe; --beam:#fef3c7; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111418; --fg:#f3f4f6; --mut:#c0c6cf; --faint:#9aa3ae; --rule:#2b3138; --card:#181c21; --link:#7fb3e6; --sky:#1e3a5f; --beam:#5b4a1a; }
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:18px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+main { max-width:860px; margin:0 auto; padding:48px 16px 40px; }
+h1 { font-size:40px; line-height:1.15; margin:0 0 8px; }
+.sub { font-size:22px; color:var(--mut); margin:0 0 10px; }
+.by { color:var(--faint); margin:0 0 24px; }
+svg.hero { display:block; width:100%; max-width:560px; height:auto; margin:8px auto 28px; }
+svg.hero .s { stroke:var(--fg); fill:var(--bg); }
+svg.hero text { fill:var(--fg); font:15px sans-serif; }
+a { color:var(--link); }
+blockquote { margin:18px 0; padding:4px 0 4px 18px; border-left:4px solid var(--fg); font-weight:600; }
+h2 { font-size:24px; margin:40px 0 6px; }
+.venue { color:var(--faint); margin:0 0 14px; }
+ul.cards { list-style:none; padding:0; margin:0; display:grid; gap:14px; }
+ul.cards li { background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:18px 20px; }
+ul.cards h3 { margin:0 0 6px; font-size:20px; }
+ul.cards .tools { font-size:15px; color:var(--faint); margin:0 0 8px; }
+ul.cards p { margin:0 0 10px; color:var(--mut); }
+ul.cards a.go { font-weight:600; text-decoration:none; }
+footer { max-width:860px; margin:0 auto; padding:24px 16px 48px; border-top:1px solid var(--rule); color:var(--faint); font-size:16px; }
+@media (max-width:600px) { h1 { font-size:30px; } .sub { font-size:19px; } }
+</style>
+</head>
+<body>
+<main>
+<h1>ADCS Lifecycle Demo</h1>
+<p class="sub">Evidence, attestation and requirements traceability, one satellite at a time</p>
+<p class="by">Michael Zargham · Dynamical Systems Group · OpenMBEE</p>
+
+<svg class="hero" viewBox="0 0 560 360" role="img" aria-label="A communications satellite in geosynchronous orbit, its antenna pointed at Earth; after a slew, pointing error must settle within 0.1 degrees in 120 seconds">
+<circle cx="230" cy="230" r="80" fill="var(--sky)" stroke="#2166ac" stroke-width="1.5"/>
+<text x="230" y="236" text-anchor="middle">Earth</text>
+<circle cx="230" cy="230" r="200" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="6 6"/>
+<text x="20" y="24">geosynchronous orbit</text>
+<path d="M347,96 L258,152 L300,190 Z" fill="var(--beam)"/>
+<g transform="translate(372,72) rotate(40)">
+<rect class="s" x="-90" y="-10" width="64" height="20" stroke-width="1.5"/>
+<rect class="s" x="26" y="-10" width="64" height="20" stroke-width="1.5"/>
+<rect class="s" x="-24" y="-22" width="48" height="44" rx="4" stroke-width="2"/>
+<path class="s" d="M-16,22 Q0,40 16,22" stroke-width="1.5"/>
+</g>
+<rect class="s" x="300" y="268" width="250" height="84" rx="10" stroke-width="1.5"/>
+<text x="316" y="294" font-weight="700">REQ-001</text>
+<text x="316" y="318">pointing error within 0.1°</text>
+<text x="316" y="340">within 120 s of a slew</text>
+</svg>
+
+<p>The subject never changes. A geosynchronous communications satellite has an attitude determination and control system (ADCS): a PD controller with two gains, Kp and Kd. One requirement, REQ-001, says the pointing error must settle within 0.1° within 120 seconds of a slew. Symbolic analysis and simulation produce evidence about it. Sometimes the two disagree, and a person still has to judge whether the requirement is satisfied.</p>
+<blockquote>Evidence does not verify requirements; evidence supports a human judgment that requirements are satisfied.</blockquote>
+<p>This repository is a running workspace. The same example has been built for three audiences with three toolchains, and each version stays runnable: first a marimo notebook over RDF, then a Jupyter walkthrough, then a marimo deck with the model in SysML v2 itself. Start wherever suits you.</p>
+
+<h2>OpenMBEE community call</h2>
+<p class="venue">Flexo / SysML v2 dev meeting · May 22, 2026</p>
+<ul class="cards">
+<li>
+<h3>ADCS lifecycle notebook</h3>
+<p class="tools">marimo · RDF (PROV, EARL, GSN) · SHACL · SymPy · SciPy</p>
+<p>The original. It takes the ADCS from structure through symbolic analysis, simulation and engineer attestation. All the traceability lives as named RDF graphs and is checked by a SHACL closure-rule suite. This page is a static export, with code.</p>
+<a class="go" href="notebook/">Open the notebook →</a>
+</li>
+</ul>
+
+<h2>JAXA MBSE/MCE Workshop</h2>
+<p class="venue">Presentations from Industry · June 12, 2026</p>
+<ul class="cards">
+<li>
+<h3>Intro slides</h3>
+<p class="tools">PDF</p>
+<p>Bidirectional Requirements Traceability with Reproducible Evidence: how to keep design judgment auditable across tools, disciplines and time.</p>
+<a class="go" href="jaxa/slides.pdf">Open the slides (PDF) →</a>
+</li>
+<li>
+<h3>Demo notebook</h3>
+<p class="tools">Jupyter · rdflib · Flexo MMS · SymPy · SciPy</p>
+<p>The live walkthrough as presented. It covers the integration ontology assembled like packages, evidence and attestation as RDF, and a behavior-model oracle beside the human judgment. This page is static HTML of the recorded outputs.</p>
+<a class="go" href="jaxa/notebook/">Open the notebook →</a>
+</li>
+</ul>
+
+<h2>Open Source Architects (OSA) Community</h2>
+<p class="venue">October 15, 2026</p>
+<ul class="cards">
+<li>
+<h3>Evidence, Attestation, and Requirements Traceability with Python and Flexo MMS</h3>
+<p class="tools">marimo · SysML v2 (OpenSysML) · Flexo MMS · z3 · SymPy · SciPy · Git</p>
+<p>A slide deck with the demo inside it. The model, the evidence and the person's judgment are written in SysML v2. There are three designs, and in one of them the evidence disagrees. Each judgment is published as a Flexo commit tagged with its Git SHA. This page is a static export with every demo step pre-signed. The live version runs locally against Flexo (see the README).</p>
+<a class="go" href="osa/">Open the slides →</a>
+</li>
+</ul>
+</main>
+<footer>Source for everything on this page: <a href="https://github.com/DynamicalSystemsGroup/ADCS-lifecycle-demo">github.com/DynamicalSystemsGroup/ADCS-lifecycle-demo</a></footer>
+</body>
+</html>
