@@ -14,11 +14,11 @@ def head_sha(path: str = ".") -> str:
     ).stdout.strip()
 
 
-def text_diff(old: str, new: str, name: str = "satellite.sysml") -> str:
-    """Unified diff of two source texts; empty string when identical."""
+def text_diff(old: str, new: str, name: str = "satellite.sysml", n: int = 3) -> str:
+    """Unified diff of two source texts (`n` context lines); empty string when identical."""
     return "".join(difflib.unified_diff(
         old.splitlines(keepends=True), new.splitlines(keepends=True),
-        fromfile=f"a/{name}", tofile=f"b/{name}",
+        fromfile=f"a/{name}", tofile=f"b/{name}", n=n,
     ))
 
 

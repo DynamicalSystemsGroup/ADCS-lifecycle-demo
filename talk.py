@@ -41,7 +41,7 @@ def _t0():
     from sysml import evidence as ev
     from sysml import figures as fg
     from sysml.flexo_v2 import TAG_PREFIX, FlexoV2, NoChangeError
-    from sysml.git_source import head_sha, is_dirty
+    from sysml.git_source import head_sha, is_dirty, text_diff
     from sysml.model import (
         CARD_NOT_SATISFIED,
         CARD_SATISFIED,
@@ -638,7 +638,7 @@ def _d3(K, btn_c3, btn_rev, d3_step, mo):
         if _rec is None:
             return '<p class="hint" style="margin-top:40px">Sign first (step 2).</p>'
         _g = _rec["groups"]
-        _lines = [f'<div class="r"><b>+</b><span>{_g["att"]} elements: the attestation, that is the satisfy claim, its status and its rationale</span></div>',
+        _lines = [f'<div class="r"><b>+</b><span>{_g["att"]} elements: the attestation (satisfy claim, status, rationale)</span></div>',
                   f'<div class="r"><b>−</b><span>{_g["pending_elements"]} elements: the pending marker it replaces</span></div>']
         if _g["other"]:
             _out = ", ".join(f"{k} x{n}" for k, n in sorted(_g["other"].items()))
@@ -646,9 +646,33 @@ def _d3(K, btn_c3, btn_rev, d3_step, mo):
             _end = "Something besides the signature changed: read the audit trail."
         else:
             _end = "Nothing else changed: no design and no evidence element."
-        return ('<div class="rows" style="margin-top:22px;font-size:30px;line-height:1.7">' + "".join(_lines) + "</div>"
-                f'<p style="font-size:34px;font-family:Lora,Georgia,serif;font-weight:600;margin:26px 0 8px">{_end}</p>'
-                f'<p class="kap">Diff of the model before and after the signature, {K.esc(_rec["how"])}.</p>')
+        _ud = _rec.get("udiff") or K.text_diff(_rev["pending"], _rec["text"], n=1)
+        _rows = []
+        for _ln in _ud.splitlines():
+            if _ln.startswith(("+++", "---")):
+                _st = "color:#4b5563;font-weight:700"
+            elif _ln.startswith("@@"):
+                _st = "color:#2166ac;background:#f1f5fb"
+            elif _ln.startswith("+"):
+                _st = "background:#e6ffec;color:#116329"
+            elif _ln.startswith("-"):
+                _st = "background:#ffebe9;color:#82071e"
+            else:
+                _st = "color:#6b7280"
+            _rows.append(f'<div style="{_st};padding:0 10px;white-space:pre-wrap;word-break:break-word">{K.esc(_ln) or "&nbsp;"}</div>')
+        _diff = ('<div style="font-family:SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;line-height:1.45;'
+                 'border:1px solid #e5e7eb;border-radius:8px;background:#ffffff;max-height:470px;overflow:auto;padding:6px 0">'
+                 f'<div style="color:#111111;font-weight:700;padding:0 10px 4px">diff --git a/satellite.sysml b/satellite.sysml</div>'
+                 + "".join(_rows) + "</div>")
+        return ('<div class="flex" style="margin-top:12px;gap:26px;align-items:flex-start">'
+                f'<div style="flex:1;min-width:0">{_diff}'
+                '<p class="kap" style="margin-top:6px">Computed, not drawn: the unified diff of the .sysml text before and after the signature.</p></div>'
+                '<div style="flex:none;width:330px;font-size:22px;line-height:1.4">'
+                f'<p style="margin:0 0 12px"><b style="color:#116329">+{_g["att"]}</b> elements: the attestation (satisfy claim, status, rationale)</p>'
+                f'<p style="margin:0 0 12px"><b style="color:#82071e">−{_g["pending_elements"]}</b> elements: the pending marker it replaces</p>'
+                + "".join(_lines[2:])
+                + f'<p style="font-size:28px;font-family:Lora,Georgia,serif;font-weight:600;margin:20px 0 8px">{_end}</p>'
+                f'<p class="kap">Element counts {K.esc(_rec["how"])}.</p></div></div>')
 
     def _page(busy=False):
         _aud = K.audit(
@@ -667,6 +691,7 @@ def _d3(K, btn_c3, btn_rev, d3_step, mo):
         _old, _new = K.to_elements(_rev["pending"]), K.to_elements(_rec["text"])
         _rec["groups"] = K.group_diff(_old, _new)
         _rec["how"] = "computed from the two model snapshots (the regenerated model, then the signed model)"
+        _rec["udiff"] = K.text_diff(_rev["pending"], _rec["text"], n=1)
     _page()
     # <!-- SLIDE:D3 -->
     return
