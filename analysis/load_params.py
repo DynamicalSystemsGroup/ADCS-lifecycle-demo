@@ -6,6 +6,7 @@ them as a flat dictionary keyed by sysml:declaredName.
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from rdflib import Graph
@@ -13,6 +14,10 @@ from rdflib import Graph
 from ontology.prefixes import SYSML, bind_prefixes
 
 STRUCTURAL_DIR = Path(__file__).resolve().parent.parent / "structural"
+
+# rdflib's SPARQL parser (pyparsing) is not thread-safe: two sessions loading at once in one
+# process (e.g. two browser tabs on `marimo run`) can raise a spurious ParseException.
+_QUERY_LOCK = threading.Lock()
 
 _PARAM_QUERY = """
 SELECT ?name ?value ?unit WHERE {
@@ -42,7 +47,9 @@ def load_params(graph: Graph | None = None) -> dict[str, float]:
         graph = load_structural_graph()
 
     params: dict[str, float] = {}
-    for row in graph.query(_PARAM_QUERY, initNs={"sysml": SYSML}):
+    with _QUERY_LOCK:
+        rows = list(graph.query(_PARAM_QUERY, initNs={"sysml": SYSML}))
+    for row in rows:
         params[str(row.name)] = float(row.value)
     return params
 
