@@ -497,7 +497,7 @@ def _d2(K, btn_c2, btn_z3, d2_dt, d2_limit, d2_step, d2_time, mo):
                       + K.tile("?", "simulation, with the torque limit").replace('class="tile"', 'class="tile" style="border-color:#9ca3af"')
                       + '</div>')
             if _z3 is None:
-                return (_tiles + '<p style="font-size:40px;font-family:Lora,Georgia,serif;font-weight:600;margin:26px 0 8px">Does the simulation pass? Type P or F in the chat.</p>'
+                return (_tiles + '<p style="font-size:40px;font-family:Lora,Georgia,serif;font-weight:600;margin:26px 0 8px">Does the simulation pass?</p>'
                         '<p class="hint" style="margin-bottom:16px">First, the formal check, over a box of nearby designs: the same command as the opening slide.</p>'
                         f'<span class="go">{btn_z3}</span>')
             _tag = '<span class="tag">captured</span>' if _z3["engine"] == "captured" else ""
