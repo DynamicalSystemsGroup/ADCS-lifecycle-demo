@@ -66,12 +66,13 @@ SUFFICIENCY_SATISFIED_TEMPLATE = (
 # `{margin}` is computed (simulated settling minus the limit), never typed. The card text is the
 # second and third sentences, verbatim, so the card is an exact excerpt of the full text.
 SUFFICIENCY_DISAGREE_DRAFT = (
-    "At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s and z3 finds no counterexample across this "
-    "box of nearby designs. The simulation, which enforces the actuator torque limit, settles in "
-    "{t_sim} s on the {axis} axis. "
-    "The torque-limited simulation misses by {margin} s; the result flips with solver step. "
-    "Too close to call is not satisfied. I attest not satisfied."
+    "At Kp={Kp}, Kd={Kd} the linear estimate is {t_sym} s, and Z3 finds no counterexample to that bound across "
+    "this box of nearby designs, for the linear model. The models disagree: the torque-limited simulation misses "
+    "the limit by {margin} s, and the in-model simulation's verdict flips with its solver step. "
+    "Too close to call: I attest not satisfied for this design."
 )
+# False until Michael approves the two DRAFT texts above and below: the card shows a DRAFT tag meanwhile.
+C2_TEXT_APPROVED = False
 # DRAFT (DL-36): optional per-axis sentence, authored by the WP19 author; not approved text.
 PER_AXIS_DRAFT_SENTENCE = (
     "The simulation settles in {x} s about x, {y} s about y and {z} s about z; the worst axis governs."
@@ -84,9 +85,10 @@ CARD_NOT_SATISFIED = ("This evidence is sufficient for me to say this design doe
                       "I attest not satisfied.")
 CARD_SATISFIED = ("This evidence is sufficient: I attest REQ-001's settling-time clause satisfied "
                   "for this design.")
-# DRAFT (DL-36, DL-43): card excerpt of SUFFICIENCY_DISAGREE_DRAFT; `{margin}` is computed.
-CARD_DISAGREE_DRAFT = ("The torque-limited simulation misses by {margin} s; the result flips with solver step. "
-                       "Too close to call is not satisfied.")
+# DRAFT (DL-36, DL-43, DL-45): the card for the (4,25) attestation; `{margin}` is computed. Its closing
+# sentence is the closing sentence of SUFFICIENCY_DISAGREE_DRAFT (without "for this design").
+CARD_DISAGREE_DRAFT = ("The torque-limited simulation misses by {margin} s. Too close to call: "
+                       "I attest not satisfied.")
 
 
 def sufficiency_satisfied(Kp, Kd, t_sim, t_sym, limit) -> str:
@@ -102,12 +104,11 @@ def disagree_margin(t_sim, limit=120) -> str:
 
 def sufficiency_disagree(Kp, Kd, t_sym, t_sim, axis, limit=120) -> str:
     """DRAFT text (DL-36/43) with live numbers. Times keep one decimal: a 120.5 s result must not read as 120."""
-    return SUFFICIENCY_DISAGREE_DRAFT.format(Kp=Kp, Kd=Kd, t_sym=f"{t_sym:.1f}", t_sim=f"{t_sim:.1f}", axis=axis,
-                                             margin=disagree_margin(t_sim, limit))
+    return SUFFICIENCY_DISAGREE_DRAFT.format(Kp=Kp, Kd=Kd, t_sym=f"{t_sym:.0f}", margin=disagree_margin(t_sim, limit))
 
 
 def card_disagree(t_sim, limit=120) -> str:
-    """DRAFT amber-card text with the computed margin: an exact excerpt of `sufficiency_disagree`."""
+    """DRAFT amber-card text with the computed margin."""
     return CARD_DISAGREE_DRAFT.format(margin=disagree_margin(t_sim, limit))
 
 
