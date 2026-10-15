@@ -153,12 +153,12 @@ def _s0():
         return mo.image((mo.notebook_dir() / "talk" / "assets" / name).read_bytes(), **kw)
 
     def mer(diagram: str, width: int = 720):
-        """A Mermaid diagram in a centred box of fixed CSS width. The diagram text carries its own
-        font size (20 px or more); the svg scales down to the box and never up, so this is the only
-        sizing mechanism."""
+        """A Mermaid diagram scaled to a fixed CSS width: the one sizing mechanism. The svg fills a
+        centred box of `width` px (up or down), so every diagram is sized here and nowhere else;
+        the diagram text only sets its own base font (20 px or more)."""
         return mo.Html(
-            f'<div style="width:{width}px;max-width:100%;margin:0 auto;display:flex;justify-content:center">'
-            f"{mo.mermaid(diagram).text}</div>"
+            "<style>.mer svg{display:block;margin:0 auto;width:100%!important;max-width:none!important}</style>"
+            f'<div class="mer" style="width:{width}px;max-width:100%;margin:0 auto">{mo.mermaid(diagram).text}</div>'
         )
 
     def code(text: str):
@@ -355,7 +355,7 @@ def _b1(D, STATUS, mer, mo, structure):
             f"Point within {D['band']:g}° by {D['limit']:.0f} s of a {D['slew']:.0f}° slew. "
             "The design prescribes only Kp and Kd."
         ),
-        mer(D["lanes_b1"], 760),
+        mer(D["lanes_b1"], 600),
         mo.accordion({"Audit trail": mo.md(f"```text\n{structure}\n```")}),
         mo.md(f'<small style="color:#6b7280">{STATUS}</small>'),
     ])
@@ -752,13 +752,13 @@ def _s5(c3, lanes_b4, mer, mo):
             "- Opinion: SysML v2 is the better home now"
         ),
         mo.hstack([
-            mer(_lanes, 620),
+            mer(_lanes, 780),
             mo.vstack([
                 mo.md("**Structure** ≈ `sysml:`"),
                 mo.md("**Evidence** ≈ `prov:`"),
                 mo.md("**Attestation** ≈ `earl:`, `gsn:`"),
             ], justify="space-around"),
-        ], widths=[3, 1], align="center"),
+        ], widths=[2, 1], align="center"),
     ])
     return
 
@@ -779,7 +779,7 @@ def _s6(mo):
 def _s7(D, mer, mo):
     mo.vstack([
         mo.md("## Dynamical Systems Group: executable across the board <!-- SLIDE:S7 -->"),
-        mer(D["sandwich"], 760),
+        mer(D["sandwich"], 560),
     ])
     return
 
