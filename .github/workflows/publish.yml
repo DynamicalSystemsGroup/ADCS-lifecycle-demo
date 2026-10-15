@@ -30,11 +30,13 @@ jobs:
         run: uv sync
 
       # One landing page (site/index.html) with a card per artifact, one folder per presentation.
-      - name: Landing page and JAXA slides
+      - name: Landing page, JAXA and INCOSE IS slides
         run: |
           mkdir -p _site/jaxa
           cp site/index.html _site/
           cp site/jaxa-intro-slides.pdf _site/jaxa/slides.pdf   # fails if missing: no dead card
+          mkdir -p _site/incose
+          cp site/incose-is-2026-slides.pdf _site/incose/slides.pdf
 
       - name: "OpenMBEE community call (2026-05-22): marimo notebook"
         run: uv run marimo export html notebook.py -o _site/notebook/index.html --include-code
