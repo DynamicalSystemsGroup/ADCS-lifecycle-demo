@@ -218,7 +218,8 @@ def test_history_timeline_builds_from_the_data_and_every_label_is_data(history):
     labels = [t.get_text().replace("\n", " ") for t in _texts(fig)]
     joined = " | ".join(labels)
     for e in history["events"]:
-        assert e["label"] in labels
+        # a long label is drawn one part per line, split at " · "
+        assert e["label"] in labels or e["label"].replace(" · ", " ") in labels
     for p in history["phases"]:
         assert p["name"].split(" · ")[0] in joined
     assert history["velocity"]["title"] in labels
