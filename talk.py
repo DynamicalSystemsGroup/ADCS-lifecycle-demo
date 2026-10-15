@@ -393,7 +393,7 @@ def _g1(K):
 
 @app.cell(hide_code=True)
 def _m1(K):
-    # <!-- SLIDE:M1 --> One text file, two renderers.
+    # <!-- SLIDE:M1 --> One .sysml file, two renderers.
     K.slide("m1")
     # <!-- SLIDE:M1 -->
     return
