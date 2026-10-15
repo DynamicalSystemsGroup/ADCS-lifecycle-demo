@@ -107,10 +107,10 @@ def _t0():
             _probe = httpx.get(_url + "/projects", timeout=20)
             _probe.raise_for_status()
             flexo = FlexoV2(base_url=_url)
-            # one project per Git SHA and per session: a rehearsal on the same SHA must not leave the next
-            # run with "no change" (Flexo makes no commit for a snapshot identical to the head)
-            _name = f"sysml-talk-{GIT_SHA[:7]}-{time.strftime('%m%d-%H%M%S')}"
-            _have = [p["@id"] for p in _probe.json() if p["name"] == _name]  # reused on a re-run of the cell
+            # one project per Git SHA, reused across sessions: the local store never frees a project's
+            # commits, so a project per page load made it grow without bound (FLEXO_LOCAL.md, Store growth)
+            _name = f"sysml-talk-{GIT_SHA[:7]}"
+            _have = [p["@id"] for p in _probe.json() if p["name"] == _name]
             project["id"] = _have[0] if _have else flexo.ensure_project(_name)
         except Exception as _e:  # any failure at all: run in local mode, and say so on the slide
             flexo, why = None, type(_e).__name__
@@ -225,8 +225,11 @@ def _t0():
         try:
             commit = flexo.publish(project["id"], to_elements(text), label, GIT_SHA)
             return commit, f"{TAG_PREFIX}{GIT_SHA}", None
-        except NoChangeError:
-            return None, None, "No change: the snapshot is identical to the head, so Flexo made no commit."
+        except NoChangeError:  # identical to the head (a re-run on the same SHA): the head commit is this snapshot
+            try:
+                return flexo.head(project["id"]), f"{TAG_PREFIX}{GIT_SHA}", None
+            except httpx.HTTPError as e:
+                return None, None, f"Flexo publish failed ({type(e).__name__}); this step continues without it."
         except httpx.HTTPError as e:
             return None, None, f"Flexo publish failed ({type(e).__name__}); this step continues without it."
 

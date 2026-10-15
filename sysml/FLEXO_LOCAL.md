@@ -20,7 +20,8 @@ FlexoV2(base_url=None, token=None)       # each falls back to FLEXO_V2_URL / FLE
 .publish(project_id, elements, message, git_sha) -> commit_id   # raises NoChangeError if identical
 .elements(project_id, commit_id) -> {@id: element}
 .git_sha(project_id, commit_id) -> str | None                   # the git-<sha> tag of a commit
-.delete_project(project_id)
+.head(project_id) -> commit_id                                 # head of the default branch
+.delete_project(project_id)                                     # identity-only; frees no space
 diff(a, b) -> {"added", "removed", "changed"}                   # raw-value comparison
 ```
 
@@ -76,6 +77,33 @@ docker compose down      # remove containers
 The Fuseki store is in-memory (`--file=cluster.trig`, no TDB volume). **Any restart of
 `quad-server` wipes all projects, commits and the org.** Treat the stack as disposable:
 bring it up, create the org, publish, and re-publish after a restart.
+
+## Store growth and reset
+
+The store only grows. Measured 2026-10-15 on a store of ~26k quads:
+
+| Operation | Quads added | Time |
+|---|---|---|
+| `POST /projects` | 89 | 11.5 s |
+| first commit of the ADCS model | 5,594 | 10 s |
+| each later commit | ~1,950 | 10 s |
+| `DELETE /projects/{id}` | -2 | 2.6 s |
+
+Layer 1 materialises `Model.*`, `Load.*` and `Diff.*` graphs per commit, and a project
+delete removes only the project's identity, so nothing is reclaimed. After a day of
+rehearsals (one project per page load, then) the quad server reached 6 GB and publishes
+took 30-40 s.
+
+The deck (`talk.py`) therefore reuses one project per Git SHA (`sysml-talk-<sha7>`): a page
+load creates no project, and a snapshot identical to the head reuses the head commit. Each
+run of the three demo steps still adds ~6k quads. To start from an empty store:
+
+```bash
+bash scripts/flexo_reset.sh   # restart quad-server, wait, re-create the org (step 3)
+```
+
+It reads the compose directory from `FLEXO_COMPOSE_DIR` (default: a
+`flexo-mms-sysmlv2/docker-compose` checkout next to this repo).
 
 ## Notebook environment
 
