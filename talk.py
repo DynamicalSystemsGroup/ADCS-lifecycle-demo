@@ -714,6 +714,14 @@ def _x1(K):
 
 
 @app.cell(hide_code=True)
+def _t1(K):
+    # <!-- SLIDE:T1 --> Inventory of the tools behind the talk, grouped by the framework rows.
+    K.slide("tools")
+    # <!-- SLIDE:T1 -->
+    return
+
+
+@app.cell(hide_code=True)
 def _c1(K):
     # <!-- SLIDE:C1 --> Three things to do on Monday; the opening line returns, with its answer.
     _cap = (K.ASSETS / "tool-verify.txt").read_text()
