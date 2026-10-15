@@ -39,7 +39,7 @@ def _s0():
     from sysml import figures as fg
     from sysml.flexo_v2 import TAG_PREFIX, FlexoV2, NoChangeError
     from sysml.git_source import head_sha, is_dirty, text_diff
-    from sysml.lanes import lanes_mermaid, sandwich_mermaid, two_store_mermaid
+    from sysml.lanes import lanes_mermaid, stack_mermaid, two_store_mermaid
     from sysml.model import (
         ADEQUACY_TEXT,
         CARD_ADEQUACY,
@@ -347,8 +347,8 @@ def _s0():
         tag_text,
         re,
         run_step_response,
-        sandwich_mermaid,
         seed_label,
+        stack_mermaid,
         should_fire,
         status_block,
         store,
@@ -385,21 +385,11 @@ def _s1_history(audit, fg, head, mo, png):
 
 
 @app.cell(hide_code=True)
-def _s1(asset, head, mo):
-    mo.hstack([
-        mo.vstack([
-            head(
-                "## OpenSysML: the stack <!-- SLIDE:S1 -->\n\n"
-                "- REDK (Go runtime)\n"
-                "- sysml-toolkit (Rust)\n"
-                "- Flexo MMS (model store, SysML v2 API)\n"
-                "- OMG Pilot (reference)\n\n"
-                "Apache-2.0 (Pilot: EPL-2.0)"
-            ),
-            mo.md("<small><i>rendered by Kotar (Planetary Utilities); not color-coded</i></small>"),
-        ], justify="center"),
-        asset("toaster-states.png", width=560, rounded=True),
-    ], widths=[1, 1], align="center")
+def _s1(head, mer, mo, stack_mermaid):
+    mo.vstack([
+        head("## OpenSysML in the stack <!-- SLIDE:S1 -->\n\nApache-2.0 (Pilot: EPL-2.0)"),
+        mer(stack_mermaid(), 760),
+    ], gap=0.4)
     return
 
 
@@ -851,7 +841,7 @@ def _s6(head):
     head("""
     ## The pattern beyond satellites <!-- SLIDE:S6 -->
 
-    - Contextual AI Evaluation (CAIE): machine-verified or human-validated
+    - AI-generated work: machine-verified, human-validated
     - Tool testing. Opinion: exit 0 is not a verdict
     - Gaps become upstream issues
     """)
@@ -859,11 +849,11 @@ def _s6(head):
 
 
 @app.cell(hide_code=True)
-def _s7(D, head, mer, mo):
+def _s7(asset, head, mo):
     mo.vstack([
-        head("## Dynamical Systems Group: executable across the board <!-- SLIDE:S7 -->"),
-        mo.hstack([mer(D["sandwich"], 457)], justify="center"),
-    ])
+        head("## Our framework <!-- SLIDE:S7 -->\n\nDeclaration to realization"),
+        mo.hstack([asset("framework-layers.png", width=1000)], justify="center"),
+    ], gap=0.4)
     return
 
 
@@ -882,7 +872,6 @@ def _s8(
     png,
     re,
     run_step_response,
-    sandwich_mermaid,
     symbolic_settling,
     to_elements,
     two_store_mermaid,
@@ -931,11 +920,6 @@ def _s8(
         "n_nb": len(NEIGHBOURS),
         "lanes_b1": lanes_mermaid(to_elements(assemble(structure)), compact=True),
         "two_store": two_store_mermaid(),
-        "sandwich": sandwich_mermaid([
-            "<b>Systems engineering</b><br/>the SysML v2 you just saw",
-            "<b>Modeling and analysis</b><br/>what we have always done",
-            "<b>Governed compute</b><br/>what we model runs, reproducibly",
-        ]),
     }
 
     name_in = mo.ui.text(value=DEMO_ENGINEER, label="Attesting as", full_width=False)

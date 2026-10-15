@@ -347,3 +347,27 @@ def sandwich_mermaid(layers) -> str:
     out += ["  L0 --- L1 --- L2", f"  classDef layer fill:#f1f3f4,stroke:{p},stroke-width:3px",
             "  class L0,L1,L2 layer"]
     return "\n".join(out)
+
+
+def stack_mermaid() -> str:
+    """S1: the supply chain from standard to mission, four layers top to bottom, joined by labelled
+    arrows; a dashed arrow carries feedback from the organizations back up to the standards.
+    Neutral greys only: this is neither machine nor human output."""
+    p = PALETTE["prescribed"]
+    return "\n".join([
+        "%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '22px', 'lineColor': '#6b7280', "
+        "'edgeLabelBackground': '#ffffff'}, "
+        "'flowchart': {'nodeSpacing': 30, 'rankSpacing': 34, 'padding': 8, 'wrappingWidth': 800}}}%%",
+        "flowchart TB",
+        '  L0["<b>Standards</b><br/>OMG SysML v2 · KerML · Systems Modeling API"]',
+        '  L1["<b>Open-source software</b><br/>OpenSysML REDK · sysml-toolkit · Flexo MMS · OMG Pilot"]',
+        '  L2["<b>Commercial software</b><br/>Kotar · hosted Flexo MMS"]',
+        '  L3["<b>Engineering organizations</b>"]',
+        "  L0 -- implemented as --> L1",
+        "  L1 -- imported by --> L2",
+        "  L2 -- used by --> L3",
+        "  L3 -. feedback .-> L0",
+        f"  classDef layer fill:#f1f3f4,stroke:{p},stroke-width:3px",
+        "  class L0,L1,L2,L3 layer",
+        "  linkStyle 3 stroke:#6b7280,stroke-width:2px",
+    ])
