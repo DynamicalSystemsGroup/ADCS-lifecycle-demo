@@ -10,10 +10,15 @@ from analysis.load_params import load_params
 from analysis.numerical import run_step_response
 from evidence.hashing import hash_simulation
 from sysml.lanes import lanes_mermaid, sandwich_mermaid, stack_mermaid, two_store_mermaid
-from sysml.model import (DEFAULT_ADEQUACY, DEMO_ENGINEER, assemble, attestation_block, evidence_block, load_structure,
+from sysml.model import (DEMO_ENGINEER, adequacy_block, assemble, attestation_block, evidence_block, load_structure,
                          status_block, symbolic_settling, to_elements)
 
 pytestmark = pytest.mark.filterwarnings("ignore")
+
+
+def _assemble(structure, evidence, attestation=""):
+    """Structure + evidence + attestation, with the adequacy judgement once, about the analysis scope."""
+    return assemble(structure, evidence, attestation, adequacy=adequacy_block(DEMO_ENGINEER))
 
 
 def _evidence(design, kp, kd):
@@ -22,7 +27,7 @@ def _evidence(design, kp, kd):
     summary = sim.summary()
     t_est, est_hash = symbolic_settling(params)
     return evidence_block(design, params, summary, hash_simulation(sim.config.to_dict(), summary),
-                          DEFAULT_ADEQUACY, DEMO_ENGINEER, t_est, est_hash)
+                          t_est, est_hash)
 
 
 @pytest.fixture(scope="module")
@@ -31,10 +36,10 @@ def states():
     ev1, ev2 = _evidence("initial", 1.0, 10.0), _evidence("tuned", 4.0, 30.0)
     return {
         "c0": lanes_mermaid(to_elements(s)),
-        "c1": lanes_mermaid(to_elements(assemble(s, ev1, attestation_block(
+        "c1": lanes_mermaid(to_elements(_assemble(s, ev1, attestation_block(
             "initial", False, DEMO_ENGINEER, "done", "Too slow.", "vc001_initial")))),
-        "c2": lanes_mermaid(to_elements(assemble(s, ev2, status_block("req001")))),
-        "c3": lanes_mermaid(to_elements(assemble(s, ev2, attestation_block(
+        "c2": lanes_mermaid(to_elements(_assemble(s, ev2, status_block("req001")))),
+        "c3": lanes_mermaid(to_elements(_assemble(s, ev2, attestation_block(
             "tuned", True, DEMO_ENGINEER, "done", "Inside the limit.", "vc001_tuned")))),
     }
 
@@ -233,10 +238,10 @@ def compact(states):
     ev1, ev2 = _evidence("initial", 1.0, 10.0), _evidence("tuned", 4.0, 30.0)
     return {
         "c0": lanes_mermaid(to_elements(s), compact=True),
-        "c1": lanes_mermaid(to_elements(assemble(s, ev1, attestation_block(
+        "c1": lanes_mermaid(to_elements(_assemble(s, ev1, attestation_block(
             "initial", False, DEMO_ENGINEER, "done", "Too slow.", "vc001_initial"))), compact=True),
-        "c2": lanes_mermaid(to_elements(assemble(s, ev2, status_block("req001"))), compact=True),
-        "c3": lanes_mermaid(to_elements(assemble(s, ev2, attestation_block(
+        "c2": lanes_mermaid(to_elements(_assemble(s, ev2, status_block("req001"))), compact=True),
+        "c3": lanes_mermaid(to_elements(_assemble(s, ev2, attestation_block(
             "tuned", True, DEMO_ENGINEER, "done", "Inside the limit.", "vc001_tuned"))), compact=True),
     }
 
@@ -266,8 +271,10 @@ def test_compact_titles_are_header_nodes_not_cluster_titles(compact):
 
 def test_compact_one_node_per_evidence_source_and_per_judgement(compact):
     m = compact["c3"]
-    assert len(_nodes(m)) == 7  # part def, requirement; design, scipy, SymPy; two judgements
+    assert len(_nodes(m)) == 8  # part def, requirement; assumptions, design, scipy, SymPy; two judgements
     lane = _lane_c(m, "E")
+    assert lane.index("Modeling assumptions") < lane.index("the design")  # leftmost in the evidence lane
+    assert re.search(r"^\s+\w+ -\.- nGeoSatADCS__SettlingAnalysis$|^\s+nGeoSatADCS__SettlingAnalysis -\.- \w+$", m, re.M)
     assert "scipy<br/>simulation" in lane and "SymPy<br/>estimate" in lane and "ToolExecution" not in m
     assert "StatusInfo" not in m and "Rationale" not in m
     assert len(re.findall(r"class \w+ human", m)) == 2  # adequacy judgement, satisfy judgement
@@ -280,7 +287,7 @@ def test_compact_not_satisfied_is_one_amber_card_with_a_distinct_edge(compact):
     assert f"<b>{DEMO_ENGINEER}</b><br/>NOT satisfied" in m
     assert re.search(r"class \w+ negated", m)
     assert re.search(r"^\s+\w+ -\.- \w+$", m, re.M) and "linkStyle" in m  # dotted, amber
-    assert len(_nodes(m)) == 7
+    assert len(_nodes(m)) == 8
     assert "line-through" not in m
 
 

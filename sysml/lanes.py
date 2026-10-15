@@ -90,6 +90,9 @@ def lanes_mermaid(elements: list[dict], compact: bool = False, terms: dict | Non
         elif t == "RequirementUsage":
             lane["S"].append(f'{n}(["<b>{name(i)}</b><br/>requirement"])')  # stadium: prescribed, set apart by shape
             cls[n] = "req"
+        elif t == "AnalysisCaseDefinition":  # the analysis scope: what the adequacy judgement is about
+            lane["E"].insert(0, f'{n}["<b>Modeling assumptions</b>"]')
+            cls[n] = "struct"
         elif t == "PartUsage":
             lane["E"].append(f'{n}["<b>{name(i)}</b> : ADCS"]')
             cls[n] = "machine"
@@ -129,7 +132,7 @@ def lanes_mermaid(elements: list[dict], compact: bool = False, terms: dict | Non
             elif kind == "Rationale":
                 kinds = {s[a]["@type"] for a in about}
                 role = ("sufficiency" if set(about) & satisfies else
-                        "adequacy" if "PartUsage" in kinds else None)
+                        "adequacy" if "AnalysisCaseDefinition" in kinds else None)
                 head = f"Rationale ({role})" if role else "Rationale"
                 lane["A"].append(f'{n}["{head}<br/><i>{_clip(txt[0] if txt else "", 40)}</i>"]')
                 cls[n] = "human" if set(about) & named_about else "neutral"  # unattributed: nobody's words
@@ -226,6 +229,9 @@ def _compact(elements: list[dict], terms: dict) -> str:
         elif t == "RequirementUsage":
             lane["S"].append(f'{n}(["<b>{name(i)}</b><br/>requirement"])')
             cls[n] = "req"
+        elif t == "AnalysisCaseDefinition":  # the analysis scope: what the adequacy judgement is about
+            lane["E"].insert(0, f'{n}["<b>Modeling assumptions</b>"]')
+            cls[n] = "struct"
         elif t == "PartUsage":
             lane["E"].append(f'{n}["<b>{name(i)}</b><br/>the design"]')
             cls[n] = "machine"
