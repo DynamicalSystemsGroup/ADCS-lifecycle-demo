@@ -306,7 +306,8 @@ def _h1(K):
         + K.title("OpenMBEE's open tools are a decade old, and the newest are weeks old")
         + '<div class="bld" data-n="2"><div style="position:relative;width:1166px;margin-top:6px">'
         + f'<img src="{_src}" alt="OpenMBEE history timeline" style="display:block;width:1166px">'
-        + '<div data-s="1" style="position:absolute;left:58.6%;top:0;right:0;bottom:0;background:#fff"></div></div>'
+        + '<div data-s="1" style="position:absolute;left:58.6%;top:0;right:0;bottom:0;background:#fff"></div>'
+        + '<div data-s="1" style="position:absolute;left:55.8%;top:68%;width:2.6%;height:8%;background:#e5e7eb"></div></div>'
         + f'<p class="src">Public GitHub release data, retrieved {_v["retrieved"]}; NumFOCUS; PyPI.</p>'
         + "</div></div>"
     )))
@@ -544,7 +545,7 @@ def _d3(K, btn_c3, btn_rev, d3_step, mo):
                     f'<div style="display:flex;gap:16px;align-items:center;margin-top:22px;flex-wrap:wrap">{K.tile(f"{_d["symbolic_s"]:.1f} s", "linear estimate (SymPy)")}'
                     f'{K.pill("pass", "REQ-001: PASS")}{K.pill("pend", "pending: no one has judged")}</div></div>'
                     f'<div style="flex:1;text-align:center">{K.img(_rev["uri"], "width:430px;border:1px solid #e5e7eb;border-radius:8px", "Regenerated requirement view")}'
-                    f'<p class="kap">OpenSysML requirement view, regenerated in {_rev["secs"]:.1f} s {_tag}</p></div></div>')
+                    f'<p class="kap">OpenSysML requirement view, ' + (f'regenerated in {_rev["secs"]:.1f} s' if _rev["engine"] == "live" else 'toolchain not available here') + f' {_tag}</p></div></div>')
         if _rev is None:
             return '<p class="hint" style="margin-top:40px">Revise the design first (step 1).</p>'
         if _step == 2:
@@ -663,7 +664,7 @@ def _r3(K, mo):
     _m = mo.mermaid(_lanes).text
     K.deck('<div class="slide">' + K.title("First built in RDF. Same pattern.")
            + f'<div style="width:760px;max-width:100%;margin:10px auto 0">{_m}</div>'
-           + '<p class="src">PROV (provenance), EARL (outcomes), GSN (assurance arguments); ≈ means corresponds to.</p></div>')
+           + '<p class="src">PROV, EARL, GSN: provenance, outcome and argument vocabularies.</p></div>')
     # <!-- SLIDE:R3 -->
     return
 
