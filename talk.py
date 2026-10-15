@@ -377,7 +377,7 @@ def _h1(K):
 
 @app.cell(hide_code=True)
 def _h2(K):
-    # <!-- SLIDE:H2 --> The stack: standards, open-source tools, one install command.
+    # <!-- SLIDE:H2 --> Where open source fits: standards, open source, controlled environments, organizations (bottom up).
     K.slide("stack")
     # <!-- SLIDE:H2 -->
     return

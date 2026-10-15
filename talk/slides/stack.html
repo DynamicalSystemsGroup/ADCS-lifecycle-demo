@@ -1,50 +1,36 @@
 <div class="slide">
-<div class="bld" data-n="3">
-<h2>OpenSysML is a stack you can use today</h2>
-<svg viewBox="0 0 1180 540" role="img" aria-label="Standards, open source, commercial and organizations layers">
+<h2>Where open source fits in systems engineering</h2>
+<svg viewBox="0 0 1180 496" role="img" aria-label="Four layers built from the bottom up: standards, open-source software, controlled work environments, engineering organizations; feedback runs back down">
 <defs>
-<marker id="stk-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111111"/></marker>
-<marker id="stk-ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker>
+<marker id="st-up" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111111"/></marker>
+<marker id="st-fb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker>
 </defs>
-<!-- Standards -->
-<rect class="hair" x="0" y="0" width="1040" height="96" rx="10"/>
-<text class="h2t mut" x="20" y="28">Standards</text>
-<rect class="box" x="20"  y="40" width="250" height="44" rx="10"/><text class="h2t anc" x="145" y="69">OMG SysML v2</text>
-<rect class="box" x="284" y="40" width="160" height="44" rx="10"/><text class="h2t anc" x="364" y="69">KerML</text>
-<rect class="box" x="458" y="40" width="290" height="44" rx="10"/><text class="h2t anc" x="603" y="69">Systems Modeling API</text>
-<!-- arrow 1 -->
-<path class="arr" d="M520,96 V132" marker-end="url(#stk-ah)"/><text class="lbl mut" x="536" y="121">implemented as</text>
-<!-- Open source -->
-<rect class="hair" x="0" y="132" width="1040" height="142" rx="10"/>
-<text class="h2t mut" x="20" y="160">Open source</text>
-<g transform="translate(0,172)">
-<rect class="box" x="20" y="0" width="238" height="88" rx="10"/><text class="h2t anc" x="139" y="34">OpenSysML REDK</text><text class="sub blu anc" x="139" y="66">evaluate · solve (z3) · render</text>
-<rect class="box" x="272" y="0" width="238" height="88" rx="10"/><text class="h2t anc" x="391" y="34">sysml-toolkit</text><text class="sub blu anc" x="391" y="66">verify --solve · viz</text>
-<rect class="box" x="524" y="0" width="238" height="88" rx="10"/><text class="h2t anc" x="643" y="34">Flexo MMS</text><text class="sub blu anc" x="643" y="66">versioned model store</text>
-<rect class="box" x="776" y="0" width="238" height="88" rx="10"/><text class="h2t anc" x="895" y="52">OMG Pilot</text>
-</g>
-<!-- build 2: the tags used on stage -->
-<rect data-s="2 3" x="24" y="216" width="230" height="34" rx="8" fill="none" stroke="#2166ac" stroke-width="3"/>
-<rect data-s="2 3" x="286" y="216" width="210" height="34" rx="8" fill="none" stroke="#2166ac" stroke-width="3"/>
-<rect data-s="3" x="538" y="216" width="210" height="34" rx="8" fill="none" stroke="#2166ac" stroke-width="3"/>
-<!-- arrow 2 -->
-<path class="arr" d="M520,274 V310" marker-end="url(#stk-ah)"/><text class="lbl mut" x="536" y="299">imported by</text>
-<!-- Commercial -->
-<rect class="hair" x="0" y="310" width="1040" height="96" rx="10"/>
-<text class="h2t mut" x="20" y="338">Commercial</text>
-<rect class="box" x="20"  y="350" width="200" height="44" rx="10"/><text class="h2t anc" x="120" y="379">Kotar</text>
-<rect class="box" x="234" y="350" width="290" height="44" rx="10"/><text class="h2t anc" x="379" y="379">hosted Flexo MMS</text>
-<!-- arrow 3 -->
-<path class="arr" d="M520,406 V442" marker-end="url(#stk-ah)"/><text class="lbl mut" x="536" y="431">used by</text>
-<!-- Organizations -->
-<rect class="hair" x="0" y="442" width="1040" height="96" rx="10"/>
-<text class="h2t mut" x="20" y="470">Organizations</text>
-<rect class="box" x="20" y="482" width="330" height="44" rx="10"/><text class="h2t anc" x="185" y="511">engineering organizations</text>
-<!-- feedback -->
-<path class="arrM dash" d="M1040,490 H1100 V48 H1048" marker-end="url(#stk-ag)"/>
-<text class="lbl gry" transform="translate(1142,270) rotate(-90)" text-anchor="middle">feedback</text>
-<g data-s="3"><rect x="560" y="482" width="400" height="46" rx="10" fill="#f6f8fa" stroke="#e5e7eb"/><text class="mono anc" x="760" y="514" style="font-size:24px">pip install opensysml</text></g>
+<!-- left axis: stability at the base, responsibility at the top -->
+<path class="arrM" d="M40,484 V20" marker-end="url(#st-fb)"/>
+<text class="sub" x="56" y="34">accountable for outcomes</text>
+<text class="sub" x="56" y="490">slow, stable foundation</text>
+<!-- 4: engineering organizations (top) -->
+<rect class="human" x="150" y="48" width="860" height="84" rx="12"/>
+<text class="h1t" x="180" y="98">Engineering organizations</text>
+<text class="lbl mut" x="530" y="98">do the engineering; own the outcome</text>
+<!-- 3: controlled work environments -->
+<rect class="hair" x="150" y="160" width="860" height="84" rx="12"/>
+<text class="h1t" x="180" y="210">Controlled work environments</text>
+<text class="lbl mut" x="530" y="210">hosted by the organization or its tool vendors</text>
+<!-- 2: open-source software (the point of the slide) -->
+<rect x="150" y="272" width="860" height="84" rx="12" fill="#ffffff" stroke="#111111" stroke-width="3"/>
+<text class="h1t" x="180" y="322">Open-source software</text>
+<text class="lbl" x="530" y="322">carries the standards into code anyone can build on</text>
+<!-- 1: standards (bottom) -->
+<rect class="hair" x="150" y="384" width="860" height="84" rx="12"/>
+<text class="h1t" x="180" y="434">Standards</text>
+<text class="lbl mut" x="530" y="434">change slowly; give everything above a stable base</text>
+<!-- upward arrows between layers -->
+<path class="arr" d="M580,382 V362" marker-end="url(#st-up)"/><text class="sub" x="594" y="377">implemented as</text>
+<path class="arr" d="M580,270 V250" marker-end="url(#st-up)"/><text class="sub" x="594" y="265">deployed into</text>
+<path class="arr" d="M580,158 V138" marker-end="url(#st-up)"/><text class="sub" x="594" y="153">used by</text>
+<!-- feedback runs back down -->
+<path class="arrM dash" d="M1014,90 H1070 V426 H1018" marker-end="url(#st-fb)"/>
+<text class="sub" x="1090" y="258" transform="rotate(90 1090 258)" style="text-anchor:middle">feedback</text>
 </svg>
-<p class="src">Apache-2.0 (Pilot: EPL-2.0) · opensysml.org</p>
-</div>
 </div>
