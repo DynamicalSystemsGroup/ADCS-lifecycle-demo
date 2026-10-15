@@ -708,7 +708,12 @@ def _f2(K):
 @app.cell(hide_code=True)
 def _x1(K):
     # <!-- SLIDE:X1 --> Opinion: every automated system needs a behavioral envelope.
-    K.slide("envelope")
+    _d = K.D[K.NEAR]
+    _tail = ('<div class="callout" style="flex:1"><div style="font-size:18px;font-weight:700">z3, for the linear model</div>'
+             '<div style="font-size:22px;line-height:1.25">holds for all values of unbound features</div></div>')
+    _card = K.human_card("NOT SATISFIED", f"simulation {_d['settling']['worst']:.1f} s").replace(
+        f"NOT SATISFIED · {K.esc(K.ENGINEER)}", f"NOT SATISFIED · {K.esc(K.SHORT)}").replace('class="card"', 'class="card" style="flex:none;width:300px"')
+    K.slide("envelope", H0LINE=_tail, CLOSEKEY=_card)
     # <!-- SLIDE:X1 -->
     return
 
@@ -723,14 +728,8 @@ def _t1(K):
 
 @app.cell(hide_code=True)
 def _c1(K):
-    # <!-- SLIDE:C1 --> Call to action: start modeling, get involved, teaming; then the opening line returns, with its answer.
-    _cap = (K.ASSETS / "tool-verify.txt").read_text()
-    _d = K.D[K.NEAR]
-    _tail = ('<div class="callout" style="flex:1"><div style="font-size:18px;font-weight:700">z3, for the linear model</div>'
-             '<div style="font-size:22px;line-height:1.25">holds for all values of unbound features</div></div>')
-    _card = K.human_card("NOT SATISFIED", f"simulation {_d['settling']['worst']:.1f} s").replace(
-        f"NOT SATISFIED · {K.esc(K.ENGINEER)}", f"NOT SATISFIED · {K.esc(K.SHORT)}").replace('class="card"', 'class="card" style="flex:none;width:300px"')
-    K.slide("cta", H0LINE=_tail, CLOSEKEY=_card)
+    # <!-- SLIDE:C1 --> Call to action: start modeling, get involved, teaming with DSG.
+    K.slide("cta")
     # <!-- SLIDE:C1 -->
     return
 
